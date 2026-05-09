@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import { apiClient } from "@/lib/api-client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -76,10 +78,20 @@ export default function BillingHubPage() {
   const { balance } = useCredits();
   const { invoices, isLoading: invoicesLoading } = useInvoices();
   const { openPortal, isLoading: portalLoading } = useBilling();
+  const [storage, setStorage] = useState<{ total_bytes: number; limit_bytes: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchOrgs();
   }, [fetchOrgs]);
+
+  useEffect(() => {
+    apiClient
+      .get<{ total_bytes: number; limit_bytes: number }>("/billing/me/storage")
+      .then(setStorage)
+      .catch(() => setStorage(null));
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("success") === "1") {
@@ -104,15 +116,13 @@ export default function BillingHubPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-10">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             Billing
           </p>
           <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
             {activeOrg?.name ?? "Your workspace"}
           </h1>
-          <p className="text-foreground/65 mt-1 text-sm">
-            Plan, usage, invoices, payment methods.
-          </p>
+          <p className="text-foreground/65 mt-1 text-sm">Plan, usage, invoices, payment methods.</p>
         </div>
         <Button
           onClick={() => openPortal()}
@@ -133,16 +143,16 @@ export default function BillingHubPage() {
 
       {/* Current plan card */}
       <section className="border-foreground/10 bg-card relative overflow-hidden rounded-3xl border p-6 sm:p-8">
-        <div className="bg-brand/[0.06] pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full blur-[120px]" />
+        <div className="bg-brand/[0.06] pointer-events-none absolute -top-32 -right-32 h-72 w-72 rounded-full blur-[120px]" />
         <div className="relative grid gap-6 md:grid-cols-[1.4fr_1fr] md:items-center">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+              <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
                 Current plan
               </span>
               <span
                 className={cn(
-                  "inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider",
+                  "inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase",
                   statusTone,
                 )}
               >
@@ -159,7 +169,7 @@ export default function BillingHubPage() {
                   {formatDate(subscription.current_period_end)}
                 </span>
                 {subscription.cancel_at_period_end && (
-                  <span className="text-destructive ml-2 font-mono text-[11px] uppercase tracking-wider">
+                  <span className="text-destructive ml-2 font-mono text-[11px] tracking-wider uppercase">
                     · Cancels at period end
                   </span>
                 )}
@@ -201,8 +211,8 @@ export default function BillingHubPage() {
             limit={creditsLimit}
             unit="credits"
             hint={
-              balance && balance.threshold > 0
-                ? `Auto-refill threshold ${balance.threshold.toLocaleString()}`
+              balance && balance.low_threshold > 0
+                ? `Auto-refill threshold ${balance.low_threshold.toLocaleString()}`
                 : undefined
             }
           />
@@ -219,10 +229,14 @@ export default function BillingHubPage() {
           <UsageGauge
             label="Storage"
             icon={HardDrive}
-            used={0}
-            limit={0}
+            used={storage ? storage.total_bytes / 1_073_741_824 : 0}
+            limit={storage ? storage.limit_bytes / 1_073_741_824 : 0}
             unit="GB"
-            hint="Backend wiring required for storage metering"
+            hint={
+              storage
+                ? `Chat attachments + indexed RAG documents`
+                : "Failed to load storage usage"
+            }
           />
         </div>
       </section>
@@ -284,7 +298,7 @@ export default function BillingHubPage() {
             No invoices yet. They appear here after your first paid period.
           </div>
         ) : (
-          <ul className="border-foreground/10 -mx-2 divide-y divide-foreground/10 overflow-hidden rounded-xl">
+          <ul className="border-foreground/10 divide-foreground/10 -mx-2 divide-y overflow-hidden rounded-xl">
             {invoices.slice(0, 5).map((inv) => (
               <li
                 key={inv.id}
@@ -294,7 +308,7 @@ export default function BillingHubPage() {
                   <p className="text-foreground text-sm font-medium">
                     {inv.number ?? `Invoice ${inv.id.slice(0, 8)}`}
                   </p>
-                  <p className="text-foreground/55 mt-0.5 font-mono text-[11px] uppercase tracking-wider">
+                  <p className="text-foreground/55 mt-0.5 font-mono text-[11px] tracking-wider uppercase">
                     {formatDate(inv.period_start)} — {formatDate(inv.period_end)}
                   </p>
                 </div>
@@ -304,7 +318,7 @@ export default function BillingHubPage() {
                   </p>
                   <p
                     className={cn(
-                      "mt-0.5 font-mono text-[10px] uppercase tracking-wider",
+                      "mt-0.5 font-mono text-[10px] tracking-wider uppercase",
                       inv.status === "paid"
                         ? "text-brand"
                         : inv.status === "open"

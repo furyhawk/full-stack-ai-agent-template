@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrganizations } from "@/hooks";
 import { useRouter } from "next/navigation";
 
@@ -38,6 +38,7 @@ export function OrgSwitcher() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2 px-2">
           <Avatar className="h-5 w-5">
+            {displayOrg.avatar_url && <AvatarImage src={`/api/orgs/${displayOrg.id}/avatar`} />}
             <AvatarFallback className="text-[10px]">
               {displayOrg.name.substring(0, 2).toUpperCase()}
             </AvatarFallback>
@@ -50,6 +51,7 @@ export function OrgSwitcher() {
         {orgs.map((org) => (
           <DropdownMenuItem key={org.id} onSelect={() => switchOrg(org.id)} className="gap-2">
             <Avatar className="h-5 w-5">
+              {org.avatar_url && <AvatarImage src={`/api/orgs/${org.id}/avatar`} />}
               <AvatarFallback className="text-[10px]">
                 {org.name.substring(0, 2).toUpperCase()}
               </AvatarFallback>

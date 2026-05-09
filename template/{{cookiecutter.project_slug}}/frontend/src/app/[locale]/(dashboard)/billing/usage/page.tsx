@@ -127,8 +127,7 @@ export default function UsageDashboardPage() {
             `"${(t.description ?? "").replace(/"/g, '""')}"`,
           ].join(","),
         ),
-      ].join("
-");
+      ].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -161,7 +160,7 @@ export default function UsageDashboardPage() {
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8">
+    <div className="mx-auto w-full max-w-5xl space-y-8 pb-12">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
@@ -281,4 +280,5 @@ export default function UsageDashboardPage() {
     </div>
   );
 }
+
 {% endraw %}

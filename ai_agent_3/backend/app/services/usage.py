@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -13,8 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.repositories.usage_event as usage_repo
 from app.core.config import settings
+from app.db.models.credit_transaction import CreditTransactionType
 from app.services.billing.credit_service import CreditService
 from app.services.billing.pricing import usage_to_credits
+
+logger = logging.getLogger(__name__)
 
 
 class UsageService:
@@ -32,8 +33,19 @@ class UsageService:
         """
         cutoff = datetime.now(UTC) - timedelta(days=retention_days)
         deleted = await usage_repo.delete_older_than(self.db, cutoff)
-        await self.db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_usage_daily"))
+        await self.refresh_daily_matview()
         return deleted
+
+    async def refresh_daily_matview(self) -> None:
+        """Refresh ``mv_usage_daily`` so the dashboard shows recent activity.
+
+        Falls back to a non-concurrent refresh if the view has never been populated
+        (CONCURRENTLY requires the view to have data + a unique index).
+        """
+        try:
+            await self.db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_usage_daily"))
+        except Exception:
+            await self.db.execute(text("REFRESH MATERIALIZED VIEW mv_usage_daily"))
 
     async def record(
         self,
@@ -75,7 +87,9 @@ class UsageService:
             try:
                 await self._credit_svc.debit(
                     organization_id=organization_id,
+                    actor_user_id=actor_user_id,
                     amount=credits,
+                    type=CreditTransactionType.DEBIT_AGENT,
                     description=f"{model} — {input_tokens + output_tokens} tokens",
                     usage_event_id=event.id,
                 )

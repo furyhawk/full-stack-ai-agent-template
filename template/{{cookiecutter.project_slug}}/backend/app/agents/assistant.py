@@ -86,7 +86,7 @@ class AssistantAgent:
         thinking_effort: str | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
-        self.temperature = temperature or settings.AI_TEMPERATURE
+        self.temperature = temperature if temperature is not None else settings.AI_TEMPERATURE
         self.thinking_effort = thinking_effort if thinking_effort is not None else (
             settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None
         )
@@ -277,17 +277,24 @@ class AssistantAgent:
 def get_agent(
     model_name: str | None = None,
     thinking_effort: str | None = None,
+    temperature: float | None = None,
 ) -> AssistantAgent:
     """Factory function to create an AssistantAgent.
 
     Args:
         model_name: Override the default AI model.
         thinking_effort: Override thinking effort ("low", "medium", "high", or None to disable).
+        temperature: Sampling temperature (typically 0.0-2.0). ``None`` falls back to
+            ``settings.AI_TEMPERATURE``.
 
     Returns:
         Configured AssistantAgent instance.
     """
-    return AssistantAgent(model_name=model_name, thinking_effort=thinking_effort)
+    return AssistantAgent(
+        model_name=model_name,
+        thinking_effort=thinking_effort,
+        temperature=temperature,
+    )
 
 
 async def run_agent(

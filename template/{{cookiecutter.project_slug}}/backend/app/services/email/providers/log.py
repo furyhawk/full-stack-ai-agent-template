@@ -34,9 +34,9 @@ class LogProvider:
                 ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
                 fname = self._output_dir / f"{ts}_{message.subject[:40].replace(' ', '_')}.html"
                 fname.write_text(message.html, encoding="utf-8")
-                logger.info("email_written_to_disk", path=str(fname))
+                logger.info("email_written_to_disk", extra={"path": str(fname)})
             except Exception as exc:
-                logger.warning("email_write_failed", error=str(exc))
+                logger.warning("email_write_failed", extra={"error": str(exc)})
 
         return SendResult(provider_message_id=msg_id, accepted=True)
 

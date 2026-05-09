@@ -4,7 +4,7 @@
 import enum
 import uuid
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from datetime import datetime
+from datetime import UTC, datetime
 
 {%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, Enum as SQLEnum
@@ -156,7 +156,7 @@ class Subscription(Document):
     canceled_at: Optional[datetime] = None
     trial_start: Optional[datetime] = None
     trial_end: Optional[datetime] = None
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "subscriptions"

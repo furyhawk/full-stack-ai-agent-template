@@ -94,7 +94,7 @@ export function RatingButtons({
         setIsLoading(false);
       }
     },
-    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange],
+    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange, t],
   );
 
   const handleRate = useCallback(
@@ -138,7 +138,15 @@ export function RatingButtons({
         }
       }
     },
-    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange, submitRating],
+    [
+      conversationId,
+      messageId,
+      currentRating,
+      calculateNewCounts,
+      onRatingChange,
+      submitRating,
+      t,
+    ],
   );
 
   const handleCloseDialog = useCallback(() => {

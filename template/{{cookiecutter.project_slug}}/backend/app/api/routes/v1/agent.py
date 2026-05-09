@@ -6,6 +6,7 @@ Per-turn orchestration lives in :class:`app.services.agent_session.AgentSession`
 """
 
 import logging
+import secrets
 from typing import Any
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt and cookiecutter.use_postgresql %}
 from uuid import UUID
@@ -56,8 +57,10 @@ async def list_models() -> dict[str, Any]:
 
 
 async def verify_api_key(api_key: str) -> bool:
-    """Verify the API key for WebSocket authentication."""
-    return api_key == settings.API_KEY
+    """Constant-time API key check. `==` would leak the key over WebSocket
+    timings — `compare_digest` rejects in fixed time regardless of how much
+    of the prefix matches."""
+    return secrets.compare_digest(api_key, settings.API_KEY)
 {%- endif %}
 
 

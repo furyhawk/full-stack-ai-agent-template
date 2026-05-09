@@ -81,14 +81,14 @@ export default function CreditsPage() {
     [timeline],
   );
 
-  const low = balance && balance.threshold > 0 && balance.balance < balance.threshold;
+  const low = balance && balance.low_threshold > 0 && balance.balance < balance.low_threshold;
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 pb-10">
       <div>
         <Link
           href="/billing"
-          className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider"
+          className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to billing
@@ -97,7 +97,7 @@ export default function CreditsPage() {
 
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             Credits
           </p>
           <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -126,15 +126,13 @@ export default function CreditsPage() {
       <section
         className={cn(
           "relative overflow-hidden rounded-3xl border p-6 sm:p-8",
-          low
-            ? "border-destructive/30 bg-destructive/[0.04]"
-            : "border-foreground/10 bg-card",
+          low ? "border-destructive/30 bg-destructive/[0.04]" : "border-foreground/10 bg-card",
         )}
       >
-        <div className="bg-brand/[0.06] pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full blur-[120px]" />
+        <div className="bg-brand/[0.06] pointer-events-none absolute -top-32 -right-32 h-72 w-72 rounded-full blur-[120px]" />
         <div className="relative grid gap-8 md:grid-cols-[1fr_1.4fr] md:items-center">
           <div>
-            <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+            <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
               Current balance
             </p>
             {isLoading ? (
@@ -148,14 +146,14 @@ export default function CreditsPage() {
             {low && balance && (
               <p className="text-destructive mt-3 inline-flex items-center gap-2 text-xs font-medium">
                 <AlertCircle className="h-3.5 w-3.5" />
-                Below alert threshold of {balance.threshold.toLocaleString()} credits.
+                Below alert threshold of {balance.low_threshold.toLocaleString()} credits.
               </p>
             )}
           </div>
 
           <div>
             <div className="flex items-baseline justify-between">
-              <span className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+              <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
                 Usage · last 30 days
               </span>
               {timeline && (
@@ -226,7 +224,7 @@ export default function CreditsPage() {
             </p>
           </div>
           {transactions && transactions.total > (transactions.items.length ?? 0) && (
-            <span className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+            <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
               Showing {transactions.items.length} / {transactions.total}
             </span>
           )}
@@ -255,7 +253,7 @@ export default function CreditsPage() {
                   <p className="text-foreground text-sm font-medium">
                     {tx.description ?? "Credit transaction"}
                   </p>
-                  <p className="text-foreground/55 mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
+                  <p className="text-foreground/55 mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-wider uppercase">
                     <span
                       className={cn(
                         "inline-flex rounded-full border px-2 py-0.5",
@@ -279,7 +277,7 @@ export default function CreditsPage() {
                     {tx.delta > 0 ? "+" : ""}
                     {tx.delta.toLocaleString()}
                   </p>
-                  <p className="text-foreground/45 mt-0.5 font-mono text-[10px] uppercase tracking-wider">
+                  <p className="text-foreground/45 mt-0.5 font-mono text-[10px] tracking-wider uppercase">
                     bal {tx.balance_after.toLocaleString()}
                   </p>
                 </div>

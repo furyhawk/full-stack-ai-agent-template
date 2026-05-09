@@ -1085,14 +1085,13 @@ def get_api_key_service(db: DBSession) -> ApiKeyService:
 
 ApiKeySvc = Annotated[ApiKeyService, Depends(get_api_key_service)]
 {%- endif %}
-{%- if cookiecutter.enable_admin_panel %}
 from app.services.admin import AdminService
 
 
 def get_admin_service(db: DBSession) -> AdminService:
-    """Create AdminService instance."""
+    """Create AdminService instance — used by admin REST routes (always
+    available, independent of the optional SQLAdmin UI)."""
     return AdminService(db)
 
 
 AdminSvc = Annotated[AdminService, Depends(get_admin_service)]
-{%- endif %}

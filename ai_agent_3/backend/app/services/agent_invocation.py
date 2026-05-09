@@ -3,6 +3,16 @@
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import UUID
+
+from pydantic_ai.messages import ModelRequest, ModelResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agents.assistant import Deps, get_agent
+from app.core.config import settings
+from app.repositories import conversation_repo, knowledge_base_repo
+from app.services.agent import build_message_history
+from app.services.usage import UsageService
 
 
 @dataclass
@@ -14,13 +24,18 @@ class ToolEvent:
     result: str = ""
 
 
-from uuid import UUID
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.config import settings
-
 logger = logging.getLogger(__name__)
+
+
+def _provider_from_model(model_name: str) -> str:
+    name = (model_name or "").lower()
+    if name.startswith(("gpt", "o1", "o3", "o4", "openai")):
+        return "openai"
+    if name.startswith(("claude", "anthropic")):
+        return "anthropic"
+    if name.startswith(("gemini", "google")):
+        return "google"
+    return "unknown"
 
 
 class AgentInvocationService:
@@ -103,9 +118,6 @@ class AgentInvocationService:
         **kwargs: Any,
     ) -> tuple[str, list[ToolEvent]]:
         """Invoke PydanticAI agent and extract tool events from result messages."""
-        from app.agents.assistant import Deps, get_agent
-        from app.services.agent import build_message_history
-
         model_name: str | None = kwargs.get("model_override")
         assistant = get_agent(model_name=model_name)
 
@@ -119,13 +131,34 @@ class AgentInvocationService:
         )
 
         tool_events = self._extract_tool_events(result.all_messages())
+
+        organization_id = kwargs.get("organization_id")
+        if organization_id is not None:
+            try:
+                usage = result.usage()
+                effective_model = assistant.model_name or model_name or "unknown"
+                await UsageService(self.db).record(
+                    organization_id=organization_id,
+                    model=effective_model,
+                    provider=_provider_from_model(effective_model),
+                    input_tokens=getattr(usage, "input_tokens", 0) or 0,
+                    output_tokens=getattr(usage, "output_tokens", 0) or 0,
+                    cached_tokens=getattr(usage, "cache_read_tokens", 0) or 0,
+                    ai_framework="pydantic_ai",
+                    actor_user_id=kwargs.get("user_id"),
+                    conversation_id=kwargs.get("conversation_id"),
+                )
+            except Exception:
+                logger.exception(
+                    "channel_usage_record_failed",
+                    extra={"org_id": str(organization_id)},
+                )
+
         return str(result.output), tool_events
 
     @staticmethod
     def _extract_tool_events(messages: list[Any]) -> list[ToolEvent]:
         """Extract tool call/result pairs from pydantic-ai message history."""
-        from pydantic_ai.messages import ModelRequest, ModelResponse
-
         pending: dict[str, ToolEvent] = {}
         events: list[ToolEvent] = []
 
@@ -165,8 +198,6 @@ class AgentInvocationService:
         active_knowledge_base_ids with the KBs actually visible to the user,
         preventing any client-supplied KB IDs from leaking cross-org data.
         """
-        from app.repositories import conversation_repo, knowledge_base_repo
-
         conv = await conversation_repo.get_conversation_by_id(self.db, conversation_id)
         if not conv:
             return []
@@ -197,8 +228,6 @@ class AgentInvocationService:
     # Persistence helpers
     async def _persist_user_message(self, conversation_id: UUID, content: str) -> None:
         """Persist the user message directly via conversation repo."""
-        from app.repositories import conversation_repo
-
         await conversation_repo.create_message(
             self.db,
             conversation_id=conversation_id,
@@ -208,8 +237,6 @@ class AgentInvocationService:
 
     async def _persist_assistant_message(self, conversation_id: UUID, content: str) -> None:
         """Persist the assistant reply directly via conversation repo."""
-        from app.repositories import conversation_repo
-
         await conversation_repo.create_message(
             self.db,
             conversation_id=conversation_id,
@@ -220,8 +247,6 @@ class AgentInvocationService:
 
     async def _load_history(self, conversation_id: UUID) -> list[dict[str, str]]:
         """Load conversation message history ordered chronologically."""
-        from app.repositories import conversation_repo
-
         messages = await conversation_repo.get_messages_by_conversation(
             self.db,
             conversation_id=conversation_id,

@@ -46,6 +46,9 @@ from app.schemas.conversation import (
     MessageList,
     MessageRead,
     MessageReadSimple,
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    ToolCallStatList,
+{%- endif %}
 {%- if cookiecutter.use_jwt %}
     ConversationAdminList,
 {%- endif %}
@@ -159,6 +162,24 @@ async def create_conversation(
     data = data.model_copy(update={"organization_id": active_org.id})
 {%- endif %}
     return await conversation_service.create_conversation(data)
+
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+
+
+@router.get("/tool-stats", response_model=ToolCallStatList)
+async def get_tool_stats(
+    conversation_service: ConversationSvc,
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+    days: int = Query(7, ge=1, le=90, description="Window in days"),
+    limit: int = Query(10, ge=1, le=50, description="Max tools to return"),
+) -> Any:
+    """Top tools used by the active org over the given window."""
+    items = await conversation_service.aggregate_tool_calls(
+        active_org.id, days=days, limit=limit
+    )
+    return ToolCallStatList(items=items, days=days)  # type: ignore[arg-type]
+{%- endif %}
 
 
 @router.get("/{conversation_id}", response_model=ConversationReadWithMessages)

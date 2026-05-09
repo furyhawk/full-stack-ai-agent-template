@@ -23,6 +23,11 @@ async def _cleanup_usage_events() -> int:
     async with get_worker_db_context() as db:
         return await UsageService(db).cleanup_old_events(retention_days=USAGE_RETENTION_DAYS)
 
+
+async def _refresh_usage_matview() -> None:
+    async with get_worker_db_context() as db:
+        await UsageService(db).refresh_daily_matview()
+
 {%- if cookiecutter.use_celery %}
 
 
@@ -36,6 +41,16 @@ def cleanup_usage_events_task(self: Any) -> None:
         logger.exception("cleanup_usage_events_task_failed")
         raise self.retry(exc=exc, countdown=600) from exc
 
+
+@shared_task(bind=True, max_retries=1, ignore_result=True)
+def refresh_usage_matview_task(self: Any) -> None:
+    """Cron: refresh ``mv_usage_daily`` so the dashboard timeline stays fresh."""
+    try:
+        asyncio.run(_refresh_usage_matview())
+    except Exception as exc:
+        logger.exception("refresh_usage_matview_failed")
+        raise self.retry(exc=exc, countdown=120) from exc
+
 {%- elif cookiecutter.use_taskiq %}
 
 
@@ -46,6 +61,12 @@ async def cleanup_usage_events_task() -> dict[str, int]:
     logger.info("cleanup_usage_events_done", extra={"deleted": count})
     return {"deleted": count}
 
+
+@broker.task
+async def refresh_usage_matview_task() -> None:
+    """Cron: refresh ``mv_usage_daily`` so the dashboard timeline stays fresh."""
+    await _refresh_usage_matview()
+
 {%- elif cookiecutter.use_arq %}
 
 
@@ -54,5 +75,10 @@ async def cleanup_usage_events_task(ctx: dict[str, Any]) -> dict[str, int]:
     count = await _cleanup_usage_events()
     logger.info("cleanup_usage_events_done", extra={"deleted": count})
     return {"deleted": count}
+
+
+async def refresh_usage_matview_task(ctx: dict[str, Any]) -> None:
+    """Cron: refresh ``mv_usage_daily`` so the dashboard timeline stays fresh."""
+    await _refresh_usage_matview()
 {%- endif %}
 {%- endif %}

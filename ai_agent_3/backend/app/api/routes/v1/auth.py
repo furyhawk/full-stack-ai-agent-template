@@ -1,12 +1,15 @@
 """Authentication routes."""
 
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import CurrentUser, SessionSvc, UserSvc
+from app.core.config import settings
 from app.core.exceptions import AuthenticationError
+from app.services.email.service import get_email_service
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -21,6 +24,8 @@ from app.schemas.password_reset import (
 )
 from app.schemas.token import RefreshTokenRequest, Token
 from app.schemas.user import UserCreate, UserRead
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -132,21 +137,16 @@ async def request_password_reset(
     """
     issued = await user_service.issue_password_reset_token(body.email)
     if issued is not None:
-        _user, token = issued
+        reset_user, token = issued
         try:
-            from app.services.email.service import get_email_service
-
-            email = get_email_service()
-            reset_url = f"/reset-password?token={token}"
-            await email.send_password_reset(
-                to=body.email, name=_user.full_name or body.email, reset_url=reset_url
+            reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+            await get_email_service().send_password_reset(
+                to=body.email,
+                name=reset_user.full_name or body.email,
+                reset_url=reset_url,
             )
         except Exception:
-            import logging
-
-            logging.getLogger(__name__).exception(
-                "password_reset_email_failed", extra={"email": body.email}
-            )
+            logger.exception("password_reset_email_failed", extra={"email": body.email})
     return PasswordResetResponse()
 
 
@@ -174,21 +174,16 @@ async def request_magic_link(
     """
     issued = await user_service.issue_magic_link_token(body.email)
     if issued is not None:
-        _user, token = issued
+        link_user, token = issued
         try:
-            from app.services.email.service import get_email_service
-
-            email = get_email_service()
-            login_url = f"/auth/magic-link?token={token}"
-            await email.send_welcome(
-                to=body.email, name=_user.full_name or body.email, login_url=login_url
+            login_url = f"{settings.FRONTEND_URL.rstrip('/')}/auth/magic-link?token={token}"
+            await get_email_service().send_welcome(
+                to=body.email,
+                name=link_user.full_name or body.email,
+                login_url=login_url,
             )
         except Exception:
-            import logging
-
-            logging.getLogger(__name__).exception(
-                "magic_link_email_failed", extra={"email": body.email}
-            )
+            logger.exception("magic_link_email_failed", extra={"email": body.email})
     return PasswordResetResponse(message="Check your email for a sign-in link.")
 
 

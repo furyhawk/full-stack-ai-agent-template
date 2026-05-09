@@ -53,6 +53,30 @@ class RAGDocumentService:
             ],
             total=len(docs),
         )
+{%- if cookiecutter.enable_teams %}
+
+    async def list_for_kb(
+        self, *, kb_id: UUID, skip: int = 0, limit: int = 50
+    ) -> RAGTrackedDocumentList:
+        """List documents ingested into a Knowledge Base, paginated."""
+        rows, total = await rag_document_repo.get_for_kb(
+            self.db, kb_id, skip=skip, limit=limit
+        )
+        return RAGTrackedDocumentList(
+            items=[
+                RAGTrackedDocumentItem(
+                    id=str(d.id), collection_name=d.collection_name, filename=d.filename,
+                    filesize=d.filesize, filetype=d.filetype, status=d.status,
+                    error_message=d.error_message, vector_document_id=d.vector_document_id,
+                    chunk_count=d.chunk_count, has_file=bool(d.storage_path),
+                    created_at=d.created_at.isoformat() if d.created_at else None,
+                    completed_at=d.completed_at.isoformat() if d.completed_at else None,
+                )
+                for d in rows
+            ],
+            total=total,
+        )
+{%- endif %}
 
     async def get_document(self, doc_id: str) -> RAGDocument:
         """Get a RAG document by ID.
@@ -76,6 +100,9 @@ class RAGDocumentService:
         filesize: int,
         filetype: str,
         storage_path: str | None = None,
+{%- if cookiecutter.enable_teams %}
+        organization_id: UUID | None = None,
+{%- endif %}
     ) -> RAGDocument:
         """Create a new RAG document tracking record."""
         return await rag_document_repo.create(
@@ -85,6 +112,9 @@ class RAGDocumentService:
             filesize=filesize,
             filetype=filetype,
             storage_path=storage_path or "",
+{%- if cookiecutter.enable_teams %}
+            organization_id=organization_id,
+{%- endif %}
         )
 
     async def dispatch_upload(
@@ -95,6 +125,9 @@ class RAGDocumentService:
         filename: str,
         replace: bool,
         vector_store: Any,
+{%- if cookiecutter.enable_teams %}
+        organization_id: UUID | None = None,
+{%- endif %}
     ) -> RAGIngestResponse:
         """Validate, persist, and queue an uploaded file for ingestion.
 
@@ -129,6 +162,9 @@ class RAGDocumentService:
             filesize=len(file_data),
             filetype=ext.lstrip("."),
             storage_path=storage_path,
+{%- if cookiecutter.enable_teams %}
+            organization_id=organization_id,
+{%- endif %}
         )
         doc_id = rag_doc.id
 

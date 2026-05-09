@@ -30,7 +30,7 @@ interface PlanRead {
   prices: Array<{
     id: string;
     currency: string;
-    unit_amount: number;
+    amount_cents: number;
     interval: string;
     is_active: boolean;
     trial_period_days: number | null;
@@ -95,7 +95,7 @@ function realPlanToCard(plan: PlanRead, billing: "month" | "year"): PricingCard 
     id: plan.id,
     name: plan.display_name,
     price: price
-      ? (price.unit_amount / 100).toLocaleString("en-US", {
+      ? (price.amount_cents / 100).toLocaleString("en-US", {
           style: "currency",
           currency: price.currency.toUpperCase(),
           minimumFractionDigits: 0,
@@ -177,7 +177,7 @@ export default function PricingPage() {
               {tPricing("description")}
             </p>
 
-            <div className="border-foreground/15 mx-auto mt-10 inline-flex items-center rounded-full border bg-card p-1 text-sm">
+            <div className="border-foreground/15 bg-card mx-auto mt-10 inline-flex items-center rounded-full border p-1 text-sm">
               <button
                 type="button"
                 onClick={() => setBilling("month")}
@@ -201,7 +201,7 @@ export default function PricingPage() {
                 )}
               >
                 {tPricing("annual")}
-                <span className="bg-brand text-brand-foreground rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider">
+                <span className="bg-brand text-brand-foreground rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase">
                   {tPricing("savePill")}
                 </span>
               </button>
@@ -212,7 +212,7 @@ export default function PricingPage() {
         <Section theme="light" padding="pb-32 md:pb-40">
           <div className="mx-auto max-w-6xl">
             {usingStub && (
-              <div className="border-foreground/10 bg-foreground/[0.03] text-foreground/65 mx-auto mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-[11px] uppercase tracking-wider">
+              <div className="border-foreground/10 bg-foreground/[0.03] text-foreground/65 mx-auto mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-[11px] tracking-wider uppercase">
                 <span aria-hidden className="bg-brand h-1.5 w-1.5 animate-pulse rounded-full" />
                 {tPricing("demoBanner")}
               </div>
@@ -223,7 +223,7 @@ export default function PricingPage() {
                 {[0, 1, 2].map((i) => (
                   <div
                     key={i}
-                    className="border-border h-[480px] animate-pulse rounded-2xl border bg-muted"
+                    className="border-border bg-muted h-[480px] animate-pulse rounded-2xl border"
                   />
                 ))}
               </div>
@@ -240,7 +240,7 @@ export default function PricingPage() {
                     )}
                   >
                     {card.featured && card.badge && (
-                      <div className="bg-brand text-brand-foreground absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider">
+                      <div className="bg-brand text-brand-foreground absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-3 py-1 font-mono text-[11px] font-semibold tracking-wider uppercase">
                         <Sparkles className="h-3 w-3" />
                         {card.badge}
                       </div>
@@ -259,7 +259,7 @@ export default function PricingPage() {
                         <p className="text-foreground/65 mt-3 text-sm">{card.description}</p>
                       )}
                       {card.trial ? (
-                        <p className="text-foreground/55 mt-2 font-mono text-xs uppercase tracking-wider">
+                        <p className="text-foreground/55 mt-2 font-mono text-xs tracking-wider uppercase">
                           {tPricing("trialBadge", { days: card.trial })}
                         </p>
                       ) : null}
@@ -332,4 +332,5 @@ export default function PricingPage() {
     </>
   );
 }
+
 {% endraw %}

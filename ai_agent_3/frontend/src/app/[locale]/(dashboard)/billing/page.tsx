@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import { apiClient } from "@/lib/api-client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -76,10 +78,20 @@ export default function BillingHubPage() {
   const { balance } = useCredits();
   const { invoices, isLoading: invoicesLoading } = useInvoices();
   const { openPortal, isLoading: portalLoading } = useBilling();
+  const [storage, setStorage] = useState<{ total_bytes: number; limit_bytes: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchOrgs();
   }, [fetchOrgs]);
+
+  useEffect(() => {
+    apiClient
+      .get<{ total_bytes: number; limit_bytes: number }>("/billing/me/storage")
+      .then(setStorage)
+      .catch(() => setStorage(null));
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("success") === "1") {
@@ -199,8 +211,8 @@ export default function BillingHubPage() {
             limit={creditsLimit}
             unit="credits"
             hint={
-              balance && balance.threshold > 0
-                ? `Auto-refill threshold ${balance.threshold.toLocaleString()}`
+              balance && balance.low_threshold > 0
+                ? `Auto-refill threshold ${balance.low_threshold.toLocaleString()}`
                 : undefined
             }
           />
@@ -217,10 +229,14 @@ export default function BillingHubPage() {
           <UsageGauge
             label="Storage"
             icon={HardDrive}
-            used={0}
-            limit={0}
+            used={storage ? storage.total_bytes / 1_073_741_824 : 0}
+            limit={storage ? storage.limit_bytes / 1_073_741_824 : 0}
             unit="GB"
-            hint="Backend wiring required for storage metering"
+            hint={
+              storage
+                ? `Chat attachments + indexed RAG documents`
+                : "Failed to load storage usage"
+            }
           />
         </div>
       </section>

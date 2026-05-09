@@ -90,7 +90,10 @@ class EmailService:
 
         result = await self.provider.send(message)
         if not result.accepted:
-            logger.error("email_not_accepted", key=key.value, to=to, error=result.error)
+            logger.error(
+                "email_not_accepted",
+                extra={"key": key.value, "to": to, "error": result.error},
+            )
         return result
 
     # ------------------------------------------------------------------

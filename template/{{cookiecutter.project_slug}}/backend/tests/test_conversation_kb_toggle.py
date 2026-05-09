@@ -87,7 +87,7 @@ class TestConversationKBToggle:
         conv.user_id = "owner"
 
         with patch("app.repositories.conversation_repo.get_conversation_by_id", new=AsyncMock(return_value=conv)), \
-             patch("app.repositories.conversation_repo.conversation_share_repo.get_share", new=AsyncMock(return_value=None)):
+             patch("app.services.conversation.conversation_share_repo.get_share", new=AsyncMock(return_value=None)):
             svc = ConversationService(mock_db)
             with pytest.raises(NotFoundError):
                 await svc.update_kb_settings("conv-1", ["kb-1"], user_id="other")

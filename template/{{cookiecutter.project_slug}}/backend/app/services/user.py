@@ -3,10 +3,17 @@
 Contains business logic for user operations. Uses UserRepository for database access.
 """
 
+import logging
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+{%- if cookiecutter.use_postgresql %}
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+{%- elif cookiecutter.use_sqlite %}
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+{%- endif %}
 
 from app.core.config import settings
 from app.core.exceptions import AlreadyExistsError, AuthenticationError, NotFoundError
@@ -17,12 +24,21 @@ from app.core.security import (
     verify_password,
     verify_special_token,
 )
-from app.db.models.user import User
+from app.db.models.user import User, UserRole
+{%- if cookiecutter.enable_session_management and cookiecutter.use_jwt %}
+from app.repositories import session_repo, user_repo
+{%- else %}
 from app.repositories import user_repo
+{%- endif %}
 from app.schemas.user import UserCreate, UserUpdate
+{%- if cookiecutter.enable_email %}
+from app.services.email.service import get_email_service
+{%- endif %}
 {%- if cookiecutter.enable_teams %}
 from app.services.organization import OrganizationService
 {%- endif %}
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.schemas.conversation_share import AdminUserList
@@ -31,8 +47,16 @@ if TYPE_CHECKING:
 class UserService:
     """Service for user-related business logic."""
 
+{%- if cookiecutter.use_postgresql %}
     def __init__(self, db: AsyncSession):
         self.db = db
+{%- elif cookiecutter.use_sqlite %}
+    def __init__(self, db: Session):
+        self.db = db
+{%- else %}
+    def __init__(self, db: Any = None):
+        self.db = db
+{%- endif %}
 
     async def get_by_id(self, user_id: UUID) -> User:
         """Get user by ID.
@@ -107,6 +131,10 @@ class UserService:
     async def register(self, user_in: UserCreate) -> User:
         """Register a new user.
 
+        The very first user to register is auto-promoted to app-admin so that a
+        fresh deployment has someone who can reach the /admin pages without an
+        extra CLI step.
+
         Raises:
             AlreadyExistsError: If email is already registered.
         """
@@ -117,33 +145,100 @@ class UserService:
                 details={"email": user_in.email},
             )
 
+{%- if cookiecutter.use_postgresql %}
+        existing_count = (
+            await self.db.execute(select(func.count()).select_from(User))
+        ).scalar_one()
+        is_first_user = existing_count == 0
+{%- elif cookiecutter.use_sqlite %}
+        existing_count = self.db.execute(select(func.count()).select_from(User)).scalar_one()
+        is_first_user = existing_count == 0
+{%- else %}
+        is_first_user = not await user_repo.has_any(self.db)
+{%- endif %}
+
         hashed_password = get_password_hash(user_in.password)
         user = await user_repo.create(
             self.db,
             email=user_in.email,
             hashed_password=hashed_password,
             full_name=user_in.full_name,
-            role=user_in.role.value,
+            role=UserRole.ADMIN.value if is_first_user else user_in.role.value,
+{%- if cookiecutter.enable_admin_panel %}
+            is_app_admin=is_first_user,
+{%- endif %}
         )
 {%- if cookiecutter.enable_teams %}
         org_service = OrganizationService(self.db)
         await org_service.create_personal_org(user.id, user_in.email)
 {%- endif %}
+{%- if cookiecutter.enable_email %}
         try:
-            from app.services.email.service import get_email_service
-
-            email_svc = get_email_service()
-            login_url = getattr(settings, "BILLING_SUCCESS_URL", None) or getattr(
-                settings, "FRONTEND_URL", "/"
-            )
-            await email_svc.send_welcome(
+            login_url = settings.FRONTEND_URL.rstrip("/") + "/login"
+            await get_email_service().send_welcome(
                 to=user.email,
                 name=user.full_name or user.email,
                 login_url=login_url,
             )
         except Exception:
-            pass
+            logger.exception("welcome_email_failed", extra={"user_id": str(user.id)})
+{%- endif %}
         return user
+
+{%- if cookiecutter.enable_oauth %}
+
+    async def get_or_create_oauth_user(
+        self,
+        *,
+        provider: str,
+        provider_id: str,
+        email: str,
+        full_name: str | None = None,
+    ) -> User:
+        """Find an existing OAuth user by (provider, provider_id), or create one.
+
+        If a user already has the email but no OAuth link, the OAuth identity is
+        attached to that account. New users get a Personal organization and a
+        welcome email (best-effort).
+        """
+        existing = await user_repo.get_by_oauth(self.db, provider, provider_id)
+        if existing:
+            return existing
+
+        by_email = await user_repo.get_by_email(self.db, email)
+        if by_email is not None:
+            await user_repo.update(
+                self.db,
+                db_user=by_email,
+                update_data={"oauth_provider": provider, "oauth_id": provider_id},
+            )
+            return by_email
+
+        user = await user_repo.create(
+            self.db,
+            email=email,
+            hashed_password=None,
+            full_name=full_name,
+            oauth_provider=provider,
+            oauth_id=provider_id,
+        )
+{%- if cookiecutter.enable_teams %}
+        org_service = OrganizationService(self.db)
+        await org_service.create_personal_org(user.id, user.email)
+{%- endif %}
+{%- if cookiecutter.enable_email %}
+        try:
+            login_url = settings.FRONTEND_URL.rstrip("/") + "/login"
+            await get_email_service().send_welcome(
+                to=user.email,
+                name=user.full_name or user.email,
+                login_url=login_url,
+            )
+        except Exception:
+            logger.exception("welcome_email_failed", extra={"user_id": str(user.id)})
+{%- endif %}
+        return user
+{%- endif %}
 
     async def authenticate(self, email: str, password: str) -> User:
         """Authenticate user by email and password.
@@ -265,6 +360,12 @@ class UserService:
             db_user=user,
             update_data={"hashed_password": get_password_hash(new_password)},
         )
+{%- if cookiecutter.enable_session_management and cookiecutter.use_jwt %}
+        # Revoke any active sessions so a previously-issued refresh token cannot
+        # outlive a password reset. The current request returns no tokens — the
+        # user must log in again.
+        await session_repo.deactivate_all_user_sessions(self.db, user.id)
+{%- endif %}
         return user
 
     # ------------------------------------------------------------------

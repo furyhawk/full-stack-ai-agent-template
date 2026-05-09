@@ -20,6 +20,7 @@ export function buildMarketingNavLinks(t: T) {
     { label: t("nav.features"), href: `${ROUTES.HOME}#features` },
     { label: t("nav.howItWorks"), href: `${ROUTES.HOME}#how` },
     { label: t("nav.pricing"), href: ROUTES.PRICING },
+    { label: t("nav.blog"), href: "/blog" },
     { label: t("nav.faq"), href: `${ROUTES.HOME}#faq` },
   ];
 }

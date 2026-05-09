@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { uploadFile, getFileUrl, type FileUploadResponse } from "@/lib/file-api";
 
 interface ChatInputProps {
-  onSend: (message: string, fileIds?: string[]) => void;
+  onSend: (message: string, fileIds?: string[], files?: FileUploadResponse[]) => void;
   disabled?: boolean;
   isProcessing?: boolean;
 }
@@ -42,7 +42,8 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
     if (disabled || isUploading) return;
 
     const fileIds = attachedFiles.length > 0 ? attachedFiles.map((f) => f.id) : undefined;
-    onSend(trimmed || "Analyze the attached file(s)", fileIds);
+    const files = attachedFiles.length > 0 ? attachedFiles : undefined;
+    onSend(trimmed || "Analyze the attached file(s)", fileIds, files);
     setMessage("");
     setAttachedFiles([]);
   };
@@ -194,7 +195,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
           placeholder="Type a message..."
           disabled={disabled}
           rows={1}
-          className="scrollbar-thin placeholder:text-muted-foreground min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
+          className="placeholder:text-muted-foreground min-h-[40px] flex-1 resize-none scrollbar-thin bg-transparent py-2.5 text-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
         />
 
         <div className="flex shrink-0 items-center gap-0.5 pb-1">

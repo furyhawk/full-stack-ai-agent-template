@@ -1,13 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage, ChatMessageFile } from "@/types";
 import { ToolCallCard } from "./tool-call-card";
 import { MarkdownContent } from "./markdown-content";
 import { CopyButton } from "./copy-button";
 import { RatingButtons } from "./rating-buttons";
 import { useChatStore } from "@/stores";
-import { Bot, RefreshCw, User } from "lucide-react";
+import { Bot, FileText, Paperclip, RefreshCw, User } from "lucide-react";
 import Image from "next/image";
 import { useAuthStore } from "@/stores";
 import { getFileUrl } from "@/lib/file-api";
@@ -75,32 +75,43 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
           isUser && "flex flex-col items-end",
         )}
       >
-        {/* Attached images */}
-        {isUser && message.fileIds && message.fileIds.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {message.fileIds.map((fileId) => (
-              <a
-                key={fileId}
-                href={getFileUrl(fileId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block overflow-hidden rounded-xl border"
-              >
-                <Image
-                  src={getFileUrl(fileId)}
-                  alt="Attached file"
-                  width={320}
-                  height={256}
-                  className="h-auto max-h-64 w-auto max-w-xs object-contain"
-                  unoptimized
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
+        {/* Attachments — images render as previews, others as file chips */}
+        {isUser && (() => {
+          const attachments: AttachmentDisplay[] =
+            message.files && message.files.length > 0
+              ? message.files.map((f) => ({ kind: kindFor(f), file: f }))
+              : (message.fileIds ?? []).map((id) => ({ kind: "unknown" as const, id }));
+          if (attachments.length === 0) return null;
+          return (
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((att) => (att.kind === "image" ? (
+                <a
+                  key={att.file.id}
+                  href={getFileUrl(att.file.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block overflow-hidden rounded-xl border"
+                >
+                  <Image
+                    src={getFileUrl(att.file.id)}
+                    alt={att.file.filename}
+                    width={320}
+                    height={256}
+                    className="h-auto max-h-64 w-auto max-w-xs object-contain"
+                    unoptimized
+                  />
+                </a>
+              ) : (
+                <FileChip
+                  key={"file" in att ? att.file.id : att.id}
+                  href={getFileUrl("file" in att ? att.file.id : att.id)}
+                  filename={"file" in att ? att.file.filename : "Attached file"}
+                  hint={"file" in att ? att.file.mime_type : undefined}
                 />
-              </a>
-            ))}
-          </div>
-        )}
+              )))}
+            </div>
+          );
+        })()}
 
         {/* Thinking indicator */}
         {!isUser &&
@@ -120,6 +131,25 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
               <span className="text-muted-foreground text-xs">Thinking...</span>
             </div>
           )}
+
+        {/* Reasoning trace from extended-thinking models */}
+        {!isUser && message.thinking && (
+          <details
+            className="border-foreground/10 bg-muted/40 group rounded-2xl rounded-tl-sm border px-3 py-2 sm:px-4"
+            open={Boolean(message.isStreaming)}
+          >
+            <summary className="text-foreground/55 hover:text-foreground/80 flex cursor-pointer items-center gap-2 font-mono text-[10px] tracking-wider uppercase select-none">
+              <span className="bg-foreground/30 inline-block h-1.5 w-1.5 rounded-full" />
+              Thinking
+              {message.isStreaming && (
+                <span className="bg-foreground/40 inline-block h-1 w-1 animate-pulse rounded-full" />
+              )}
+            </summary>
+            <pre className="text-foreground/65 mt-2 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+              {message.thinking}
+            </pre>
+          </details>
+        )}
 
         {/* Message bubble */}
         {message.content && (
@@ -200,5 +230,52 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
         )}
       </div>
     </div>
+  );
+}
+
+// --- Attachment helpers ---------------------------------------------------
+
+type AttachmentDisplay =
+  | { kind: "image"; file: ChatMessageFile }
+  | { kind: "file"; file: ChatMessageFile }
+  | { kind: "unknown"; id: string };
+
+function kindFor(file: ChatMessageFile): "image" | "file" {
+  if (file.file_type === "image") return "image";
+  if (file.mime_type.startsWith("image/")) return "image";
+  return "file";
+}
+
+function FileChip({
+  href,
+  filename,
+  hint,
+}: {
+  href: string;
+  filename: string;
+  hint?: string;
+}) {
+  const ext = filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="border-foreground/15 bg-card hover:border-foreground/40 inline-flex max-w-xs items-center gap-2 rounded-xl border px-3 py-2 transition-colors"
+      title={hint ?? filename}
+    >
+      <span className="bg-foreground/8 text-foreground/65 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+        <FileText className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="text-foreground block truncate text-sm font-medium">{filename}</span>
+        {ext && (
+          <span className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+            {ext}
+          </span>
+        )}
+      </span>
+      <Paperclip className="text-foreground/40 h-3.5 w-3.5 shrink-0" />
+    </a>
   );
 }

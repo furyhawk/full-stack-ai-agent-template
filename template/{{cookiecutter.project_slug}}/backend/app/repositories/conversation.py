@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update as sql_update
+from sqlalchemy import case, func, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 {%- if cookiecutter.use_jwt %}
@@ -370,6 +370,53 @@ async def delete_message(db: AsyncSession, message_id: UUID) -> bool:
 
 
 # ToolCall Operations
+
+{%- if cookiecutter.enable_teams %}
+
+
+async def aggregate_tool_calls_for_org(
+    db: AsyncSession,
+    organization_id: UUID,
+    *,
+    since: datetime,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Return per-tool aggregates for an org, ordered by call count desc.
+
+    Joins ``tool_calls → messages → conversations`` so the same org filter the
+    rest of the dashboard uses applies here. Excludes tool calls whose backing
+    conversation has no ``organization_id`` (orphans).
+    """
+    query = (
+        select(
+            ToolCall.tool_name.label("tool_name"),
+            func.count().label("total_calls"),
+            func.sum(case((ToolCall.status == "failed", 1), else_=0)).label("failed_calls"),
+            func.avg(ToolCall.duration_ms).label("avg_duration_ms"),
+            func.max(ToolCall.started_at).label("last_used_at"),
+        )
+        .join(Message, Message.id == ToolCall.message_id)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .where(
+            Conversation.organization_id == organization_id,
+            ToolCall.started_at >= since,
+        )
+        .group_by(ToolCall.tool_name)
+        .order_by(func.count().desc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return [
+        {
+            "tool_name": row.tool_name,
+            "total_calls": int(row.total_calls or 0),
+            "failed_calls": int(row.failed_calls or 0),
+            "avg_duration_ms": int(row.avg_duration_ms) if row.avg_duration_ms else None,
+            "last_used_at": row.last_used_at,
+        }
+        for row in result.all()
+    ]
+{%- endif %}
 
 
 async def get_tool_call_by_id(db: AsyncSession, tool_call_id: UUID) -> ToolCall | None:

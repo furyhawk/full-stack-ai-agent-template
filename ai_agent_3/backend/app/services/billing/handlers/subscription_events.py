@@ -1,5 +1,6 @@
 """Handlers for customer.subscription.* webhook events."""
 
+import datetime as _dt
 import logging
 from datetime import UTC, datetime
 
@@ -9,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.repositories.organization as org_repo
 import app.repositories.plan as plan_repo
 import app.repositories.subscription as sub_repo
+from app.core.config import settings
 from app.db.models.subscription import Subscription, SubscriptionStatus
+from app.services.billing.credit_service import CreditService
+from app.services.email.service import get_email_service
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,10 @@ async def _sync_from_stripe(db: AsyncSession, stripe_sub: stripe.Subscription) -
     org = await org_repo.get_by_stripe_customer(db, stripe_sub.customer)
 
     if not org:
-        logger.error("subscription_org_not_found", customer_id=stripe_sub.customer)
+        logger.error(
+            "subscription_org_not_found",
+            extra={"customer_id": stripe_sub.customer},
+        )
         raise ValueError(f"No org found for customer {stripe_sub.customer}")
 
     fields = dict(
@@ -52,25 +59,57 @@ async def _sync_from_stripe(db: AsyncSession, stripe_sub: stripe.Subscription) -
     return await sub_repo.create(db, **fields)
 
 
+async def _grant_subscription_credits_if_needed(db: AsyncSession, sub: Subscription) -> None:
+    """Grant the plan's monthly credit budget to the org. Idempotent within a billing period."""
+    if not sub.price_id:
+        return
+    price = await plan_repo.get_price_by_id(db, sub.price_id)
+    if not price:
+        return
+    plan = await plan_repo.get_plan_by_id(db, price.plan_id)
+    if not plan:
+        return
+    seats = sub.seats_quantity or 1
+    amount = (plan.monthly_credits_base or 0) + (plan.monthly_credits_per_seat or 0) * seats
+    if amount <= 0:
+        return
+    try:
+        await CreditService(db).grant_subscription_credits(
+            organization_id=sub.organization_id,
+            amount=amount,
+            description=f"{plan.display_name} — {seats} seat(s) — monthly grant",
+            stripe_reference=sub.stripe_subscription_id,
+        )
+    except Exception:
+        logger.exception(
+            "subscription_credit_grant_failed",
+            extra={"org_id": str(sub.organization_id)},
+        )
+
+
 async def handle_created(db: AsyncSession, event: stripe.Event) -> None:
-    await _sync_from_stripe(db, event.data.object)
+    sub = await _sync_from_stripe(db, event.data.object)
+    if sub.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING):
+        await _grant_subscription_credits_if_needed(db, sub)
 
 
 async def handle_updated(db: AsyncSession, event: stripe.Event) -> None:
     stripe_sub = event.data.object
-    await _sync_from_stripe(db, stripe_sub)
+    sub = await _sync_from_stripe(db, stripe_sub)
     prev = event.data.previous_attributes
     if prev is None:
         return
     prev_status = prev.get("status") if hasattr(prev, "get") else None
+    # New billing period started → grant fresh credits.
+    if prev.get("current_period_end") and sub.status == SubscriptionStatus.ACTIVE:
+        await _grant_subscription_credits_if_needed(db, sub)
+    # Trial converted to active → first paid period.
+    if prev_status == "trialing" and stripe_sub.status == "active":
+        await _grant_subscription_credits_if_needed(db, sub)
     if prev_status == "trialing" and stripe_sub.status not in ("active", "trialing"):
         try:
             customer = stripe.Customer.retrieve(stripe_sub.customer)
-            from app.core.config import settings
-            from app.services.email.service import get_email_service
-
-            email_svc = get_email_service()
-            await email_svc.send_trial_expired(
+            await get_email_service().send_trial_expired(
                 to=customer.email or "",
                 name=customer.name or customer.email or "there",
                 upgrade_url=settings.BILLING_SUCCESS_URL,
@@ -80,10 +119,6 @@ async def handle_updated(db: AsyncSession, event: stripe.Event) -> None:
     elif prev.get("items") and stripe_sub.status == "active":
         try:
             customer = stripe.Customer.retrieve(stripe_sub.customer)
-            import datetime as _dt
-
-            from app.services.email.service import get_email_service
-
             email_svc = get_email_service()
             try:
                 new_price = stripe_sub["items"]["data"][0]["price"]
@@ -112,8 +147,6 @@ async def handle_deleted(db: AsyncSession, event: stripe.Event) -> None:
     sub = await sub_repo.get_by_stripe_id(db, stripe_sub.id)
     if sub:
         sub.status = SubscriptionStatus.CANCELED
-        from datetime import datetime
-
         sub.canceled_at = (
             datetime.fromtimestamp(stripe_sub.canceled_at, UTC)
             if stripe_sub.canceled_at
@@ -122,11 +155,6 @@ async def handle_deleted(db: AsyncSession, event: stripe.Event) -> None:
         await db.flush()
     try:
         customer = stripe.Customer.retrieve(stripe_sub.customer)
-        import datetime as _dt
-
-        from app.core.config import settings
-        from app.services.email.service import get_email_service
-
         period_end = stripe_sub.current_period_end
         access_until = (
             _dt.datetime.fromtimestamp(period_end, _dt.UTC).strftime("%B %d, %Y")
@@ -138,8 +166,7 @@ async def handle_deleted(db: AsyncSession, event: stripe.Event) -> None:
             if hasattr(stripe_sub, "get")
             else "subscription"
         )
-        email_svc = get_email_service()
-        await email_svc.send_subscription_canceled(
+        await get_email_service().send_subscription_canceled(
             to=customer.email or "",
             name=customer.name or customer.email or "there",
             plan_name=plan_name,
@@ -152,19 +179,13 @@ async def handle_deleted(db: AsyncSession, event: stripe.Event) -> None:
 
 async def handle_trial_ending(db: AsyncSession, event: stripe.Event) -> None:
     stripe_sub = event.data.object
-    logger.info("subscription_trial_ending", stripe_sub_id=stripe_sub.id)
+    logger.info("subscription_trial_ending", extra={"stripe_sub_id": stripe_sub.id})
     try:
         customer = stripe.Customer.retrieve(stripe_sub.customer)
-        import datetime as _dt
-
-        from app.core.config import settings
-        from app.services.email.service import get_email_service
-
         trial_end_ts = stripe_sub.trial_end or 0
         now_ts = _dt.datetime.now(_dt.UTC).timestamp()
         days_left = max(1, int((trial_end_ts - now_ts) / 86400))
-        email_svc = get_email_service()
-        await email_svc.send_trial_ending(
+        await get_email_service().send_trial_ending(
             to=customer.email or "",
             name=customer.name or customer.email or "there",
             days_left=days_left,

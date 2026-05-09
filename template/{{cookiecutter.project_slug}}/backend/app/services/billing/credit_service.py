@@ -125,7 +125,10 @@ class CreditService:
         )
 
         if new_balance < settings.CREDITS_LOW_THRESHOLD and (new_balance + amount) >= settings.CREDITS_LOW_THRESHOLD:
-            logger.warning("credits_low_threshold_crossed", org_id=str(organization_id), balance=new_balance)
+            logger.warning(
+                "credits_low_threshold_crossed",
+                extra={"org_id": str(organization_id), "balance": new_balance},
+            )
 
         return tx
 

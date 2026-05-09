@@ -11,6 +11,7 @@ The route is left as a thin lifecycle wrapper that just feeds incoming messages 
 
 import logging
 from typing import Any
+from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic_ai import (
@@ -23,13 +24,14 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import BinaryContent, TextPart
+from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
 
 from app.agents.assistant import Deps, get_agent
 from app.api.deps import get_conversation_service
 from app.db.models.user import User
 from app.db.session import get_db_context
 from app.services.agent import (
+    AssistantTurnUsage,
     build_message_history,
     persist_assistant_turn,
     persist_user_turn,
@@ -39,6 +41,18 @@ from app.services.agent import (
 from app.services.file_storage import get_file_storage
 
 logger = logging.getLogger(__name__)
+
+
+def _provider_from_model(model_name: str) -> str:
+    """Best-effort guess of provider from a model identifier."""
+    name = (model_name or "").lower()
+    if name.startswith(("gpt", "o1", "o3", "o4", "openai")):
+        return "openai"
+    if name.startswith(("claude", "anthropic")):
+        return "anthropic"
+    if name.startswith(("gemini", "google")):
+        return "google"
+    return "unknown"
 
 
 class AgentSession:
@@ -54,6 +68,7 @@ class AgentSession:
         self.conversation_history: list[dict[str, str]] = []
         self.deps = Deps()
         self.current_conversation_id: str | None = None
+        self.current_organization_id: str | None = None
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
@@ -63,13 +78,15 @@ class AgentSession:
         if not user_message and not file_ids:
             await send_event(self.websocket, "error", {"message": "Empty message"})
             return
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
             self.user,
             user_message,
             file_ids,
             requested_conversation_id=data.get("conversation_id"),
             current_conversation_id=self.current_conversation_id,
         )
+        if organization_id:
+            self.current_organization_id = organization_id
         if newly_created and self.current_conversation_id:
             await send_event(
                 self.websocket,
@@ -80,9 +97,15 @@ class AgentSession:
         await send_event(self.websocket, "user_prompt", {"content": user_message})
 
         try:
+            raw_temp = data.get("temperature")
+            try:
+                temperature = float(raw_temp) if raw_temp is not None else None
+            except (TypeError, ValueError):
+                temperature = None
             assistant = get_agent(
                 model_name=data.get("model"),
                 thinking_effort=data.get("thinking_effort"),
+                temperature=temperature,
             )
             model_history = build_message_history(self.conversation_history)
             user_input = await self._build_multimodal_input(user_message, file_ids)
@@ -105,11 +128,26 @@ class AgentSession:
                 )
             assistant_msg_id: str | None = None
             if self.current_conversation_id and agent_run.result is not None:
+                model_name = getattr(assistant, "model_name", None) or "unknown"
+                turn_usage: AssistantTurnUsage | None = None
+                if self.current_organization_id:
+                    run_usage = agent_run.usage()
+                    turn_usage = AssistantTurnUsage(
+                        organization_id=UUID(self.current_organization_id),
+                        model=model_name,
+                        provider=_provider_from_model(model_name),
+                        input_tokens=getattr(run_usage, "input_tokens", 0) or 0,
+                        output_tokens=getattr(run_usage, "output_tokens", 0) or 0,
+                        cached_tokens=getattr(run_usage, "cache_read_tokens", 0) or 0,
+                        ai_framework="pydantic_ai",
+                        actor_user_id=self.user.id,
+                    )
                 assistant_msg_id = await persist_assistant_turn(
                     self.current_conversation_id,
                     agent_run.result.output,
-                    getattr(assistant, "model_name", None),
+                    model_name,
                     collected_tool_calls,
+                    usage=turn_usage,
                 )
 
             if assistant_msg_id:
@@ -191,7 +229,7 @@ class AgentSession:
                 )
 
     async def _stream_request_events(self, request_stream: Any) -> None:
-        """Forward model-request events (text/tool deltas + final-result start)."""
+        """Forward model-request events (text/thinking/tool deltas + final-result start)."""
         async for event in request_stream:
             if isinstance(event, PartStartEvent):
                 await send_event(
@@ -205,6 +243,14 @@ class AgentSession:
                         "text_delta",
                         {"index": event.index, "content": event.part.content},
                     )
+                elif isinstance(event.part, ThinkingPart) and event.part.content:
+                    # Surface the model's reasoning trace to the UI. Anthropic +
+                    # OpenAI-reasoning models emit these as the model "thinks".
+                    await send_event(
+                        self.websocket,
+                        "thinking_delta",
+                        {"index": event.index, "content": event.part.content},
+                    )
             elif isinstance(event, PartDeltaEvent):
                 if isinstance(event.delta, TextPartDelta):
                     await send_event(
@@ -212,6 +258,13 @@ class AgentSession:
                         "text_delta",
                         {"index": event.index, "content": event.delta.content_delta},
                     )
+                elif isinstance(event.delta, ThinkingPartDelta):
+                    if event.delta.content_delta:
+                        await send_event(
+                            self.websocket,
+                            "thinking_delta",
+                            {"index": event.index, "content": event.delta.content_delta},
+                        )
                 elif isinstance(event.delta, ToolCallPartDelta):
                     await send_event(
                         self.websocket,

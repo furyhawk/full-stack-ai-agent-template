@@ -7,9 +7,12 @@ credit accounting — lives in :class:`app.services.billing.BillingService`.
 from typing import Any
 
 from fastapi import APIRouter, Header, Query, Request, status
+from sqlalchemy import func, select
 
-from app.api.deps import ActiveOrg, BillingSvc, CurrentUser
+from app.api.deps import ActiveOrg, BillingSvc, CurrentUser, DBSession
 from app.core.config import settings
+from app.db.models.chat_file import ChatFile
+from app.db.models.rag_document import RAGDocument
 from app.schemas.billing import (
     CheckoutSessionCreate,
     CheckoutSessionRead,
@@ -112,6 +115,36 @@ async def reactivate_subscription(
     return await billing_service.reactivate_subscription(active_org.id)
 
 
+@router.get("/me/storage")
+async def get_storage_usage(
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+    db: DBSession,
+) -> dict[str, Any]:
+    """Sum bytes used by chat-attached files (per-user) and RAG docs (per-org)."""
+    chat_bytes = (
+        await db.execute(
+            select(func.coalesce(func.sum(ChatFile.size), 0)).where(
+                ChatFile.user_id == current_user.id
+            )
+        )
+    ).scalar_one()
+    rag_bytes = (
+        await db.execute(
+            select(func.coalesce(func.sum(RAGDocument.filesize), 0)).where(
+                RAGDocument.organization_id == active_org.id
+            )
+        )
+    ).scalar_one()
+    return {
+        "chat_bytes": int(chat_bytes),
+        "rag_bytes": int(rag_bytes),
+        "total_bytes": int(chat_bytes) + int(rag_bytes),
+        # Soft cap surfaced by the gauge — not enforced server-side yet.
+        "limit_bytes": settings.STORAGE_SOFT_LIMIT_BYTES,
+    }
+
+
 @router.get("/me/credits", response_model=CreditBalanceRead)
 async def get_credits_balance(
     current_user: CurrentUser,
@@ -143,9 +176,12 @@ async def get_usage_aggregate(
     current_user: CurrentUser,
     active_org: ActiveOrg,
     billing_service: BillingSvc,
+    days: int | None = Query(
+        None, ge=1, le=365, description="Restrict aggregation to the last N days (default: all-time)"
+    ),
 ) -> Any:
     """Return aggregated usage stats for the active organization."""
-    return await billing_service.get_usage_aggregate(active_org.id)
+    return await billing_service.get_usage_aggregate(active_org.id, days=days)
 
 
 @router.get("/me/credits/usage/timeline", response_model=UsageTimelineRead)

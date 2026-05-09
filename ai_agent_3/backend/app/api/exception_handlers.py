@@ -1,36 +1,62 @@
 """Exception handlers for FastAPI application.
 
 These handlers convert domain exceptions to proper HTTP responses.
+WebSocket connections that raise an ``AppException`` before ``accept()`` are
+handled too — Starlette closes the socket with 403 and we just log the
+incident; we cannot return an HTTP body for a non-HTTP scope.
 """
 
 import logging
+from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from starlette.requests import HTTPConnection
 
 from app.core.exceptions import AppException
 
 logger = logging.getLogger(__name__)
 
 
-async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    """Handle application exceptions.
+def _connection_meta(conn: HTTPConnection) -> dict[str, Any]:
+    """Common log fields shared by HTTP requests and WebSocket connections.
 
-    Logs 5xx errors as errors and 4xx as warnings.
-    Returns a standardized JSON error response.
+    ``method`` exists only on HTTP ``Request`` — for WebSockets we surface the
+    scope type so log filters can still distinguish the two.
+    """
+    return {
+        "path": conn.url.path,
+        "method": getattr(conn, "method", None) or conn.scope.get("type", "unknown"),
+    }
+
+
+def _is_websocket(conn: HTTPConnection) -> bool:
+    return conn.scope.get("type") == "websocket"
+
+
+async def app_exception_handler(
+    request: HTTPConnection, exc: AppException
+) -> JSONResponse | None:
+    """Handle application exceptions for both HTTP and WebSocket scopes.
+
+    Logs 5xx errors as errors and 4xx as warnings. Returns a JSON response
+    for HTTP scopes; returns ``None`` for WebSocket scopes (Starlette will
+    close the socket on its own).
     """
     log_extra = {
         "error_code": exc.code,
         "status_code": exc.status_code,
         "details": exc.details,
-        "path": request.url.path,
-        "method": request.method,
+        **_connection_meta(request),
     }
 
     if exc.status_code >= 500:
         logger.error(f"{exc.code}: {exc.message}", extra=log_extra)
     else:
         logger.warning(f"{exc.code}: {exc.message}", extra=log_extra)
+
+    if _is_websocket(request):
+        return None
 
     headers: dict[str, str] = {}
     if exc.status_code == 401:
@@ -49,19 +75,18 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     )
 
 
-async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def unhandled_exception_handler(
+    request: HTTPConnection, exc: Exception
+) -> JSONResponse | None:
     """Handle unexpected exceptions.
 
     Logs the full exception but returns a generic error to the client
     to avoid leaking sensitive information.
     """
-    logger.exception(
-        "Unhandled exception",
-        extra={
-            "path": request.url.path,
-            "method": request.method,
-        },
-    )
+    logger.exception("Unhandled exception", extra=_connection_meta(request))
+
+    if _is_websocket(request):
+        return None
 
     return JSONResponse(
         status_code=500,

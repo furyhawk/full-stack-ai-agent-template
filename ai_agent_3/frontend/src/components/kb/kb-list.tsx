@@ -16,8 +16,14 @@ interface KBListProps {
 
 const scopeColors: Record<string, string> = {
   personal: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  organization: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  org: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   app: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+};
+
+const scopeLabels: Record<string, string> = {
+  personal: "personal",
+  org: "organization",
+  app: "app",
 };
 
 export function KBList({ kbs, onToggle, onDelete, canDelete = true }: KBListProps) {
@@ -29,7 +35,7 @@ export function KBList({ kbs, onToggle, onDelete, canDelete = true }: KBListProp
 
   const sections = [
     { key: "personal", label: "Personal" },
-    { key: "organization", label: "Organization" },
+    { key: "org", label: "Organization" },
     { key: "app", label: "App-wide" },
   ].filter((s) => grouped[s.key]?.length);
 
@@ -64,7 +70,7 @@ export function KBList({ kbs, onToggle, onDelete, canDelete = true }: KBListProp
                     <Badge
                       className={`shrink-0 px-1.5 py-0.5 text-[10px] ${scopeColors[kb.scope]}`}
                     >
-                      {kb.scope}
+                      {scopeLabels[kb.scope] ?? kb.scope}
                     </Badge>
                   </div>
                 </CardHeader>

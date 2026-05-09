@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/theme";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 
 const HIGHLIGHTS = [
@@ -67,9 +66,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </figure>
       </aside>
 
-      {/* Right — form panel (cream/light, scrollable on small heights) */}
-      <main id="main" className="bg-background relative flex flex-col">
-        <header className="flex h-16 items-center justify-between px-6 sm:px-10">
+      {/* Right — form panel (always light, regardless of system theme) */}
+      <main
+        id="main"
+        className="theme-light bg-background text-foreground relative flex flex-col"
+      >
+        <header className="flex h-16 items-center px-6 sm:px-10">
           <Link
             href={ROUTES.HOME}
             className="font-display text-foreground inline-flex items-center gap-2 text-base font-bold tracking-tight lg:hidden"
@@ -77,9 +79,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <span aria-hidden className="bg-brand inline-block h-2.5 w-2.5 rounded-full" />
             {APP_NAME}
           </Link>
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">

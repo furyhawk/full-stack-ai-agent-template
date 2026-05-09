@@ -75,8 +75,11 @@ def _format_results(results: list) -> str:
 {%- if cookiecutter.enable_teams %}
 # ContextVar set by non-PydanticAI frameworks before each agent invocation so that
 # the tool can read the active KB collections without needing explicit Deps injection.
-_active_kb_collections: contextvars.ContextVar[list[str]] = contextvars.ContextVar(
-    "_active_kb_collections", default=[]
+# Default is None (not []) — mutable defaults on ContextVar are a foot-gun
+# because every reader gets the same shared list. Callers should treat None
+# as "no collections active".
+_active_kb_collections: contextvars.ContextVar[list[str] | None] = contextvars.ContextVar(
+    "_active_kb_collections", default=None
 )
 
 
@@ -96,7 +99,7 @@ async def search_knowledge_base(
     """
     from typing import Any
 
-    resolved = kb_collection_names if kb_collection_names else _active_kb_collections.get()
+    resolved = kb_collection_names if kb_collection_names else (_active_kb_collections.get() or [])
     if not resolved:
         return "No active knowledge bases selected for this conversation."
 

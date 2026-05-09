@@ -257,6 +257,33 @@ function WebSearchResults({ result }: { result: string }) {
   );
 }
 
+// --- Helpers ---
+
+/** Pretty-print tool args. Handles three shapes:
+ *  - object → JSON.stringify with indent
+ *  - JSON-string (e.g. raw streaming payload) → parse then pretty-print
+ *  - plain non-JSON string → return as-is
+ */
+function formatArgs(args: unknown): string {
+  if (args === null || args === undefined) return "";
+  if (typeof args === "string") {
+    try {
+      const parsed = JSON.parse(args);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return args;
+    }
+  }
+  return JSON.stringify(args, null, 2);
+}
+
+function isEmptyArgs(args: unknown): boolean {
+  if (args === null || args === undefined) return true;
+  if (typeof args === "string") return args.trim() === "" || args.trim() === "{}";
+  if (typeof args === "object") return Object.keys(args).length === 0;
+  return false;
+}
+
 // --- Main component ---
 
 export function ToolCallCard({ toolCall }: ToolCallCardProps) {
@@ -354,29 +381,40 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
 
         {/* Raw/default rendering */}
         {(!hasSpecialRenderer || showRaw || toolCall.status !== "completed") && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {/* Arguments */}
-            <div className="group relative">
-              <div className="mb-1 flex items-center justify-between">
-                <p className="text-muted-foreground text-xs">Arguments:</p>
-                <CopyButton
-                  text={JSON.stringify(toolCall.args, null, 2)}
-                  className="opacity-0 group-hover:opacity-100"
-                />
-              </div>
-              <pre className="bg-background overflow-x-auto rounded p-2 text-xs">
-                {JSON.stringify(toolCall.args, null, 2)}
-              </pre>
-            </div>
-
-            {/* Result */}
-            {toolCall.result !== undefined && (
+            {isEmptyArgs(toolCall.args) ? (
+              <p className="text-muted-foreground text-xs italic">No arguments</p>
+            ) : (
               <div className="group relative">
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-muted-foreground text-xs">Result:</p>
-                  <CopyButton text={resultText} className="opacity-0 group-hover:opacity-100" />
+                  <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+                    Arguments
+                  </p>
+                  <CopyButton
+                    text={formatArgs(toolCall.args)}
+                    className="opacity-0 group-hover:opacity-100"
+                  />
                 </div>
-                <pre className="bg-background max-h-48 overflow-x-auto overflow-y-auto rounded p-2 text-xs">
+                <pre className="border-foreground/10 bg-background/60 scrollbar-thin overflow-x-auto rounded-lg border p-2.5 font-mono text-[11px] leading-relaxed">
+                  {formatArgs(toolCall.args)}
+                </pre>
+              </div>
+            )}
+
+            {/* Result */}
+            {toolCall.result !== undefined && resultText !== "" && (
+              <div className="group relative">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+                    Result
+                  </p>
+                  <CopyButton
+                    text={resultText}
+                    className="opacity-0 group-hover:opacity-100"
+                  />
+                </div>
+                <pre className="border-foreground/10 bg-background/60 scrollbar-thin max-h-48 overflow-x-auto overflow-y-auto rounded-lg border p-2.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words">
                   {resultText}
                 </pre>
               </div>

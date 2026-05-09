@@ -8,15 +8,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/comp
 import { cn } from "@/lib/utils";
 import { useChatSidebarStore } from "@/stores";
 import {
-  MessageSquarePlus,
-  MessageSquare,
-  Trash2,
   Archive,
-  MoreVertical,
-  Pencil,
+  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
+  MessageSquare,
+  MessageSquarePlus,
+  MoreVertical,
+  Pencil,
   Share2,
+  Trash2,
 } from "lucide-react";
 import type { Conversation } from "@/types";
 import { ShareDialog } from "./share-dialog";
@@ -27,6 +28,7 @@ interface ConversationItemProps {
   onSelect: () => void;
   onDelete: () => void;
   onArchive: () => void;
+  onUnarchive: () => void;
   onRename: (title: string) => void;
   onShare: () => void;
 }
@@ -37,6 +39,7 @@ function ConversationItem({
   onSelect,
   onDelete,
   onArchive,
+  onUnarchive,
   onRename,
   onShare,
 }: ConversationItemProps) {
@@ -133,17 +136,31 @@ function ConversationItem({
                 <Share2 className="h-4 w-4" />
                 {t("share")}
               </button>
-              <button
-                className="hover:bg-secondary flex min-h-[44px] w-full items-center gap-2 px-3 py-3 text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onArchive();
-                  setShowMenu(false);
-                }}
-              >
-                <Archive className="h-4 w-4" />
-                {t("archive")}
-              </button>
+              {conversation.is_archived ? (
+                <button
+                  className="hover:bg-secondary flex min-h-[44px] w-full items-center gap-2 px-3 py-3 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnarchive();
+                    setShowMenu(false);
+                  }}
+                >
+                  <ArchiveRestore className="h-4 w-4" />
+                  Restore
+                </button>
+              ) : (
+                <button
+                  className="hover:bg-secondary flex min-h-[44px] w-full items-center gap-2 px-3 py-3 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive();
+                    setShowMenu(false);
+                  }}
+                >
+                  <Archive className="h-4 w-4" />
+                  {t("archive")}
+                </button>
+              )}
               <button
                 className="text-destructive hover:bg-destructive/10 flex min-h-[44px] w-full items-center gap-2 px-3 py-3 text-sm"
                 onClick={(e) => {
@@ -163,6 +180,8 @@ function ConversationItem({
   );
 }
 
+type ConversationView = "active" | "archived";
+
 interface ConversationListProps {
   conversations: Conversation[];
   currentConversationId: string | null;
@@ -170,6 +189,7 @@ interface ConversationListProps {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  onUnarchive: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onNewChat: () => void;
   onNavigate?: () => void;
@@ -183,14 +203,20 @@ function ConversationList({
   onSelect,
   onDelete,
   onArchive,
+  onUnarchive,
   onRename,
   onNewChat,
   onNavigate,
   onLoadMore,
 }: ConversationListProps) {
   const t = useTranslations("chat");
-  const activeConversations = (conversations ?? []).filter((c) => !c.is_archived);
+  const [view, setView] = useState<ConversationView>("active");
   const [shareConversationId, setShareConversationId] = useState<string | null>(null);
+
+  const all = conversations ?? [];
+  const activeCount = all.filter((c) => !c.is_archived).length;
+  const archivedCount = all.filter((c) => c.is_archived).length;
+  const visible = all.filter((c) => (view === "active" ? !c.is_archived : c.is_archived));
 
   const handleSelect = (id: string) => {
     onSelect(id);
@@ -201,6 +227,8 @@ function ConversationList({
     onNewChat();
     onNavigate?.();
   };
+
+  const isArchivedView = view === "archived";
 
   return (
     <>
@@ -216,8 +244,25 @@ function ConversationList({
         </Button>
       </div>
 
+      <div className="px-3 pb-2">
+        <div className="border-foreground/10 bg-background flex rounded-full border p-0.5">
+          <ViewTab
+            label="Active"
+            count={activeCount}
+            active={view === "active"}
+            onClick={() => setView("active")}
+          />
+          <ViewTab
+            label="Archived"
+            count={archivedCount}
+            active={view === "archived"}
+            onClick={() => setView("archived")}
+          />
+        </div>
+      </div>
+
       <div
-        className="scrollbar-thin flex-1 overflow-y-auto px-3 pb-3"
+        className="flex-1 scrollbar-thin overflow-y-auto px-3 pb-3"
         onScroll={(e) => {
           const el = e.currentTarget;
           if (!isLoading && el.scrollHeight - el.scrollTop - el.clientHeight < 100) {
@@ -231,15 +276,25 @@ function ConversationList({
               <Skeleton key={i} className="h-9 w-full rounded-md" />
             ))}
           </div>
-        ) : activeConversations.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center justify-center py-8 text-center text-sm">
-            <MessageSquare className="mb-2 h-8 w-8 opacity-50" />
-            <p>{t("noConversations")}</p>
-            <p className="mt-1 text-xs">{t("startNewChat")}</p>
+            {isArchivedView ? (
+              <Archive className="mb-2 h-8 w-8 opacity-50" />
+            ) : (
+              <MessageSquare className="mb-2 h-8 w-8 opacity-50" />
+            )}
+            <p>
+              {isArchivedView ? "No archived conversations" : t("noConversations")}
+            </p>
+            <p className="mt-1 text-xs">
+              {isArchivedView
+                ? "Conversations you archive will appear here."
+                : t("startNewChat")}
+            </p>
           </div>
         ) : (
           <div className="space-y-1">
-            {activeConversations.map((conversation) => (
+            {visible.map((conversation) => (
               <ConversationItem
                 key={conversation.id}
                 conversation={conversation}
@@ -247,6 +302,7 @@ function ConversationList({
                 onSelect={() => handleSelect(conversation.id)}
                 onDelete={() => onDelete(conversation.id)}
                 onArchive={() => onArchive(conversation.id)}
+                onUnarchive={() => onUnarchive(conversation.id)}
                 onRename={(title) => onRename(conversation.id, title)}
                 onShare={() => setShareConversationId(conversation.id)}
               />
@@ -284,6 +340,7 @@ export function ConversationSidebar({ className }: ConversationSidebarProps) {
     selectConversation,
     deleteConversation,
     archiveConversation,
+    unarchiveConversation,
     renameConversation,
     startNewChat,
   } = useConversations();
@@ -299,6 +356,7 @@ export function ConversationSidebar({ className }: ConversationSidebarProps) {
     onSelect: selectConversation,
     onDelete: deleteConversation,
     onArchive: archiveConversation,
+    onUnarchive: unarchiveConversation,
     onRename: renameConversation,
     onNewChat: startNewChat,
     onLoadMore: fetchMoreConversations,
@@ -367,5 +425,40 @@ export function ConversationSidebar({ className }: ConversationSidebarProps) {
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+function ViewTab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+        active
+          ? "bg-foreground text-background"
+          : "text-foreground/55 hover:text-foreground",
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+          active ? "bg-background/15" : "bg-foreground/10",
+        )}
+      >
+        {count}
+      </span>
+    </button>
   );
 }

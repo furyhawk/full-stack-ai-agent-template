@@ -8,9 +8,20 @@ credit accounting — lives in :class:`app.services.billing.BillingService`.
 from typing import Any
 
 from fastapi import APIRouter, Header, Query, Request, status
+{%- if cookiecutter.use_postgresql and cookiecutter.enable_rag %}
+from sqlalchemy import func, select
+{%- endif %}
 
+{%- if cookiecutter.use_postgresql and cookiecutter.enable_rag %}
+from app.api.deps import ActiveOrg, BillingSvc, CurrentUser, DBSession
+{%- else %}
 from app.api.deps import ActiveOrg, BillingSvc, CurrentUser
+{%- endif %}
 from app.core.config import settings
+{%- if cookiecutter.use_postgresql and cookiecutter.enable_rag %}
+from app.db.models.chat_file import ChatFile
+from app.db.models.rag_document import RAGDocument
+{%- endif %}
 from app.schemas.billing import (
     CheckoutSessionCreate,
     CheckoutSessionRead,
@@ -199,6 +210,39 @@ def reactivate_subscription(
     return billing_service.reactivate_subscription(str(active_org.id))
 {%- endif %}
 
+{%- if cookiecutter.use_postgresql and cookiecutter.enable_rag %}
+
+
+@router.get("/me/storage")
+async def get_storage_usage(
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+    db: DBSession,
+) -> dict[str, Any]:
+    """Sum bytes used by chat-attached files (per-user) and RAG docs (per-org)."""
+    chat_bytes = (
+        await db.execute(
+            select(func.coalesce(func.sum(ChatFile.size), 0)).where(
+                ChatFile.user_id == current_user.id
+            )
+        )
+    ).scalar_one()
+    rag_bytes = (
+        await db.execute(
+            select(func.coalesce(func.sum(RAGDocument.filesize), 0)).where(
+                RAGDocument.organization_id == active_org.id
+            )
+        )
+    ).scalar_one()
+    return {
+        "chat_bytes": int(chat_bytes),
+        "rag_bytes": int(rag_bytes),
+        "total_bytes": int(chat_bytes) + int(rag_bytes),
+        # Soft cap surfaced by the gauge — not enforced server-side yet.
+        "limit_bytes": settings.STORAGE_SOFT_LIMIT_BYTES,
+    }
+{%- endif %}
+
 {%- if cookiecutter.enable_credits_system %}
 
 
@@ -260,17 +304,23 @@ async def get_usage_aggregate(
     current_user: CurrentUser,
     active_org: ActiveOrg,
     billing_service: BillingSvc,
+    days: int | None = Query(
+        None, ge=1, le=365, description="Restrict aggregation to the last N days (default: all-time)"
+    ),
 ) -> Any:
     """Return aggregated usage stats for the active organization."""
-    return await billing_service.get_usage_aggregate(active_org.id)
+    return await billing_service.get_usage_aggregate(active_org.id, days=days)
 {%- else %}
 def get_usage_aggregate(
     current_user: CurrentUser,
     active_org: ActiveOrg,
     billing_service: BillingSvc,
+    days: int | None = Query(
+        None, ge=1, le=365, description="Restrict aggregation to the last N days (default: all-time)"
+    ),
 ) -> Any:
     """Return aggregated usage stats for the active organization."""
-    return billing_service.get_usage_aggregate(str(active_org.id))
+    return billing_service.get_usage_aggregate(str(active_org.id), days=days)
 {%- endif %}
 
 

@@ -62,9 +62,7 @@ from app.api.routes.v1 import contact
 {%- if cookiecutter.use_auth %}
 from app.api.routes.v1 import api_keys
 {%- endif %}
-{%- if cookiecutter.enable_admin_panel %}
 from app.api.routes.v1 import admin_stats
-{%- endif %}
 
 v1_router = APIRouter()
 
@@ -189,6 +187,4 @@ v1_router.include_router(contact.router, tags=["contact"])
 {%- if cookiecutter.use_auth %}
 v1_router.include_router(api_keys.router, prefix="/api-keys", tags=["api-keys"])
 {%- endif %}
-{%- if cookiecutter.enable_admin_panel %}
 v1_router.include_router(admin_stats.router, prefix="/admin", tags=["admin:stats"])
-{%- endif %}

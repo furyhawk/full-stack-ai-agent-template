@@ -18,11 +18,51 @@ interface Preset {
 }
 
 const PRESETS: Preset[] = [
-  { key: "lime", label: "Lime", description: "FlowMarket — playful, editorial", h: 130, c: 0.22, l: 90, fgL: 15 },
-  { key: "blue", label: "Electric blue", description: "Stripe / Vercel — classic SaaS", h: 252, c: 0.20, l: 65, fgL: 98 },
-  { key: "violet", label: "Violet", description: "Linear / Anthropic — modern AI", h: 290, c: 0.22, l: 65, fgL: 98 },
-  { key: "coral", label: "Coral", description: "Warm, friendly, B2C-ish", h: 25, c: 0.18, l: 70, fgL: 98 },
-  { key: "mint", label: "Mint", description: "Calm, fresh, healthtech", h: 165, c: 0.13, l: 70, fgL: 15 },
+  {
+    key: "lime",
+    label: "Lime",
+    description: "FlowMarket — playful, editorial",
+    h: 130,
+    c: 0.22,
+    l: 90,
+    fgL: 15,
+  },
+  {
+    key: "blue",
+    label: "Electric blue",
+    description: "Stripe / Vercel — classic SaaS",
+    h: 252,
+    c: 0.2,
+    l: 65,
+    fgL: 98,
+  },
+  {
+    key: "violet",
+    label: "Violet",
+    description: "Linear / Anthropic — modern AI",
+    h: 290,
+    c: 0.22,
+    l: 65,
+    fgL: 98,
+  },
+  {
+    key: "coral",
+    label: "Coral",
+    description: "Warm, friendly, B2C-ish",
+    h: 25,
+    c: 0.18,
+    l: 70,
+    fgL: 98,
+  },
+  {
+    key: "mint",
+    label: "Mint",
+    description: "Calm, fresh, healthtech",
+    h: 165,
+    c: 0.13,
+    l: 70,
+    fgL: 15,
+  },
 ];
 
 const STORAGE_KEY = "settings.brand_color_preset";
@@ -30,10 +70,26 @@ const STORAGE_KEY = "settings.brand_color_preset";
 function applyPreset(p: Preset) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+  // Tailwind v4 resolves the `oklch(var(--brand-l)...)` composition at build
+  // time, so overriding the parts at runtime has no effect on utilities. Set
+  // the final color tokens directly — those are what `bg-brand` / `text-brand`
+  // / charts read.
+  const brand = `oklch(${p.l}% ${p.c} ${p.h})`;
+  const brandHover = `oklch(${Math.max(0, p.l - 8)}% ${p.c} ${p.h})`;
+  const brandMuted = `oklch(${p.l}% ${p.c * 0.4} ${p.h})`;
+  const brandFg = `oklch(${p.fgL}% 0 0)`;
+  // Charts: use a darker brand variant on light themes (so the brand stays
+  // readable on white surfaces), but full brand on dark themes — matches the
+  // logic baked into globals.css.
+  const chart = `oklch(55% ${p.c} ${p.h})`;
   root.style.setProperty("--brand-h", String(p.h));
   root.style.setProperty("--brand-c", String(p.c));
   root.style.setProperty("--brand-l", `${p.l}%`);
-  root.style.setProperty("--color-brand-foreground", `oklch(${p.fgL}% 0 0)`);
+  root.style.setProperty("--color-brand", brand);
+  root.style.setProperty("--color-brand-hover", brandHover);
+  root.style.setProperty("--color-brand-muted", brandMuted);
+  root.style.setProperty("--color-brand-foreground", brandFg);
+  root.style.setProperty("--color-chart", chart);
 }
 
 export function BrandColorPicker() {
@@ -79,12 +135,7 @@ export function BrandColorPicker() {
               className="border-foreground/15 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
               style={{ background: swatch }}
             >
-              {isActive && (
-                <Check
-                  className="h-4 w-4"
-                  style={{ color: `oklch(${p.fgL}% 0 0)` }}
-                />
-              )}
+              {isActive && <Check className="h-4 w-4" style={{ color: `oklch(${p.fgL}% 0 0)` }} />}
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-foreground text-sm font-semibold">{p.label}</p>
@@ -96,4 +147,5 @@ export function BrandColorPicker() {
     </div>
   );
 }
+
 {% endraw %}

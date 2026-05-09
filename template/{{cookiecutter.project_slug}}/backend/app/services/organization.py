@@ -6,14 +6,21 @@ Business logic for organization management: create, list, update, delete,
 and Personal Org auto-creation on user registration.
 """
 
+import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import AlreadyExistsError, AuthorizationError, BadRequestError, NotFoundError
 from app.db.models.organization import OrgRole, Organization, OrganizationMember
 from app.repositories import invitation_repo, member_repo, organization_repo
 from app.schemas.organization import OrganizationCreate, OrganizationRead, OrganizationUpdate
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
+from app.services.billing.credit_service import CreditService
+{%- endif %}
+
+logger = logging.getLogger(__name__)
 
 
 class OrganizationService:
@@ -80,7 +87,11 @@ class OrganizationService:
         return org
 
     async def create_personal_org(self, user_id: UUID, email: str) -> Organization:
-        """Create the Personal Organization for a newly registered user."""
+        """Create the Personal Organization for a newly registered user.
+
+        Also grants the configured free-tier credit bonus so AI usage works on
+        the free plan up to the granted amount.
+        """
         slug = await organization_repo.generate_unique_slug(self.db, email.split("@")[0])
         org = await organization_repo.create(
             self.db,
@@ -95,6 +106,15 @@ class OrganizationService:
             user_id=user_id,
             role=OrgRole.OWNER.value,
         )
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
+        if settings.CREDITS_FREE_TIER_GRANT > 0:
+            try:
+                await CreditService(self.db).grant_signup_bonus(organization_id=org.id)
+            except Exception:
+                logger.exception(
+                    "free_tier_grant_failed", extra={"org_id": str(org.id)}
+                )
+{%- endif %}
         return org
 
     async def update(

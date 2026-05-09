@@ -41,7 +41,7 @@ export function SeatSelectorDialog({
 
   const activePlan = plans.find((p) => p.prices.some((pr) => pr.is_active));
   const price = activePlan?.prices.find((pr) => pr.is_active && pr.interval === "month");
-  const perSeat = price ? price.unit_amount / 100 : null;
+  const perSeat = price ? price.amount_cents / 100 : null;
 
   const fmt = (amount: number) =>
     amount.toLocaleString("en-US", {

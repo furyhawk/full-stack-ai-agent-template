@@ -57,6 +57,7 @@ enable_usage_anomaly_detection = "{{ cookiecutter.enable_usage_anomaly_detection
 enable_email = "{{ cookiecutter.enable_email }}" == "True"
 enable_newsletter_signup = "{{ cookiecutter.enable_newsletter_signup }}" == "True"
 enable_marketing_site = "{{ cookiecutter.enable_marketing_site }}" == "True"
+enable_changelog = "{{ cookiecutter.enable_changelog }}" == "True"
 
 
 def remove_file(path: str) -> None:
@@ -133,23 +134,26 @@ if not enable_session_management:
     remove_file(os.path.join(backend_app, "repositories", "session.py"))
     remove_file(os.path.join(backend_app, "services", "session.py"))
     remove_file(os.path.join(backend_app, "schemas", "session.py"))
+    if use_frontend:
+        frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+        remove_dir(os.path.join(frontend_src, "app", "api", "sessions"))
+        remove_file(os.path.join(frontend_src, "components", "dashboard", "active-sessions.tsx"))
 
 
-# --- Admin panel (requires SQLAlchemy, not SQLModel) ---
+# --- Admin panel: SQLAdmin UI (requires SQLAlchemy, not SQLModel) ---
+# This gates ONLY the SQLAdmin integration (`admin.py`). The admin REST routes
+# (`admin_users.py`, `admin_conversations.py`, `admin_ratings.py`,
+# `admin_stats.py`) and the dashboard pages stay regardless — they're always
+# useful for the workspace admin role.
 if not enable_admin_panel or (not use_postgresql and not use_sqlite) or not use_sqlalchemy:
     remove_file(os.path.join(backend_app, "admin.py"))
 
-# --- Admin stats / Stripe events listing — disabled when admin panel is off ---
-if not enable_admin_panel:
-    remove_file(os.path.join(backend_app, "schemas", "admin.py"))
-    remove_file(os.path.join(backend_app, "services", "admin.py"))
-    remove_file(os.path.join(backend_app, "api", "routes", "v1", "admin_stats.py"))
-    if use_frontend:
-        frontend_src_for_admin = os.path.join(os.getcwd(), "frontend", "src")
-        remove_dir(os.path.join(frontend_src_for_admin, "app", "api", "admin", "stats"))
-        remove_dir(
-            os.path.join(frontend_src_for_admin, "app", "api", "admin", "stripe-events"),
-        )
+# Stripe events listing requires the StripeEvent model — drop it (and the
+# proxy) when billing is off. The /admin/stripe-events page itself is removed
+# in the billing-off block elsewhere.
+if not enable_billing and use_frontend:
+    frontend_src_for_admin = os.path.join(os.getcwd(), "frontend", "src")
+    remove_dir(os.path.join(frontend_src_for_admin, "app", "api", "admin", "stripe-events"))
 
 # --- Redis/Cache files ---
 if not enable_redis:
@@ -207,6 +211,10 @@ if not enable_rag:
         # Remove RAG management page (both paths - i18n variant may be moved later)
         remove_dir(os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "rag"))
         remove_dir(os.path.join(frontend_src, "app", "(dashboard)", "rag"))
+        # RAG-only chat / KB / sync components — no fallback when rag-api.ts
+        # is gone, so drop them entirely.
+        remove_dir(os.path.join(frontend_src, "components", "rag"))
+        remove_file(os.path.join(frontend_src, "components", "chat", "kb-panel.tsx"))
 else:
     # RAG enabled — remove optional components if not enabled
     rag_dir = os.path.join(backend_app, "services", "rag")
@@ -615,6 +623,8 @@ if not enable_teams:
         remove_dir(
             os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "admin", "stripe-events"),
         )
+        # Dashboard widgets that depend on teams/orgs.
+        remove_file(os.path.join(frontend_src, "components", "dashboard", "team-summary.tsx"))
 
 # --- Billing: remove billing-specific files if enable_billing is false ---
 if not enable_billing:
@@ -647,6 +657,12 @@ if not enable_billing:
         remove_dir(
             os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "admin", "stripe-events"),
         )
+        # Dashboard widgets that depend on billing data.
+        remove_file(os.path.join(frontend_src, "components", "dashboard", "subscription-chip.tsx"))
+        remove_file(os.path.join(frontend_src, "components", "dashboard", "tool-usage.tsx"))
+        remove_file(os.path.join(frontend_src, "components", "dashboard", "top-models.tsx"))
+        # billing/me/* proxy depends on the billing backend
+        remove_dir(os.path.join(frontend_src, "app", "api", "billing", "me"))
         # Settings → Integrations tab depends on useBilling for the Stripe
         # portal link. Drop the page when billing is off; the settings index
         # auto-skips it because the layout reads the directory.
@@ -668,6 +684,9 @@ if not enable_credits_system:
 # --- Usage spike detection: cron job that compares hourly usage vs rolling avg ---
 if not enable_usage_anomaly_detection:
     remove_file(os.path.join(backend_app, "services", "anomaly_detection.py"))
+    # Worker task imports the service — remove together to avoid an import error
+    # at app boot. Schedule entries in celery_app are already feature-gated.
+    remove_file(os.path.join(backend_app, "worker", "tasks", "anomaly_tasks.py"))
 
 # --- Email: lifecycle + notification emails (welcome, invitation, billing) ---
 if not enable_email:
@@ -770,21 +789,34 @@ if not enable_marketing_site and use_frontend:
     remove_dir(os.path.join(frontend_src, "components", "blog"))
     remove_dir(os.path.join(frontend_src, "components", "legal"))
     # Only files that have no callers outside removed routes can go:
+    # NOTE: cookie-banner.tsx STAYS — it's rendered by [locale]/layout.tsx for
+    # every page (auth, dashboard, marketing). EU cookie consent applies even
+    # without a marketing site.
     for f in (
-        "cookie-banner.tsx",      # used by legal pages
         "legal-page.tsx",         # used by legal pages
         "contact-form.tsx",       # used by /contact
     ):
         remove_file(os.path.join(frontend_src, "components", "marketing", f))
 
-    # Marketing-only lib helpers
-    remove_file(os.path.join(frontend_src, "lib", "seo.ts"))
-    remove_file(os.path.join(frontend_src, "lib", "schema-org.ts"))
+    # Marketing-only lib helpers. NOTE: `seo.ts` and `schema-org.ts` STAY —
+    # they're imported by app/layout.tsx, [locale]/layout.tsx, and every auth /
+    # onboarding / dashboard page for `<head>` metadata + structured data.
+    # `blog.ts` and `contact-info.ts` ride with the marketing routes that just
+    # got removed. `changelog.ts` is removed only when the changelog page also
+    # goes (see the changelog block below).
     remove_file(os.path.join(frontend_src, "lib", "blog.ts"))
-    remove_file(os.path.join(frontend_src, "lib", "changelog.ts"))
     remove_file(os.path.join(frontend_src, "lib", "contact-info.ts"))
 
     # MDX content directory
     remove_dir(os.path.join(frontend_root, "content"))
+
+# Changelog: page + its data file ride together. The page is not in the
+# marketing block above (it's pseudo-marketing — a public release log) so it
+# has its own flag.
+if not enable_changelog and use_frontend:
+    frontend_root = os.path.join(os.getcwd(), "frontend")
+    frontend_src = os.path.join(frontend_root, "src")
+    remove_dir(os.path.join(frontend_src, "app", "[locale]", "changelog"))
+    remove_file(os.path.join(frontend_src, "lib", "changelog.ts"))
 
 print("Project generated successfully!")

@@ -420,7 +420,10 @@ def create_app() -> FastAPI:
     )
 
 {%- if cookiecutter.enable_logfire %}
-    # Logfire instrumentation
+    # Logfire instrumentation. setup_logfire() is also called from the lifespan
+    # for the runtime app, but we call it here too so that import-time test
+    # clients (which never run lifespan) silence the "configure first" warning.
+    setup_logfire()
     instrument_app(app)
 {%- endif %}
 

@@ -43,8 +43,11 @@ export function useConversations() {
     setLoading(true);
     setError(null);
     try {
+      // Fetch both active and archived in one call so the sidebar tabs can
+      // partition them client-side. Archived items are filtered out of the
+      // default tab, and surfaced only when the user opens "Archived".
       const response = await apiClient.get<ConversationListResponse>(
-        `/conversations?limit=${PAGE_SIZE}`,
+        `/conversations?limit=${PAGE_SIZE}&include_archived=true`,
       );
       setConversations(response.items);
       hasMoreRef.current = response.items.length >= PAGE_SIZE;
@@ -84,7 +87,7 @@ export function useConversations() {
     const current = useConversationStore.getState().conversations;
     try {
       const response = await apiClient.get<ConversationListResponse>(
-        `/conversations?limit=${PAGE_SIZE}&skip=${current.length}`,
+        `/conversations?limit=${PAGE_SIZE}&skip=${current.length}&include_archived=true`,
       );
       if (response.items.length > 0) {
         setConversations([...current, ...response.items]);
@@ -161,6 +164,21 @@ export function useConversations() {
     [updateConversation, setError],
   );
 
+  const unarchiveConversation = useCallback(
+    async (id: string) => {
+      try {
+        await apiClient.patch(`/conversations/${id}`, { is_archived: false });
+        updateConversation(id, { is_archived: false });
+        toast.success("Conversation restored");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to restore conversation";
+        setError(message);
+        toast.error(message);
+      }
+    },
+    [updateConversation, setError],
+  );
+
   const deleteConversation = useCallback(
     async (id: string) => {
       try {
@@ -216,14 +234,18 @@ export function useConversations() {
     }
     clearMessages();
     setCurrentMessages([]);
-    const newConversation = await createConversation();
-    if (newConversation) {
-      setCurrentConversationId(newConversation.id);
+    setCurrentConversationId(null);
+    // Strip the stale ?id= immediately so a refresh mid-flight lands on a
+    // fresh /chat instead of the old conversation. The new id will be set
+    // by the WS conversation_created event on first message.
+    if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.set("id", newConversation.id);
-      window.history.replaceState({}, "", url.toString());
+      if (url.searchParams.has("id")) {
+        url.searchParams.delete("id");
+        window.history.replaceState({}, "", url.toString());
+      }
     }
-  }, [clearMessages, setCurrentMessages, createConversation, setCurrentConversationId]);
+  }, [clearMessages, setCurrentMessages, setCurrentConversationId]);
 
   return {
     conversations,
@@ -237,6 +259,7 @@ export function useConversations() {
     createConversation,
     selectConversation,
     archiveConversation,
+    unarchiveConversation,
     deleteConversation,
     renameConversation,
     startNewChat,

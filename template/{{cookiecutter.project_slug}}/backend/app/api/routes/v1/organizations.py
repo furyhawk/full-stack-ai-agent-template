@@ -1,20 +1,38 @@
 {%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
 """Organization CRUD routes."""
 
+{%- if cookiecutter.use_postgresql %}
+import contextlib
+from pathlib import Path
+{%- endif %}
 from typing import Any
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
 {%- endif %}
 
+{%- if cookiecutter.use_postgresql %}
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
+{%- else %}
 from fastapi import APIRouter, status
+{%- endif %}
 
 from app.api.deps import CurrentUser, OrganizationSvc
+{%- if cookiecutter.use_postgresql %}
+from app.db.models.organization import OrgRole
+{%- endif %}
 from app.schemas.organization import (
     OrganizationCreate,
     OrganizationList,
     OrganizationRead,
     OrganizationUpdate,
 )
+{%- if cookiecutter.use_postgresql %}
+from app.services.file_storage import get_file_storage
+
+ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+{%- endif %}
 
 router = APIRouter()
 
@@ -239,6 +257,76 @@ def delete_organization(
     service.delete(org_id, requester_id=str(user.id))
 {%- else %}
     await service.delete(org_id, requester_id=str(user.id))
+{%- endif %}
+
+{%- if cookiecutter.use_postgresql %}
+
+
+@router.post("/{org_id}/avatar", response_model=OrganizationRead)
+async def upload_organization_avatar(
+    org_id: UUID,
+    service: OrganizationSvc,
+    user: CurrentUser,
+    file: UploadFile = File(...),
+) -> Any:
+    """Upload or replace the organization avatar. Requires Admin or Owner role."""
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        raise HTTPException(
+            status_code=400, detail="Only JPEG, PNG, WebP, and GIF images are allowed"
+        )
+    data = await file.read()
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=400, detail="Avatar image too large. Maximum 2MB.")
+
+    # Authorization is enforced by service.update — but we replicate the check
+    # here so we don't write a file the user can't actually attach.
+    org, membership = await service.get_for_user(org_id, user.id)
+    if membership.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value):
+        raise HTTPException(status_code=403, detail="Only Owner or Admin can update the org")
+
+    storage = get_file_storage()
+    if org.avatar_url:
+        with contextlib.suppress(Exception):
+            await storage.delete(org.avatar_url)
+    storage_path = await storage.save(
+        f"avatars/orgs/{org_id}", file.filename or "avatar.jpg", data
+    )
+    updated = await service.update(
+        org_id, OrganizationUpdate(avatar_url=storage_path), requester_id=user.id
+    )
+    rows = await service.list_for_user(user.id)
+    member_count = next((r["member_count"] for r in rows if r["org"].id == updated.id), 0)
+    role = next((r["role"] for r in rows if r["org"].id == updated.id), "member")
+    return OrganizationRead(
+        id=updated.id,
+        name=updated.name,
+        slug=updated.slug,
+        is_personal=updated.is_personal,
+        avatar_url=updated.avatar_url,
+        member_count=member_count,
+        role=role,
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
+        subscription_tier=getattr(updated, "subscription_tier", "free"),
+        credits_balance=getattr(updated, "credits_balance", 0),
+    )
+
+
+@router.get("/{org_id}/avatar")
+async def get_organization_avatar(
+    org_id: UUID,
+    service: OrganizationSvc,
+    user: CurrentUser,
+) -> Any:
+    """Stream the organization avatar image. Membership is required to view."""
+    org, _ = await service.get_for_user(org_id, user.id)
+    if not org.avatar_url:
+        raise HTTPException(status_code=404, detail="No avatar set")
+    storage = get_file_storage()
+    file_path = storage.get_full_path(org.avatar_url)
+    if not file_path or not Path(file_path).exists():
+        raise HTTPException(status_code=404, detail="Avatar file missing")
+    return FileResponse(path=file_path, media_type="image/jpeg")
 {%- endif %}
 
 

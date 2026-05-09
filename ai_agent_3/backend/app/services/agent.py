@@ -12,6 +12,7 @@ Framework-specific concerns (multimodal input, streaming events) stay in the rou
 
 import json
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -27,6 +28,8 @@ from pydantic_ai.messages import (
 
 from app.api.deps import get_conversation_service
 from app.db.session import get_db_context
+from app.repositories import organization_repo
+from app.services.usage import UsageService
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -104,14 +107,16 @@ async def persist_user_turn(
     file_ids: list[Any],
     requested_conversation_id: str | None,
     current_conversation_id: str | None,
-) -> tuple[str | None, bool]:
+) -> tuple[str | None, bool, str | None]:
     """Resolve the conversation, persist the user message, and link any uploaded files.
 
-    Returns ``(conversation_id, was_newly_created)``. When ``was_newly_created`` is True
-    the caller should emit a ``conversation_created`` WebSocket event; routes own the
-    WebSocket protocol and services own data.
+    Returns ``(conversation_id, was_newly_created, organization_id)``. When
+    ``was_newly_created`` is True the caller should emit a ``conversation_created``
+    WebSocket event. ``organization_id`` is the conversation's owning org (the user's
+    Personal org for new conversations) so usage events can be billed correctly.
     """
     newly_created = False
+    organization_id: str | None = None
     try:
         async with get_db_context() as db:
             conv_service = get_conversation_service(db)
@@ -127,10 +132,16 @@ async def persist_user_turn(
                         ConversationUpdate(title=truncate_title(user_message)),
                         user_id=user.id,
                     )
+                if conv.organization_id is not None:
+                    organization_id = str(conv.organization_id)
             elif not current_conversation_id:
+                personal_org = await organization_repo.get_personal_for_user(db, user.id)
+                if personal_org is not None:
+                    organization_id = str(personal_org.id)
                 conversation = await conv_service.create_conversation(
                     ConversationCreate(
                         user_id=user.id,
+                        organization_id=personal_org.id if personal_org else None,
                         title=truncate_title(user_message),
                     )
                 )
@@ -149,7 +160,7 @@ async def persist_user_turn(
     except Exception as e:
         logger.warning(f"Failed to persist conversation: {e}")
 
-    return current_conversation_id, newly_created
+    return current_conversation_id, newly_created, organization_id
 
 
 def normalize_tool_args(args: Any) -> dict[str, Any]:
@@ -161,13 +172,32 @@ def normalize_tool_args(args: Any) -> dict[str, Any]:
     return args
 
 
+@dataclass
+class AssistantTurnUsage:
+    """Token-level usage for one assistant turn, used to debit credits."""
+
+    organization_id: UUID
+    model: str
+    provider: str
+    input_tokens: int
+    output_tokens: int
+    cached_tokens: int
+    ai_framework: str
+    actor_user_id: UUID | None
+
+
 async def persist_assistant_turn(
     conversation_id: str,
     output: str,
     model_name: str | None,
     collected_tool_calls: list[dict[str, Any]],
+    usage: AssistantTurnUsage | None = None,
 ) -> str | None:
-    """Persist the assistant message and any tool calls. Returns the saved message id."""
+    """Persist the assistant message, tool calls, and (optionally) usage event.
+
+    All writes share a single database transaction so partial failures don't leave
+    orphaned data. Returns the saved message id, or None on error.
+    """
     try:
         async with get_db_context() as db:
             conv_service = get_conversation_service(db)
@@ -197,6 +227,21 @@ async def persist_assistant_turn(
                         )
                 except Exception as e:
                     logger.warning(f"Failed to persist tool call: {e}")
+            if usage is not None:
+                try:
+                    await UsageService(db).record(
+                        organization_id=usage.organization_id,
+                        model=usage.model,
+                        provider=usage.provider,
+                        input_tokens=usage.input_tokens,
+                        output_tokens=usage.output_tokens,
+                        cached_tokens=usage.cached_tokens,
+                        ai_framework=usage.ai_framework,
+                        actor_user_id=usage.actor_user_id,
+                        conversation_id=UUID(conversation_id),
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to record usage event: {e}")
             return str(assistant_msg.id)
     except Exception as e:
         logger.warning(f"Failed to persist assistant response: {e}")

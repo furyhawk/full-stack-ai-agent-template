@@ -7,10 +7,6 @@ import stripe
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.repositories.subscription as sub_repo
-{%- if cookiecutter.enable_credits_system %}
-import app.repositories.credit_transaction as credit_tx_repo
-from app.db.models.credit_transaction import CreditTransactionType
-{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -67,38 +63,33 @@ async def handle_payment_succeeded(db: AsyncSession, event: stripe.Event) -> Non
 
     sub = await sub_repo.get_by_stripe_id(db, invoice.subscription)
     if not sub:
-        logger.warning("invoice_sub_not_found", subscription_id=invoice.subscription)
+        logger.warning(
+            "invoice_sub_not_found",
+            extra={"subscription_id": invoice.subscription},
+        )
         return
-
-{%- if cookiecutter.enable_credits_system %}
-    if invoice.billing_reason in ("subscription_create", "subscription_cycle"):
-        plan = sub.price.plan if hasattr(sub, "price") and sub.price else None
-        if plan:
-            monthly_grant = plan.monthly_credits_base + plan.monthly_credits_per_seat * sub.seats_quantity
-            if monthly_grant > 0:
-                await credit_tx_repo.create(
-                    db,
-                    organization_id=sub.organization_id,
-                    delta=monthly_grant,
-                    balance_after=0,
-                    type=CreditTransactionType.GRANT_SUBSCRIPTION,
-                    description=f"Monthly credits — {plan.display_name}",
-                    stripe_reference=invoice.id,
-                )
-{%- endif %}
+    # Note: monthly credit grants are handled by customer.subscription.updated
+    # (period rollover) and customer.subscription.created (first activation).
+    # We don't grant here to avoid double-crediting on renewal.
 
     await _send_payment_succeeded_email(invoice)
 
 
 async def handle_payment_failed(db: AsyncSession, event: stripe.Event) -> None:
     invoice = event.data.object
-    logger.warning("invoice_payment_failed", invoice_id=invoice.id, subscription_id=invoice.subscription)
+    logger.warning(
+        "invoice_payment_failed",
+        extra={"invoice_id": invoice.id, "subscription_id": invoice.subscription},
+    )
     await _send_payment_failed_email(invoice)
 
 
 async def handle_upcoming(db: AsyncSession, event: stripe.Event) -> None:
     invoice = event.data.object
-    logger.info("invoice_upcoming", invoice_id=invoice.id, subscription_id=invoice.subscription)
+    logger.info(
+        "invoice_upcoming",
+        extra={"invoice_id": invoice.id, "subscription_id": invoice.subscription},
+    )
 
 {%- elif cookiecutter.use_sqlite %}
 import stripe

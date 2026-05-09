@@ -2,7 +2,7 @@
 """Tests for service layer."""
 {%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 {%- elif cookiecutter.use_sqlite %}
 
 from unittest.mock import MagicMock, patch
@@ -105,9 +105,31 @@ class TestUserServicePostgresql:
     @pytest.mark.anyio
     async def test_register_success(self, user_service: UserService, mock_user: MockUser):
         """Test registering a new user."""
-        with patch("app.services.user.user_repo") as mock_repo:
+        # Stub the count-of-users SELECT used by the first-user → app-admin
+        # promotion. Side effects we don't care about (welcome email, personal
+        # org creation, count query) are mocked out so the test stays focused
+        # on user_repo.create being invoked.
+        scalar_one_result = MagicMock()
+        scalar_one_result.scalar_one.return_value = 1
+        user_service.db.execute = AsyncMock(return_value=scalar_one_result)
+
+        with (
+            patch("app.services.user.user_repo") as mock_repo,
+{%- if cookiecutter.enable_teams %}
+            patch("app.services.user.OrganizationService") as mock_org_svc,
+{%- endif %}
+{%- if cookiecutter.enable_email %}
+            patch("app.services.user.get_email_service") as mock_email,
+{%- endif %}
+        ):
             mock_repo.get_by_email = AsyncMock(return_value=None)
             mock_repo.create = AsyncMock(return_value=mock_user)
+{%- if cookiecutter.enable_teams %}
+            mock_org_svc.return_value.create_personal_org = AsyncMock()
+{%- endif %}
+{%- if cookiecutter.enable_email %}
+            mock_email.return_value.send_welcome = AsyncMock()
+{%- endif %}
 
             user_in = UserCreate(
                 email="new@example.com",

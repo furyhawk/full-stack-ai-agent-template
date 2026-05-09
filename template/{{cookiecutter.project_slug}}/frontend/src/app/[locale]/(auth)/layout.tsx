@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/theme";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 
 const HIGHLIGHTS = [
@@ -13,7 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="bg-background text-foreground min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
       {/* Left — brand panel (dark, hidden on mobile) */}
-      <aside className="theme-dark relative hidden flex-col justify-between overflow-hidden bg-background text-foreground p-10 lg:flex lg:p-12">
+      <aside className="theme-dark bg-background text-foreground relative hidden flex-col justify-between overflow-hidden p-10 lg:flex lg:p-12">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="bg-grid absolute inset-0 opacity-[0.6]" />
           <div className="bg-brand/[0.18] absolute -top-32 -left-20 h-[420px] w-[420px] rounded-full blur-[120px]" />
@@ -33,8 +32,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="relative z-10 max-w-[28rem]">
           <span className="eyebrow-badge mb-8">An AI assistant that knows your work</span>
           <h2 className="text-display-lg text-foreground mb-6 leading-[1.05]">
-            Ship the AI feature{" "}
-            <span className="font-accent text-foreground/95">your team</span>{" "}
+            Ship the AI feature <span className="font-accent text-foreground/95">your team</span>{" "}
             actually wants.
           </h2>
           <p className="text-foreground/65 max-w-md text-base leading-relaxed">
@@ -68,9 +66,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </figure>
       </aside>
 
-      {/* Right — form panel (cream/light, scrollable on small heights) */}
-      <main id="main" className="bg-background relative flex flex-col">
-        <header className="flex h-16 items-center justify-between px-6 sm:px-10">
+      {/* Right — form panel (always light, regardless of system theme) */}
+      <main
+        id="main"
+        className="theme-light bg-background text-foreground relative flex flex-col"
+      >
+        <header className="flex h-16 items-center px-6 sm:px-10">
           <Link
             href={ROUTES.HOME}
             className="font-display text-foreground inline-flex items-center gap-2 text-base font-bold tracking-tight lg:hidden"
@@ -78,16 +79,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <span aria-hidden className="bg-brand inline-block h-2.5 w-2.5 rounded-full" />
             {APP_NAME}
           </Link>
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
           <div className="w-full max-w-md">{children}</div>
         </div>
 
-        <footer className="text-foreground/50 px-6 py-6 font-mono text-[11px] uppercase tracking-wider sm:px-10">
+        <footer className="text-foreground/50 px-6 py-6 font-mono text-[11px] tracking-wider uppercase sm:px-10">
           © {new Date().getFullYear()} {APP_NAME}
         </footer>
       </main>

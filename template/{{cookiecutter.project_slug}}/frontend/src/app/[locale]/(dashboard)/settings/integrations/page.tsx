@@ -28,17 +28,23 @@ export default function IntegrationsSettingsPage() {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+  // Gate Stripe by the same flag the marketing site uses for the pricing page —
+  // when the deployer hasn't set it the portal button just 404s.
+  const stripeEnabled = process.env.NEXT_PUBLIC_STRIPE_ENABLED === "true";
+
   const integrations: IntegrationItem[] = [
     {
       key: "stripe",
       name: "Stripe billing",
       description: "Subscriptions, invoices, customer portal — managed by Stripe.",
       brand: "stripe",
-      status: "connected",
-      cta: {
-        label: isLoading ? "Opening…" : "Open Stripe portal",
-        onClick: () => openPortal(),
-      },
+      status: stripeEnabled ? "connected" : "available",
+      cta: stripeEnabled
+        ? {
+            label: isLoading ? "Opening…" : "Open Stripe portal",
+            onClick: () => openPortal(),
+          }
+        : { label: "Configure in env", href: "/help#workspace" },
     },
     {
       key: "google",
@@ -121,12 +127,7 @@ export default function IntegrationsSettingsPage() {
               </div>
               {it.status !== "coming-soon" && it.cta ? (
                 it.cta.href ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="rounded-full"
-                  >
+                  <Button variant="outline" size="sm" asChild className="rounded-full">
                     <Link href={it.cta.href} className="inline-flex items-center gap-1.5">
                       {it.cta.label}
                       <ArrowUpRight className="h-3.5 w-3.5" />
@@ -168,7 +169,7 @@ export default function IntegrationsSettingsPage() {
 function StatusPill({ status }: { status: IntegrationItem["status"] }) {
   if (status === "connected") {
     return (
-      <span className="bg-brand text-brand-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider">
+      <span className="bg-brand text-brand-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase">
         <span aria-hidden className="h-1 w-1 rounded-full bg-current" />
         Connected
       </span>
@@ -176,13 +177,13 @@ function StatusPill({ status }: { status: IntegrationItem["status"] }) {
   }
   if (status === "available") {
     return (
-      <span className="border-foreground/15 text-foreground/70 inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider">
+      <span className="border-foreground/15 text-foreground/70 inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase">
         Available
       </span>
     );
   }
   return (
-    <span className="border-foreground/10 text-foreground/45 inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider">
+    <span className="border-foreground/10 text-foreground/45 inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase">
       Coming soon
     </span>
   );

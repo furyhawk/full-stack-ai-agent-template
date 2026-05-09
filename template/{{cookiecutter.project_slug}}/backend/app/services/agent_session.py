@@ -24,7 +24,7 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import BinaryContent, TextPart
+from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
 
 from app.agents.assistant import Deps, get_agent
 from app.services.agent import (
@@ -81,7 +81,7 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
 {%- if cookiecutter.websocket_auth_jwt %}
             self.user,
 {%- endif %}
@@ -257,7 +257,7 @@ class AgentSession:
                 )
 
     async def _stream_request_events(self, request_stream: Any) -> None:
-        """Forward model-request events (text/tool deltas + final-result start)."""
+        """Forward model-request events (text/thinking/tool deltas + final-result start)."""
         async for event in request_stream:
             if isinstance(event, PartStartEvent):
                 await send_event(
@@ -271,6 +271,14 @@ class AgentSession:
                         "text_delta",
                         {"index": event.index, "content": event.part.content},
                     )
+                elif isinstance(event.part, ThinkingPart) and event.part.content:
+                    # Surface the model's reasoning trace to the UI. Anthropic +
+                    # OpenAI-reasoning models emit these as the model "thinks".
+                    await send_event(
+                        self.websocket,
+                        "thinking_delta",
+                        {"index": event.index, "content": event.part.content},
+                    )
             elif isinstance(event, PartDeltaEvent):
                 if isinstance(event.delta, TextPartDelta):
                     await send_event(
@@ -278,6 +286,13 @@ class AgentSession:
                         "text_delta",
                         {"index": event.index, "content": event.delta.content_delta},
                     )
+                elif isinstance(event.delta, ThinkingPartDelta):
+                    if event.delta.content_delta:
+                        await send_event(
+                            self.websocket,
+                            "thinking_delta",
+                            {"index": event.index, "content": event.delta.content_delta},
+                        )
                 elif isinstance(event.delta, ToolCallPartDelta):
                     await send_event(
                         self.websocket,
@@ -382,7 +397,7 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
 {%- if cookiecutter.websocket_auth_jwt %}
             self.user,
 {%- endif %}
@@ -643,7 +658,7 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
 {%- if cookiecutter.websocket_auth_jwt %}
             self.user,
 {%- endif %}
@@ -898,7 +913,7 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
 {%- if cookiecutter.websocket_auth_jwt %}
             self.user,
 {%- endif %}
@@ -1230,7 +1245,7 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
 {%- if cookiecutter.websocket_auth_jwt %}
             self.user,
 {%- endif %}
@@ -1513,7 +1528,7 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import BinaryContent, TextPart
+from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
 
 from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent
 from app.services.agent import (
@@ -1572,7 +1587,7 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created = await persist_user_turn(
+        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
 {%- if cookiecutter.websocket_auth_jwt %}
             self.user,
 {%- endif %}
@@ -1784,7 +1799,7 @@ class AgentSession:
                 )
 
     async def _stream_request_events(self, request_stream: Any) -> None:
-        """Forward model-request events (text/tool deltas + final-result start)."""
+        """Forward model-request events (text/thinking/tool deltas + final-result start)."""
         async for event in request_stream:
             if isinstance(event, PartStartEvent):
                 await send_event(
@@ -1798,6 +1813,14 @@ class AgentSession:
                         "text_delta",
                         {"index": event.index, "content": event.part.content},
                     )
+                elif isinstance(event.part, ThinkingPart) and event.part.content:
+                    # Surface the model's reasoning trace to the UI. Anthropic +
+                    # OpenAI-reasoning models emit these as the model "thinks".
+                    await send_event(
+                        self.websocket,
+                        "thinking_delta",
+                        {"index": event.index, "content": event.part.content},
+                    )
             elif isinstance(event, PartDeltaEvent):
                 if isinstance(event.delta, TextPartDelta):
                     await send_event(
@@ -1805,6 +1828,13 @@ class AgentSession:
                         "text_delta",
                         {"index": event.index, "content": event.delta.content_delta},
                     )
+                elif isinstance(event.delta, ThinkingPartDelta):
+                    if event.delta.content_delta:
+                        await send_event(
+                            self.websocket,
+                            "thinking_delta",
+                            {"index": event.index, "content": event.delta.content_delta},
+                        )
                 elif isinstance(event.delta, ToolCallPartDelta):
                     await send_event(
                         self.websocket,

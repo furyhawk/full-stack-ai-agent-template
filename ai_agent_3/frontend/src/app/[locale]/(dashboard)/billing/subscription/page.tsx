@@ -95,7 +95,7 @@ export default function SubscriptionPage() {
                       <li key={price.id} className="flex items-baseline justify-between gap-2">
                         <span className="text-foreground/55 capitalize">{price.interval}</span>
                         <span className="text-foreground font-mono tabular-nums">
-                          {formatMoney(price.unit_amount, price.currency)}
+                          {formatMoney(price.amount_cents, price.currency)}
                         </span>
                       </li>
                     ))}

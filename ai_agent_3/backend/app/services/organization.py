@@ -8,6 +8,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import logging
+
+from app.core.config import settings
 from app.core.exceptions import (
     AlreadyExistsError,
     AuthorizationError,
@@ -17,6 +20,9 @@ from app.core.exceptions import (
 from app.db.models.organization import Organization, OrganizationMember, OrgRole
 from app.repositories import member_repo, organization_repo
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate
+from app.services.billing.credit_service import CreditService
+
+logger = logging.getLogger(__name__)
 
 
 class OrganizationService:
@@ -87,7 +93,11 @@ class OrganizationService:
         return org
 
     async def create_personal_org(self, user_id: UUID, email: str) -> Organization:
-        """Create the Personal Organization for a newly registered user."""
+        """Create the Personal Organization for a newly registered user.
+
+        Also grants the configured free-tier credit bonus so AI usage works on
+        the free plan up to the granted amount.
+        """
         slug = await organization_repo.generate_unique_slug(self.db, email.split("@")[0])
         org = await organization_repo.create(
             self.db,
@@ -102,6 +112,13 @@ class OrganizationService:
             user_id=user_id,
             role=OrgRole.OWNER.value,
         )
+        if settings.CREDITS_FREE_TIER_GRANT > 0:
+            try:
+                await CreditService(self.db).grant_signup_bonus(organization_id=org.id)
+            except Exception:
+                logger.exception(
+                    "free_tier_grant_failed", extra={"org_id": str(org.id)}
+                )
         return org
 
     async def update(

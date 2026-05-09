@@ -8,7 +8,7 @@ import { EmptyState, LoadingState } from "@/components/states";
 import { useKnowledgeBases } from "@/hooks";
 
 export default function KBPage() {
-  const { kbs, isLoading, fetchKBs, patchKB, deleteKB } = useKnowledgeBases();
+  const { kbs, isLoading, fetchKBs, deleteKB } = useKnowledgeBases();
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
@@ -50,11 +50,7 @@ export default function KBPage() {
           cta={{ label: "Create knowledge base", onClick: () => setCreateOpen(true) }}
         />
       ) : (
-        <KBList
-          kbs={kbs}
-          onToggle={(id, active) => patchKB(id, { is_active: active })}
-          onDelete={deleteKB}
-        />
+        <KBList kbs={kbs} onDelete={deleteKB} />
       )}
 
       <CreateKBDialog

@@ -6,8 +6,20 @@ import logging
 import time
 from typing import Any
 
-from app.services.channels.base import IncomingMessage
+from app.core.channel_crypto import decrypt_token
 from app.core.exceptions import AuthorizationError, BadRequestError
+from app.repositories import (
+    channel_bot_repo,
+    channel_identity_repo,
+    channel_session_repo,
+    conversation_repo,
+{%- if cookiecutter.enable_teams %}
+    organization_repo,
+{%- endif %}
+)
+from app.services.agent_invocation import AgentInvocationService
+from app.services.channels import get_adapter
+from app.services.channels.base import IncomingMessage, OutgoingMessage
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +82,6 @@ class ChannelMessageRouter:
             7. Invoke agent via AgentInvocationService.
             8. Send reply via adapter.
         """
-        from app.repositories import channel_bot_repo
-        from app.services.agent_invocation import AgentInvocationService
-
         # 1. Load bot
 {%- if cookiecutter.use_postgresql %}
         bot = await channel_bot_repo.get_by_id(db, incoming.bot_id)
@@ -119,6 +128,10 @@ class ChannelMessageRouter:
 
         # 7. Invoke agent
         tool_events = []
+{%- if cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+        conv = await conversation_repo.get_conversation_by_id(db, session.conversation_id)
+        org_id = conv.organization_id if conv else None
+{%- endif %}
         try:
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
             svc = AgentInvocationService(db)
@@ -127,6 +140,9 @@ class ChannelMessageRouter:
                 conversation_id=session.conversation_id,
                 user_id=identity.user_id,
                 project_id=getattr(session, "project_id", None),
+{%- if cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+                organization_id=org_id,
+{%- endif %}
                 system_prompt_override=getattr(bot, "system_prompt_override", None),
                 model_override=getattr(bot, "ai_model_override", None),
             )
@@ -237,13 +253,28 @@ class ChannelMessageRouter:
             )
 
         if cmd == "/new":
-            from app.repositories import channel_session_repo, conversation_repo
 {%- if cookiecutter.use_postgresql %}
             session = await channel_session_repo.get_by_bot_and_chat(
                 db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
             )
             if session:
+{%- if cookiecutter.enable_teams %}
+                identity = await channel_identity_repo.get_by_id(db, session.identity_id)
+                organization_id = None
+                user_id = identity.user_id if identity else None
+                if user_id:
+                    personal_org = await organization_repo.get_personal_for_user(db, user_id)
+                    if personal_org is not None:
+                        organization_id = personal_org.id
+                new_conv = await conversation_repo.create_conversation(
+                    db,
+                    title=f"{incoming.platform.capitalize()} Chat",
+                    user_id=user_id,
+                    organization_id=organization_id,
+                )
+{%- else %}
                 new_conv = await conversation_repo.create_conversation(db, title=f"{incoming.platform.capitalize()} Chat")
+{%- endif %}
                 await channel_session_repo.update(
                     db, db_session=session, update_data={"conversation_id": new_conv.id}
                 )
@@ -270,7 +301,6 @@ class ChannelMessageRouter:
         if cmd == "/link":
             if not arg:
                 return "Usage: /link <code>"
-            from app.repositories import channel_identity_repo
             try:
 {%- if cookiecutter.use_postgresql %}
                 linked = await channel_identity_repo.get_by_link_code(db, arg)
@@ -357,7 +387,6 @@ class ChannelMessageRouter:
                 return "A system error occurred. Please try again later."
 
         if cmd == "/unlink":
-            from app.repositories import channel_identity_repo
 {%- if cookiecutter.use_postgresql %}
             identity = await channel_identity_repo.get_by_platform_user(
                 db,
@@ -391,7 +420,6 @@ class ChannelMessageRouter:
 
 {%- if cookiecutter.use_pydantic_deep %}
         if cmd == "/project":
-            from app.repositories import channel_session_repo
 {%- if cookiecutter.use_postgresql %}
             session = await channel_session_repo.get_by_bot_and_chat(
                 db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
@@ -452,8 +480,6 @@ class ChannelMessageRouter:
         self, incoming: IncomingMessage, bot: Any, db: Any
     ) -> Any:
         """Get or create ChannelIdentity for this platform user."""
-        from app.repositories import channel_identity_repo
-
         policy: dict[str, Any] = self._parse_policy(bot)
         mode: str = policy.get("mode", "open")
 
@@ -521,18 +547,33 @@ class ChannelMessageRouter:
         self, incoming: IncomingMessage, bot: Any, identity: Any, db: Any
     ) -> Any:
         """Get or create ChannelSession (+ backing Conversation) for this bot+chat."""
-        from app.repositories import channel_session_repo, conversation_repo
 
 {%- if cookiecutter.use_postgresql %}
         session = await channel_session_repo.get_by_bot_and_chat(
             db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
         )
         if not session:
+{%- if cookiecutter.enable_teams %}
+            organization_id = None
+            if identity.user_id:
+                personal_org = await organization_repo.get_personal_for_user(
+                    db, identity.user_id
+                )
+                if personal_org is not None:
+                    organization_id = personal_org.id
+            conv = await conversation_repo.create_conversation(
+                db,
+                title=f"{incoming.platform.capitalize()} Chat",
+                user_id=identity.user_id,
+                organization_id=organization_id,
+            )
+{%- else %}
             conv = await conversation_repo.create_conversation(
                 db,
                 title=f"{incoming.platform.capitalize()} Chat",
                 user_id=identity.user_id,
             )
+{%- endif %}
             session = await channel_session_repo.create(
                 db,
                 bot_id=bot.id,
@@ -613,10 +654,6 @@ class ChannelMessageRouter:
 
     async def _send_reply(self, bot: Any, incoming: IncomingMessage, text: str) -> None:
         """Decrypt the bot token and send a reply via the appropriate adapter."""
-        from app.services.channels import get_adapter
-        from app.services.channels.base import OutgoingMessage
-        from app.core.channel_crypto import decrypt_token
-
         try:
             adapter = get_adapter(incoming.platform)
             decrypted_token = decrypt_token(bot.token_encrypted)

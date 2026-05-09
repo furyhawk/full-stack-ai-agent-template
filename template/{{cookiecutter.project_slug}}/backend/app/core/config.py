@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     MODELS_CACHE_DIR: Path = Path("./models_cache")
     MEDIA_DIR: Path = Path("./media")
     MAX_UPLOAD_SIZE_MB: int = 50  # Max file upload size in MB
+    # Soft per-org storage cap surfaced on /billing — not enforced yet (5 GB).
+    STORAGE_SOFT_LIMIT_BYTES: int = 5 * 1024 * 1024 * 1024
 
 {%- if cookiecutter.enable_logfire %}
 
@@ -363,6 +365,19 @@ class Settings(BaseSettings):
     # === Messaging Channels ===
     # Fernet encryption key for bot tokens — generate with: openssl rand -hex 32
     CHANNEL_ENCRYPTION_KEY: str = "change-me-generate-with-openssl-rand-hex-32"
+
+    @field_validator("CHANNEL_ENCRYPTION_KEY")
+    @classmethod
+    def validate_channel_encryption_key(cls, v: str, info: ValidationInfo) -> str:
+        """Reject the default key in production — bot tokens at rest would be
+        encrypted with a public, well-known key."""
+        env = info.data.get("ENVIRONMENT", "local") if info.data else "local"
+        if v == "change-me-generate-with-openssl-rand-hex-32" and env == "production":
+            raise ValueError(
+                "CHANNEL_ENCRYPTION_KEY must be changed in production! "
+                "Generate a secure key with: openssl rand -hex 32"
+            )
+        return v
 {%- if cookiecutter.use_telegram %}
     # Telegram: webhook base URL (e.g. https://api.yourdomain.com) — leave empty to use polling
     TELEGRAM_WEBHOOK_BASE_URL: str = ""

@@ -3,9 +3,11 @@
 Contains business logic for user operations. Uses UserRepository for database access.
 """
 
+import logging
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -17,10 +19,13 @@ from app.core.security import (
     verify_password,
     verify_special_token,
 )
-from app.db.models.user import User
-from app.repositories import user_repo
+from app.db.models.user import User, UserRole
+from app.repositories import session_repo, user_repo
 from app.schemas.user import UserCreate, UserUpdate
+from app.services.email.service import get_email_service
 from app.services.organization import OrganizationService
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.schemas.conversation_share import AdminUserList
@@ -105,6 +110,10 @@ class UserService:
     async def register(self, user_in: UserCreate) -> User:
         """Register a new user.
 
+        The very first user to register is auto-promoted to app-admin so that a
+        fresh deployment has someone who can reach the /admin pages without an
+        extra CLI step.
+
         Raises:
             AlreadyExistsError: If email is already registered.
         """
@@ -115,30 +124,79 @@ class UserService:
                 details={"email": user_in.email},
             )
 
+        existing_count = (
+            await self.db.execute(select(func.count()).select_from(User))
+        ).scalar_one()
+        is_first_user = existing_count == 0
+
         hashed_password = get_password_hash(user_in.password)
         user = await user_repo.create(
             self.db,
             email=user_in.email,
             hashed_password=hashed_password,
             full_name=user_in.full_name,
-            role=user_in.role.value,
+            role=UserRole.ADMIN.value if is_first_user else user_in.role.value,
+            is_app_admin=is_first_user,
         )
         org_service = OrganizationService(self.db)
         await org_service.create_personal_org(user.id, user_in.email)
         try:
-            from app.services.email.service import get_email_service
-
-            email_svc = get_email_service()
-            login_url = getattr(settings, "BILLING_SUCCESS_URL", None) or getattr(
-                settings, "FRONTEND_URL", "/"
-            )
-            await email_svc.send_welcome(
+            login_url = settings.FRONTEND_URL.rstrip("/") + "/login"
+            await get_email_service().send_welcome(
                 to=user.email,
                 name=user.full_name or user.email,
                 login_url=login_url,
             )
         except Exception:
-            pass
+            logger.exception("welcome_email_failed", extra={"user_id": str(user.id)})
+        return user
+
+    async def get_or_create_oauth_user(
+        self,
+        *,
+        provider: str,
+        provider_id: str,
+        email: str,
+        full_name: str | None = None,
+    ) -> User:
+        """Find an existing OAuth user by (provider, provider_id), or create one.
+
+        If a user already has the email but no OAuth link, the OAuth identity is
+        attached to that account. New users get a Personal organization and a
+        welcome email (best-effort).
+        """
+        existing = await user_repo.get_by_oauth(self.db, provider, provider_id)
+        if existing:
+            return existing
+
+        by_email = await user_repo.get_by_email(self.db, email)
+        if by_email is not None:
+            await user_repo.update(
+                self.db,
+                db_user=by_email,
+                update_data={"oauth_provider": provider, "oauth_id": provider_id},
+            )
+            return by_email
+
+        user = await user_repo.create(
+            self.db,
+            email=email,
+            hashed_password=None,
+            full_name=full_name,
+            oauth_provider=provider,
+            oauth_id=provider_id,
+        )
+        org_service = OrganizationService(self.db)
+        await org_service.create_personal_org(user.id, user.email)
+        try:
+            login_url = settings.FRONTEND_URL.rstrip("/") + "/login"
+            await get_email_service().send_welcome(
+                to=user.email,
+                name=user.full_name or user.email,
+                login_url=login_url,
+            )
+        except Exception:
+            logger.exception("welcome_email_failed", extra={"user_id": str(user.id)})
         return user
 
     async def authenticate(self, email: str, password: str) -> User:
@@ -259,6 +317,10 @@ class UserService:
             db_user=user,
             update_data={"hashed_password": get_password_hash(new_password)},
         )
+        # Revoke any active sessions so a previously-issued refresh token cannot
+        # outlive a password reset. The current request returns no tokens — the
+        # user must log in again.
+        await session_repo.deactivate_all_user_sessions(self.db, user.id)
         return user
 
     # ------------------------------------------------------------------

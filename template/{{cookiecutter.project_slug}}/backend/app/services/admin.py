@@ -82,7 +82,7 @@ class AdminService:
             from app.db.models.subscription import Subscription
             from app.db.models.plan import Price
 
-            # Sum active subscription unit_amount × quantity, monthly equiv.
+            # Sum active subscription unit_amount * quantity, monthly equiv.
             stmt = (
                 select(
                     func.coalesce(

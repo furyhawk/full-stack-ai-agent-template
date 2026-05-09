@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { useWebSocket } from "./use-websocket";
 import { useChatStore, useAuthStore } from "@/stores";
-import type { ChatMessage, ToolCall, WSEvent, PendingApproval, Decision } from "@/types";
+import type {
+  ChatMessageFile,
+  Decision,
+  PendingApproval,
+  ToolCall,
+  WSEvent,
+} from "@/types";
 import { WS_URL } from "@/lib/constants";
 import { useConversationStore } from "@/stores";
 interface UseChatOptions {
@@ -20,10 +26,22 @@ export function useChat(options: UseChatOptions = {}) {
     useChatStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  // Held in a ref instead of state because the WS handler reads it
+  // synchronously: events arriving in the same tick (e.g. model_request_start
+  // + text_delta in one server flush) need to see the just-created message id
+  // without waiting for React's batched re-render. The handler never causes a
+  // re-render based on this id, so state isn't needed.
+  const currentMessageIdRef = useRef<string | null>(null);
+  const setCurrentMessageId = useCallback((id: string | null) => {
+    currentMessageIdRef.current = id;
+  }, []);
   const currentGroupIdRef = useRef<string | null>(null);
-  const messageQueueRef = useRef<{ content: string; fileIds?: string[] }[]>([]);
+  const messageQueueRef = useRef<
+    { content: string; fileIds?: string[]; files?: ChatMessageFile[] }[]
+  >([]);
   const modelRef = useRef<string | null>(null);
+  const temperatureRef = useRef<number | null>(null);
+  const thinkingEffortRef = useRef<"low" | "medium" | "high" | null>(null);
   // Human-in-the-Loop: pending tool approval state
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
 
@@ -34,8 +52,8 @@ export function useChat(options: UseChatOptions = {}) {
       // Helper to create a new message
       const createNewMessage = (content: string): string => {
         // Mark previous message as not streaming before creating new one
-        if (currentMessageId) {
-          updateMessage(currentMessageId, (msg) => ({
+        if (currentMessageIdRef.current) {
+          updateMessage(currentMessageIdRef.current, (msg) => ({
             ...msg,
             isStreaming: false,
           }));
@@ -65,6 +83,14 @@ export function useChat(options: UseChatOptions = {}) {
           // Handle new conversation created by backend
           const { conversation_id } = wsEvent.data as { conversation_id: string };
           setCurrentConversationId(conversation_id);
+          // Reflect the new ID in the URL so the page is refreshable + shareable.
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (url.searchParams.get("id") !== conversation_id) {
+              url.searchParams.set("id", conversation_id);
+              window.history.replaceState({}, "", url.toString());
+            }
+          }
           // Update all messages that don't have a conversationId yet
           const { updateMessagesWhere } = useChatStore.getState();
           updateMessagesWhere(
@@ -78,9 +104,9 @@ export function useChat(options: UseChatOptions = {}) {
         case "message_saved": {
           // Assistant message was saved to database, update local ID to real database ID
           const { message_id } = wsEvent.data as { message_id: string };
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             // Update the current streaming message's ID to the real database ID
-            updateMessage(currentMessageId, (msg) => ({
+            updateMessage(currentMessageIdRef.current, (msg) => ({
               ...msg,
               id: message_id,
               isTemporaryId: false,
@@ -118,11 +144,27 @@ export function useChat(options: UseChatOptions = {}) {
 
         case "text_delta": {
           // Append text delta to current message
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const content = (wsEvent.data as { index: number; content: string }).content;
-            updateMessage(currentMessageId, (msg) => ({
+            updateMessage(currentMessageIdRef.current, (msg) => ({
               ...msg,
               content: msg.content + content,
+            }));
+          }
+          break;
+        }
+
+        case "thinking_delta": {
+          // Reasoning trace from extended-thinking models. Stored on a
+          // separate field so the UI can render it dimmed and collapsible.
+          if (!currentMessageIdRef.current) {
+            createNewMessage("");
+          }
+          if (currentMessageIdRef.current) {
+            const content = (wsEvent.data as { index: number; content: string }).content;
+            updateMessage(currentMessageIdRef.current, (msg) => ({
+              ...msg,
+              thinking: (msg.thinking ?? "") + content,
             }));
           }
           break;
@@ -141,12 +183,12 @@ export function useChat(options: UseChatOptions = {}) {
 
         case "agent_completed": {
           // Finalize current agent's message with output
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { agent, output } = wsEvent.data as {
               agent: string;
               output: string;
             };
-            updateMessage(currentMessageId, (msg) => ({
+            updateMessage(currentMessageIdRef.current, (msg) => ({
               ...msg,
               content: `✅ **${agent}**\n\n${output}`,
               isStreaming: false,
@@ -169,13 +211,13 @@ export function useChat(options: UseChatOptions = {}) {
 
         case "task_completed": {
           // Finalize the task message
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { output, agent } = wsEvent.data as {
               task_id: string;
               output: string;
               agent: string;
             };
-            updateMessage(currentMessageId, (msg) => ({
+            updateMessage(currentMessageIdRef.current, (msg) => ({
               ...msg,
               content: `✅ **Task completed** (${agent})\n\n${output}`,
               isStreaming: false,
@@ -186,7 +228,7 @@ export function useChat(options: UseChatOptions = {}) {
 
         // CrewAI tool events
         case "tool_started": {
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { tool_name, tool_args, agent } = wsEvent.data as {
               tool_name: string;
               tool_args: string;
@@ -198,21 +240,21 @@ export function useChat(options: UseChatOptions = {}) {
               args: { input: tool_args, agent },
               status: "running",
             };
-            addToolCall(currentMessageId, toolCall);
+            addToolCall(currentMessageIdRef.current, toolCall);
           }
           break;
         }
 
         case "tool_finished": {
           // Tool finished - update last tool call status
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { tool_name, tool_result } = wsEvent.data as {
               tool_name: string;
               tool_result: string;
               agent: string;
             };
             // Find and update the matching tool call
-            updateMessage(currentMessageId, (msg) => {
+            updateMessage(currentMessageIdRef.current, (msg) => {
               const toolCalls = msg.toolCalls || [];
               const lastToolCall = toolCalls.find(
                 (tc) => tc.name === tool_name && tc.status === "running",
@@ -242,7 +284,7 @@ export function useChat(options: UseChatOptions = {}) {
 
         case "tool_call": {
           // Add tool call to current message
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { tool_name, args, tool_call_id } = wsEvent.data as {
               tool_name: string;
               args: Record<string, unknown>;
@@ -254,19 +296,19 @@ export function useChat(options: UseChatOptions = {}) {
               args,
               status: "running",
             };
-            addToolCall(currentMessageId, toolCall);
+            addToolCall(currentMessageIdRef.current, toolCall);
           }
           break;
         }
 
         case "tool_result": {
           // Update tool call with result
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { tool_call_id, content } = wsEvent.data as {
               tool_call_id: string;
               content: string;
             };
-            updateToolCall(currentMessageId, tool_call_id, {
+            updateToolCall(currentMessageIdRef.current, tool_call_id, {
               result: content,
               status: "completed",
             });
@@ -276,16 +318,16 @@ export function useChat(options: UseChatOptions = {}) {
 
         case "final_result": {
           // Finalize message
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { output } = wsEvent.data as { output: string };
             if (output) {
-              updateMessage(currentMessageId, (msg) => ({
+              updateMessage(currentMessageIdRef.current, (msg) => ({
                 ...msg,
                 content: msg.content || output,
                 isStreaming: false,
               }));
             } else {
-              updateMessage(currentMessageId, (msg) => ({
+              updateMessage(currentMessageIdRef.current, (msg) => ({
                 ...msg,
                 isStreaming: false,
               }));
@@ -299,9 +341,9 @@ export function useChat(options: UseChatOptions = {}) {
 
         case "error": {
           // Handle error
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const { message } = wsEvent.data as { message: string };
-            updateMessage(currentMessageId, (msg) => ({
+            updateMessage(currentMessageIdRef.current, (msg) => ({
               ...msg,
               content: msg.content + `\n\n❌ Error: ${message || "Unknown error"}`,
               isStreaming: false,
@@ -330,9 +372,9 @@ export function useChat(options: UseChatOptions = {}) {
             reviewConfigs: review_configs,
           });
           // Show pending tools in the current message
-          if (currentMessageId) {
+          if (currentMessageIdRef.current) {
             const toolNames = action_requests.map((ar) => ar.tool_name).join(", ");
-            updateMessage(currentMessageId, (msg) => ({
+            updateMessage(currentMessageIdRef.current, (msg) => ({
               ...msg,
               content: msg.content + `\n\n⏸️ Waiting for approval: ${toolNames}`,
             }));
@@ -344,17 +386,24 @@ export function useChat(options: UseChatOptions = {}) {
           setIsProcessing(false);
           // Clear currentMessageId after complete (message_saved should have handled ID mapping)
           setCurrentMessageId(null);
+          // The turn just debited credits server-side — nudge any mounted
+          // billing view to refetch so the user doesn't see stale numbers.
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("billing:refresh"));
+          }
           break;
         }
       }
     },
     [
-      currentMessageId,
+      // currentMessageId is read via currentMessageIdRef inside the handler,
+      // so we deliberately omit it here — that's the whole point of the ref.
       addMessage,
       updateMessage,
       addToolCall,
       updateToolCall,
       setCurrentConversationId,
+      setCurrentMessageId,
       onConversationCreated,
       currentConversationIdFromStore,
       conversationId,
@@ -379,7 +428,7 @@ export function useChat(options: UseChatOptions = {}) {
   });
 
   const doSend = useCallback(
-    (content: string, fileIds?: string[]) => {
+    (content: string, fileIds?: string[], files?: ChatMessageFile[]) => {
       addMessage({
         id: nanoid(),
         role: "user",
@@ -387,6 +436,7 @@ export function useChat(options: UseChatOptions = {}) {
         timestamp: new Date(),
         conversationId: conversationId || undefined,
         fileIds,
+        files,
       });
       setIsProcessing(true);
       const payload: Record<string, unknown> = {
@@ -395,15 +445,17 @@ export function useChat(options: UseChatOptions = {}) {
       };
       if (fileIds?.length) payload.file_ids = fileIds;
       if (modelRef.current) payload.model = modelRef.current;
+      if (temperatureRef.current !== null) payload.temperature = temperatureRef.current;
+      if (thinkingEffortRef.current !== null) payload.thinking_effort = thinkingEffortRef.current;
       sendMessage(payload);
     },
     [addMessage, sendMessage, conversationId],
   );
 
   const sendChatMessage = useCallback(
-    (content: string, fileIds?: string[]) => {
+    (content: string, fileIds?: string[], files?: ChatMessageFile[]) => {
       if (isProcessing) {
-        messageQueueRef.current.push({ content, fileIds });
+        messageQueueRef.current.push({ content, fileIds, files });
         addMessage({
           id: nanoid(),
           role: "user",
@@ -411,10 +463,11 @@ export function useChat(options: UseChatOptions = {}) {
           timestamp: new Date(),
           conversationId: conversationId || undefined,
           fileIds,
+          files,
         });
         return;
       }
-      doSend(content, fileIds);
+      doSend(content, fileIds, files);
     },
     [isProcessing, doSend, addMessage, conversationId],
   );
@@ -426,7 +479,7 @@ export function useChat(options: UseChatOptions = {}) {
       setPendingApproval(null);
 
       // Update message to show decisions were made
-      if (currentMessageId) {
+      if (currentMessageIdRef.current) {
         const approvedCount = decisions.filter((d) => d.type === "approve").length;
         const editedCount = decisions.filter((d) => d.type === "edit").length;
         const rejectedCount = decisions.filter((d) => d.type === "reject").length;
@@ -436,7 +489,7 @@ export function useChat(options: UseChatOptions = {}) {
         if (editedCount > 0) summaryParts.push(`${editedCount} edited`);
         if (rejectedCount > 0) summaryParts.push(`${rejectedCount} rejected`);
 
-        updateMessage(currentMessageId, (msg) => ({
+        updateMessage(currentMessageIdRef.current, (msg) => ({
           ...msg,
           content: msg.content.replace(
             /\n\n⏸️ Waiting for approval:.*$/,
@@ -459,7 +512,7 @@ export function useChat(options: UseChatOptions = {}) {
         }),
       });
     },
-    [currentMessageId, updateMessage, sendMessage],
+    [updateMessage, sendMessage],
   );
 
   // Drain message queue when processing finishes
@@ -467,7 +520,7 @@ export function useChat(options: UseChatOptions = {}) {
     if (!isProcessing && messageQueueRef.current.length > 0) {
       const next = messageQueueRef.current.shift();
       if (next) {
-        setTimeout(() => doSend(next.content, next.fileIds), 100);
+        setTimeout(() => doSend(next.content, next.fileIds, next.files), 100);
       }
     }
   }, [isProcessing, doSend]);
@@ -482,6 +535,12 @@ export function useChat(options: UseChatOptions = {}) {
     clearMessages,
     setModel: (model: string | null) => {
       modelRef.current = model;
+    },
+    setTemperature: (temperature: number | null) => {
+      temperatureRef.current = temperature;
+    },
+    setThinkingEffort: (effort: "low" | "medium" | "high" | null) => {
+      thinkingEffortRef.current = effort;
     },
     // Human-in-the-Loop support
     pendingApproval,

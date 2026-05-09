@@ -34,12 +34,13 @@ class TestDeps:
 class TestGetCurrentDatetime:
     """Tests for get_current_datetime tool."""
 
-    def test_returns_formatted_string(self):
-        """Test get_current_datetime returns formatted string."""
+    def test_returns_dict_with_date_time_datetime(self):
+        """Tool returns a dict with date/time/datetime keys."""
         result = get_current_datetime()
-        assert isinstance(result, str)
-        # Should contain year, month, day
-        assert len(result) > 10
+        assert isinstance(result, dict)
+        assert {"date", "time", "datetime"} <= result.keys()
+        # ISO-like date "YYYY-MM-DD"
+        assert len(result["date"]) == 10
 
 
 class TestAssistantAgent:
@@ -163,12 +164,12 @@ class TestAgentContext:
 class TestGetCurrentDatetime:
     """Tests for get_current_datetime tool."""
 
-    def test_returns_formatted_string(self):
-        """Test get_current_datetime returns formatted string."""
+    def test_returns_dict_with_date_time_datetime(self):
+        """Tool returns a dict with date/time/datetime keys."""
         result = get_current_datetime()
-        assert isinstance(result, str)
-        # Should contain year, month, day
-        assert len(result) > 10
+        assert isinstance(result, dict)
+        assert {"date", "time", "datetime"} <= result.keys()
+        assert len(result["date"]) == 10
 
 
 class TestLangChainAssistant:

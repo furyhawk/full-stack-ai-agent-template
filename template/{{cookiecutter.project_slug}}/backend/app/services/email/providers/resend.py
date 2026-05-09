@@ -39,10 +39,20 @@ class ResendProvider:
         try:
             resp = await asyncio.to_thread(self._resend.Emails.send, params)
             msg_id = resp.get("id", str(uuid.uuid4()))
-            logger.info("resend_email_sent", message_id=msg_id, to=message.to, subject=message.subject)
+            logger.info(
+                "resend_email_sent",
+                extra={
+                    "message_id": msg_id,
+                    "to": message.to,
+                    "subject": message.subject,
+                },
+            )
             return SendResult(provider_message_id=msg_id, accepted=True)
         except Exception as exc:
-            logger.error("resend_email_failed", error=str(exc), to=message.to)
+            logger.error(
+                "resend_email_failed",
+                extra={"error": str(exc), "to": message.to},
+            )
             return SendResult(provider_message_id="", accepted=False, error=str(exc))
 
 {%- else %}

@@ -39,7 +39,7 @@ export function useKnowledgeBases() {
   const patchKB = useCallback(
     async (
       id: string,
-      patch: Partial<Pick<KnowledgeBase, "name" | "description" | "is_active">>,
+      patch: Partial<Pick<KnowledgeBase, "name" | "description">>,
     ) => {
       try {
         const updated = await apiClient.patch<KnowledgeBase>(`/kb/${id}`, patch);

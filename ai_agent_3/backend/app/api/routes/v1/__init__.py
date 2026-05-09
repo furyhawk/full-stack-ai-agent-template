@@ -4,7 +4,7 @@
 from fastapi import APIRouter
 
 from app.api.routes.v1 import health
-from app.api.routes.v1 import admin_ratings, admin_users, auth, users
+from app.api.routes.v1 import admin_ratings, admin_stats, admin_users, auth, users
 from app.api.routes.v1 import oauth
 from app.api.routes.v1 import sessions
 from app.api.routes.v1 import conversations
@@ -66,6 +66,9 @@ v1_router.include_router(
 
 # Admin: user management + impersonation
 v1_router.include_router(admin_users.router, prefix="/admin/users", tags=["admin:users"])
+
+# Admin: overview stats
+v1_router.include_router(admin_stats.router, prefix="/admin/stats", tags=["admin:stats"])
 
 # Messaging channel admin routes (shared across Telegram, Slack)
 v1_router.include_router(channels.router, prefix="/channels", tags=["channels"])

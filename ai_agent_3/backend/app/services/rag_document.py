@@ -80,6 +80,7 @@ class RAGDocumentService:
         filesize: int,
         filetype: str,
         storage_path: str | None = None,
+        organization_id: UUID | None = None,
     ) -> RAGDocument:
         """Create a new RAG document tracking record."""
         return await rag_document_repo.create(
@@ -89,6 +90,7 @@ class RAGDocumentService:
             filesize=filesize,
             filetype=filetype,
             storage_path=storage_path or "",
+            organization_id=organization_id,
         )
 
     async def dispatch_upload(
@@ -99,6 +101,7 @@ class RAGDocumentService:
         filename: str,
         replace: bool,
         vector_store: Any,
+        organization_id: UUID | None = None,
     ) -> RAGIngestResponse:
         """Validate, persist, and queue an uploaded file for ingestion.
 
@@ -133,6 +136,7 @@ class RAGDocumentService:
             filesize=len(file_data),
             filetype=ext.lstrip("."),
             storage_path=storage_path,
+            organization_id=organization_id,
         )
         doc_id = rag_doc.id
 

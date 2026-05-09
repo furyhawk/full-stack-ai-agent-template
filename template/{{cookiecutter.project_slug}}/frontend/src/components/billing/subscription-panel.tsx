@@ -136,7 +136,7 @@ export function SubscriptionPanel() {
               <div>
                 <p className="text-muted-foreground">Price</p>
                 <p className="font-medium">
-                  {(subscription.price.unit_amount / 100).toLocaleString("en-US", {
+                  {(subscription.price.amount_cents / 100).toLocaleString("en-US", {
                     style: "currency",
                     currency: subscription.price.currency.toUpperCase(),
                   })}{" "}

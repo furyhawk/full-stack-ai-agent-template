@@ -89,7 +89,7 @@ export function CreateKBDialog({ open, onOpenChange, onCreated }: CreateKBDialog
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="personal">Personal — only you</SelectItem>
-                <SelectItem value="organization">Organization — all members</SelectItem>
+                <SelectItem value="org">Organization — all members</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -3,7 +3,7 @@
 
 import uuid
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from datetime import datetime
+from datetime import UTC, datetime
 
 {%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
 from sqlalchemy import Column, String, Text
@@ -90,7 +90,7 @@ class StripeEvent(Document):
     payload: dict
     status: str = "pending"
     error: Optional[str] = None
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "stripe_events"

@@ -46,9 +46,9 @@ DeepAgents provides built-in tools for filesystem operations, task management,
 and code execution.
 """
 
-from app.agents.deepagents_assistant import AgentContext, AgentState, DeepAgentsAssistant
+from app.agents.deepagents_assistant import AgentContext, DeepAgentsAssistant, InterruptData
 
-__all__ = ["DeepAgentsAssistant", "AgentContext", "AgentState"]
+__all__ = ["DeepAgentsAssistant", "AgentContext", "InterruptData"]
 {%- elif cookiecutter.use_pydantic_deep %}
 """AI Agents module using PydanticDeep.
 

@@ -9,9 +9,7 @@ the ``app.services.billing.*`` services directly.
 
 import logging
 import uuid
-{%- if cookiecutter.enable_email %}
-from datetime import UTC, datetime
-{%- endif %}
+from datetime import UTC, datetime, timedelta
 
 {%- if cookiecutter.enable_email %}
 import stripe
@@ -147,8 +145,13 @@ class BillingService:
 
     # -- Usage --
 
-    async def get_usage_aggregate(self, org_id: uuid.UUID):
-        return await usage_event_repo.aggregate_for_org(self.db, org_id)
+    async def get_usage_aggregate(self, org_id: uuid.UUID, *, days: int | None = None):
+        since = (
+            datetime.now(UTC) - timedelta(days=days)
+            if days is not None and days > 0
+            else None
+        )
+        return await usage_event_repo.aggregate_for_org(self.db, org_id, since=since)
 
     async def get_usage_timeline(self, org_id: uuid.UUID, *, days: int):
         return await usage_event_repo.daily_timeline(self.db, org_id, days=days)
@@ -330,8 +333,13 @@ class BillingService:
 
     # -- Usage --
 
-    def get_usage_aggregate(self, org_id: str):
-        return usage_event_repo.aggregate_for_org(self.db, org_id)
+    def get_usage_aggregate(self, org_id: str, *, days: int | None = None):
+        since = (
+            datetime.now(UTC) - timedelta(days=days)
+            if days is not None and days > 0
+            else None
+        )
+        return usage_event_repo.aggregate_for_org(self.db, org_id, since=since)
 
     def get_usage_timeline(self, org_id: str, *, days: int):
         return usage_event_repo.daily_timeline(self.db, org_id, days=days)

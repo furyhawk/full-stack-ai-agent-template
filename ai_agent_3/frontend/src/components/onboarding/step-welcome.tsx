@@ -32,7 +32,9 @@ export function StepWelcome() {
   return (
     <OnboardingShell
       step="welcome"
-      title={user?.name ? `Welcome, ${user.name.split(" ")[0]}.` : "Welcome aboard."}
+      title={
+        user?.full_name ? `Welcome, ${user.full_name.split(" ")[0]}.` : "Welcome aboard."
+      }
       description="Let's get you set up in under 2 minutes. You can skip any step and come back later."
     >
       <ul className="space-y-3">

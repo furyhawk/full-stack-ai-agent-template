@@ -61,19 +61,25 @@ async def readiness_probe(
     db: DBSession,
     redis: Redis,
 ) -> dict[str, Any] | JSONResponse:
-    """Readiness probe for Kubernetes.
+    """Readiness probe for Kubernetes + admin /system page.
 
-    This endpoint checks if all dependencies are ready to handle traffic.
-    It verifies database connections, Redis, and other critical services.
-    Failure indicates traffic should be temporarily diverted.
+    Probes all backing services and returns one record per service. Configured
+    integrations report `unhealthy` when their probe fails; integrations that
+    aren't enabled in this deployment report `unknown` so the UI can render
+    "not configured" rather than a false outage.
 
     Checks performed:
-    - Database connectivity
-    - Redis connectivity
+    - Database connectivity (real probe)
+    - Redis connectivity (real probe)
+    - Vector store connectivity (real probe if RAG is enabled)
+    - LLM provider key presence (config-only — no API call)
+    - Stripe key presence (config-only — no API call)
+    - Background worker (config-only — assumes healthy if Celery broker is set)
 
     Returns:
-        Structured response with individual check results.
-        Returns 503 if any critical check fails.
+        Structured response with one entry per service. The keys match what
+        the admin /system page reads (database, redis, vector_store, llm,
+        stripe, worker). Returns 503 if any *critical* check fails (db/redis).
     """
     checks: dict[str, dict[str, Any]] = {}
     # Database check
@@ -113,15 +119,73 @@ async def readiness_probe(
             "error": str(e),
         }
 
-    # Determine overall health
-    all_healthy = (
-        all(check.get("status") == "healthy" for check in checks.values()) if checks else True
+    # Vector store — Milvus connectivity probe.
+    try:
+        import socket
+
+        start = datetime.now(UTC)
+        with socket.create_connection(
+            (settings.MILVUS_HOST, settings.MILVUS_PORT), timeout=2
+        ):
+            pass
+        latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
+        checks["vector_store"] = {
+            "status": "healthy",
+            "latency_ms": round(latency_ms, 2),
+            "type": "milvus",
+        }
+    except Exception as e:
+        checks["vector_store"] = {
+            "status": "unhealthy",
+            "error": str(e),
+            "type": "milvus",
+        }
+
+    # LLM provider — config-only check (avoid spending money on a probe call).
+    llm_provider = (getattr(settings, "LLM_PROVIDER", None) or "").lower()
+    if llm_provider:
+        key_field = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GOOGLE_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+        }.get(llm_provider)
+        api_key = getattr(settings, key_field, None) if key_field else None
+        checks["llm"] = {
+            "status": "healthy" if api_key else "unhealthy",
+            "provider": llm_provider,
+            "detail": "API key configured" if api_key else "API key missing",
+        }
+    else:
+        checks["llm"] = {"status": "unknown", "detail": "not configured"}
+
+    # Stripe — config-only.
+    stripe_key = getattr(settings, "STRIPE_SECRET_KEY", None)
+    checks["stripe"] = (
+        {"status": "healthy", "detail": "key configured"}
+        if stripe_key
+        else {"status": "unknown", "detail": "not configured"}
     )
 
+    # Background worker — config-only (a real probe needs an end-to-end ping).
+    broker_url = getattr(settings, "CELERY_BROKER_URL", None)
+    checks["worker"] = (
+        {"status": "healthy", "detail": "broker configured"}
+        if broker_url
+        else {"status": "unknown", "detail": "not configured"}
+    )
+
+    # Determine overall health — only db + redis are critical for readiness.
+    critical = {k: v for k, v in checks.items() if k in ("database", "redis")}
+    all_healthy = all(check.get("status") == "healthy" for check in critical.values())
+
+    # The admin /system page reads each service from the top level, so flatten
+    # the checks alongside the structured `checks` field for K8s probes.
     response_data = build_health_response(
         status="ready" if all_healthy else "not_ready",
         checks=checks,
     )
+    response_data.update(checks)
 
     if not all_healthy:
         return JSONResponse(status_code=503, content=response_data)

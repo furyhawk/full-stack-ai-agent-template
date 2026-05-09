@@ -13,6 +13,10 @@ async def get_plan_by_code(db: AsyncSession, code: str) -> Plan | None:
     return result.scalar_one_or_none()
 
 
+async def get_plan_by_id(db: AsyncSession, plan_id: uuid.UUID) -> Plan | None:
+    return await db.get(Plan, plan_id)
+
+
 async def list_active_plans(db: AsyncSession) -> list[Plan]:
     result = await db.execute(select(Plan).where(Plan.is_active == True).order_by(Plan.sort_order))  # noqa: E712
     return list(result.scalars().all())

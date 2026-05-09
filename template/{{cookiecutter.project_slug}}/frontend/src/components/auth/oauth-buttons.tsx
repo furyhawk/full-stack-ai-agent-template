@@ -40,13 +40,11 @@ export function OAuthButtons({ next, variant = "signin" }: OAuthButtonsProps) {
   return (
     <div className="space-y-2.5">
       {providers.map((provider) => {
-        const url = `${BACKEND_URL}/api/v1/auth/oauth/${provider}/login${
+        const url = `${BACKEND_URL}/api/v1/oauth/${provider}/login${
           next ? `?next=${encodeURIComponent(next)}` : ""
         }`;
         const label =
-          variant === "signup"
-            ? LABELS[provider].replace("Continue", "Sign up")
-            : LABELS[provider];
+          variant === "signup" ? LABELS[provider].replace("Continue", "Sign up") : LABELS[provider];
         return (
           <a
             key={provider}
@@ -66,7 +64,7 @@ export function OAuthDivider({ label = "or" }: { label?: string }) {
   return (
     <div className="flex items-center gap-3">
       <span className="bg-foreground/15 h-px flex-1" />
-      <span className="text-foreground/45 font-mono text-[11px] uppercase tracking-wider">
+      <span className="text-foreground/45 font-mono text-[11px] tracking-wider uppercase">
         {label}
       </span>
       <span className="bg-foreground/15 h-px flex-1" />

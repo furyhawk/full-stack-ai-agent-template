@@ -24,6 +24,9 @@ from app.api.deps import IngestionSvc, RetrievalSvc, VectorStoreSvc
 {%- if cookiecutter.use_jwt %}
 from app.api.deps import CurrentAdmin, CurrentUser
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+from app.api.deps import ActiveOrg
+{%- endif %}
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.api.deps import RAGDocumentSvc, RAGSyncSvc, SyncSourceSvc
 {%- endif %}
@@ -220,6 +223,9 @@ async def ingest_file(
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    active_org: ActiveOrg,
+{%- endif %}
     file: UploadFile = File(...),
     replace: bool = Query(False),
 ) -> Any:
@@ -231,6 +237,9 @@ async def ingest_file(
         filename=file.filename or "unknown",
         replace=replace,
         vector_store=vector_store,
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id=active_org.id,
+{%- endif %}
     )
 
 

@@ -12,12 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import (
     AlreadyExistsError,
+    AuthenticationError,
     AuthorizationError,
     BadRequestError,
     NotFoundError,
+    PaymentRequiredError,
 )
 from app.db.models.organization import InvitationStatus, OrgRole
 from app.repositories import invitation_repo, member_repo, organization_repo, user_repo
+{%- if cookiecutter.enable_email %}
+from app.services.email.service import get_email_service
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -92,24 +97,13 @@ class InvitationService:
             role,
             requester_id,
         )
+{%- if cookiecutter.enable_email %}
         try:
-            from app.repositories import user_repo as _user_repo
-            from app.services.email.service import get_email_service
-
             org = await organization_repo.get_by_id(self.db, organization_id)
-            requester_user = await _user_repo.get_by_id(self.db, requester_id)
-            email_svc = get_email_service()
-            base_url = (
-                settings.BILLING_SUCCESS_URL.rstrip("/").rsplit("/", 1)[0]
-                if hasattr(settings, "BILLING_SUCCESS_URL")
-                else ""
-            )
-            accept_url = (
-                f"{base_url}/invitations/{invite.token}/accept"
-                if hasattr(invite, "token")
-                else base_url
-            )
-            await email_svc.send_invitation(
+            requester_user = await user_repo.get_by_id(self.db, requester_id)
+            frontend = settings.FRONTEND_URL.rstrip("/")
+            accept_url = f"{frontend}/invitations/{invite.token}"
+            await get_email_service().send_invitation(
                 to=normalized_email,
                 inviter_name=(requester_user.full_name or requester_user.email)
                 if requester_user
@@ -119,6 +113,7 @@ class InvitationService:
             )
         except Exception:
             logger.exception("email_invitation_failed")
+{%- endif %}
         return invite
 
     async def list_for_org(
@@ -160,14 +155,11 @@ class InvitationService:
             await invitation_repo.revoke(self.db, invite)
             raise BadRequestError(message="Invitation has expired")
 
-        # Check the accepting user's email matches (optional guard — logged only)
+        # The token is bound to a specific email — only that user may accept.
         accepting_user = await user_repo.get_by_id(self.db, accepting_user_id)
-        if accepting_user and accepting_user.email.lower() != invite.email:
-            logger.warning(
-                "User %s (email=%s) accepted invitation meant for %s",
-                accepting_user_id,
-                accepting_user.email,
-                invite.email,
+        if not accepting_user or accepting_user.email.lower() != invite.email:
+            raise AuthenticationError(
+                message="This invitation was sent to a different email address."
             )
 
         # Check not already a member
@@ -180,17 +172,14 @@ class InvitationService:
                 details={"org_id": str(invite.organization_id)},
             )
         # Enforce seat limit before admitting a new member
-        from app.repositories import organization_repo
-
         org = await organization_repo.get_by_id(self.db, invite.organization_id)
-        if org is not None and getattr(org, "seats_limit", None) is not None:
+        seats_limit = getattr(org, "seats_limit", None) if org is not None else None
+        if seats_limit is not None:
             current_count = await member_repo.count_for_org(self.db, invite.organization_id)
-            if current_count >= org.seats_limit:
-                from app.core.exceptions import PaymentRequiredError
-
+            if current_count >= seats_limit:
                 raise PaymentRequiredError(
                     message="Seat limit reached — upgrade your plan to add more members",
-                    details={"seats_limit": org.seats_limit, "current": current_count},
+                    details={"seats_limit": seats_limit, "current": current_count},
                 )
         await member_repo.create(
             self.db,
@@ -229,9 +218,10 @@ class InvitationService:
         accepting_user = await user_repo.get_by_id(self.db, requester_id)
         is_own_invite = accepting_user and accepting_user.email.lower() == invite.email
 
-        if not is_own_invite:
-            if not requester or requester.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value):
-                raise AuthorizationError(message="Only Owner or Admin can revoke invitations")
+        if not is_own_invite and (
+            not requester or requester.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value)
+        ):
+            raise AuthorizationError(message="Only Owner or Admin can revoke invitations")
 
         await invitation_repo.revoke(self.db, invite)
         return invite

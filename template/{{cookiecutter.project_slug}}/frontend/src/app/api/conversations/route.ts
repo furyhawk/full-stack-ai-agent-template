@@ -9,11 +9,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const skip = searchParams.get("skip") || "0";
-    const limit = searchParams.get("limit") || "50";
+    const qs = request.nextUrl.searchParams.toString();
 
-    const data = await backendFetch(`/api/v1/conversations?skip=${skip}&limit=${limit}`, {
+    const data = await backendFetch(`/api/v1/conversations${qs ? `?${qs}` : ""}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },

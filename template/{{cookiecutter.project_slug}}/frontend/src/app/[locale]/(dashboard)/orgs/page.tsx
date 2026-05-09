@@ -1,8 +1,9 @@
-"use client";
+{% raw %}"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRightLeft, Building2, Plus, Settings } from "lucide-react";
+import { ArrowRightLeft, Building2, Camera, Plus, Settings } from "lucide-react";
+import { toast } from "sonner";
 
 import { CreateOrgDialog } from "@/components/teams";
 import { EmptyState, LoadingState } from "@/components/states";
@@ -13,8 +14,34 @@ export default function OrgsPage() {
   const { orgs, activeOrgId, fetchOrgs, switchOrg } = useOrganizations();
   const [createOpen, setCreateOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingOrgIdRef = useRef<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const handleAvatarUpload = async (orgId: string, file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Avatar too large. Maximum 2MB.");
+      return;
+    }
+    setUploadingFor(orgId);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/orgs/${orgId}/avatar`, { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+        throw new Error(err.detail || "Upload failed");
+      }
+      toast.success("Organization avatar updated");
+      await fetchOrgs();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to upload avatar");
+    } finally {
+      setUploadingFor(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -74,9 +101,30 @@ export default function OrgsPage() {
                   isActive ? "ring-brand/40 ring-2" : "hover:border-foreground/20",
                 )}
               >
-                <div className="bg-brand/15 text-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-                  <Building2 className="h-5 w-5" />
-                </div>
+                <button
+                  type="button"
+                  className="group bg-brand/15 text-foreground relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                  onClick={() => {
+                    pendingOrgIdRef.current = org.id;
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={uploadingFor !== null}
+                  title="Change organization avatar"
+                >
+                  {org.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/orgs/${org.id}/avatar?v=${org.updated_at ?? ""}`}
+                      alt={org.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Building2 className="h-5 w-5" />
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Camera className="h-4 w-4 text-white" />
+                  </span>
+                </button>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -133,6 +181,19 @@ export default function OrgsPage() {
         </ul>
       )}
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          const orgId = pendingOrgIdRef.current;
+          e.target.value = "";
+          if (file && orgId) handleAvatarUpload(orgId, file);
+          pendingOrgIdRef.current = null;
+        }}
+      />
       <CreateOrgDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -141,3 +202,5 @@ export default function OrgsPage() {
     </div>
   );
 }
+
+{% endraw %}

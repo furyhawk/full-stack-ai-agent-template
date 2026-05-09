@@ -47,7 +47,7 @@ export default function ProfileSettingsPage() {
   const { user } = useAuth();
   const { setUser } = useAuthStore();
 
-  const [name, setName] = useState(user?.name ?? "");
+  const [name, setName] = useState(user?.full_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -58,10 +58,10 @@ export default function ProfileSettingsPage() {
 
   useEffect(() => {
     if (user) {
-      setName(user.name ?? "");
+      setName(user.full_name ?? "");
       setEmail(user.email ?? "");
     }
-  }, [user?.id, user?.email, user?.name]);
+  }, [user?.id, user?.email, user?.full_name]);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -82,9 +82,9 @@ export default function ProfileSettingsPage() {
     if (!user) return;
     setSaving(true);
     try {
-      const payload: { email?: string; name?: string | null } = {};
+      const payload: { email?: string; full_name?: string | null } = {};
       if (email !== user.email) payload.email = email;
-      if (name !== (user.name ?? "")) payload.name = name || null;
+      if (name !== (user.full_name ?? "")) payload.full_name = name || null;
       if (Object.keys(payload).length === 0) {
         toast.info("Nothing changed");
         setSaving(false);
@@ -175,7 +175,7 @@ export default function ProfileSettingsPage() {
               />
             ) : (
               <span className="text-foreground font-mono text-lg font-semibold">
-                {(user.name || user.email).slice(0, 2).toUpperCase()}
+                {(user.full_name || user.email).slice(0, 2).toUpperCase()}
               </span>
             )}
             <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">

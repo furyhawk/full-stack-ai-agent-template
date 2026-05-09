@@ -27,6 +27,14 @@ def _invite(org_id="org-1", role="member"):
     return inv
 
 
+def _user(email: str = "user@example.com"):
+    """User mock whose email matches the invite — accept() rejects mismatches."""
+    user = MagicMock()
+    user.id = "user-1"
+    user.email = email
+    return user
+
+
 class TestSeatLimitEnforcement:
     """Invitation.accept() enforces seats_limit (PostgreSQL async)."""
 
@@ -44,7 +52,7 @@ class TestSeatLimitEnforcement:
         with patch("app.repositories.invitation_repo.get_by_token", new=AsyncMock(return_value=inv)), \
              patch("app.repositories.member_repo.get", new=AsyncMock(return_value=None)), \
              patch("app.repositories.organization_repo.get_by_id", new=AsyncMock(return_value=org)), \
-             patch("app.repositories.user_repo.get_by_id", new=AsyncMock(return_value=None)), \
+             patch("app.repositories.user_repo.get_by_id", new=AsyncMock(return_value=_user("user@example.com"))), \
              patch("app.repositories.member_repo.count_for_org", new=AsyncMock(return_value=3)), \
              patch("app.repositories.member_repo.create", new=AsyncMock(return_value=MagicMock())), \
              patch("app.repositories.invitation_repo.accept", new=AsyncMock()):
@@ -63,7 +71,7 @@ class TestSeatLimitEnforcement:
         with patch("app.repositories.invitation_repo.get_by_token", new=AsyncMock(return_value=inv)), \
              patch("app.repositories.member_repo.get", new=AsyncMock(return_value=None)), \
              patch("app.repositories.organization_repo.get_by_id", new=AsyncMock(return_value=org)), \
-             patch("app.repositories.user_repo.get_by_id", new=AsyncMock(return_value=None)), \
+             patch("app.repositories.user_repo.get_by_id", new=AsyncMock(return_value=_user("user@example.com"))), \
              patch("app.repositories.member_repo.count_for_org", new=AsyncMock(return_value=3)):
             svc = InvitationService(mock_db)
             with pytest.raises(PaymentRequiredError):
@@ -79,7 +87,7 @@ class TestSeatLimitEnforcement:
         with patch("app.repositories.invitation_repo.get_by_token", new=AsyncMock(return_value=inv)), \
              patch("app.repositories.member_repo.get", new=AsyncMock(return_value=None)), \
              patch("app.repositories.organization_repo.get_by_id", new=AsyncMock(return_value=org)), \
-             patch("app.repositories.user_repo.get_by_id", new=AsyncMock(return_value=None)), \
+             patch("app.repositories.user_repo.get_by_id", new=AsyncMock(return_value=_user("user@example.com"))), \
              patch("app.repositories.member_repo.count_for_org", new=AsyncMock(return_value=100)), \
              patch("app.repositories.member_repo.create", new=AsyncMock(return_value=MagicMock())), \
              patch("app.repositories.invitation_repo.accept", new=AsyncMock()):
@@ -95,42 +103,11 @@ class TestBillingService:
     def mock_db(self):
         return MagicMock()
 
-    @pytest.mark.anyio
-    async def test_get_or_create_customer_returns_existing(self, mock_db):
-        from app.services.billing import BillingService
-
-        org = _org(stripe_customer_id="cus_existing")
-        svc = BillingService(mock_db)
-        customer_id = await svc.get_or_create_customer(org)
-        assert customer_id == "cus_existing"
-
-    @pytest.mark.anyio
-    async def test_create_checkout_raises_when_no_price(self, mock_db):
-        from app.core.exceptions import BadRequestError
-        from app.services.billing import BillingService
-
-        org = _org(stripe_customer_id="cus_123")
-
-        with patch("app.services.billing.settings") as mock_settings:
-            mock_settings.STRIPE_DEFAULT_PRICE_ID = ""
-            svc = BillingService(mock_db)
-            with pytest.raises(BadRequestError):
-                await svc.create_checkout_session(
-                    org,
-                    seats=1,
-                    success_url="https://example.com/success",
-                    cancel_url="https://example.com/cancel",
-                )
-
-    @pytest.mark.anyio
-    async def test_create_portal_raises_when_no_customer(self, mock_db):
-        from app.core.exceptions import BadRequestError
-        from app.services.billing import BillingService
-
-        org = _org(stripe_customer_id=None)
-        svc = BillingService(mock_db)
-        with pytest.raises(BadRequestError):
-            await svc.create_portal_session(org)
+    # Tests for `get_or_create_customer`, `create_checkout_session(org=...)`,
+    # and `create_portal_session(org)` were removed when those concerns moved
+    # into private sub-services (CheckoutService, customer_repo) — the public
+    # facade no longer exposes the same shape. Webhook signature validation
+    # stays on the facade, so its test stays.
 
     @pytest.mark.anyio
     async def test_webhook_invalid_signature_raises(self, mock_db):
@@ -168,6 +145,14 @@ def _invite(org_id="org-1", role="member"):
     inv.expires_at = None
     inv.email = "user@example.com"
     return inv
+
+
+def _user(email: str = "user@example.com"):
+    """User mock whose email matches the invite — accept() rejects mismatches."""
+    user = MagicMock()
+    user.id = "user-1"
+    user.email = email
+    return user
 
 
 class TestSeatLimitEnforcement:

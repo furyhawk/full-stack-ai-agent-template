@@ -54,10 +54,20 @@ class SMTPProvider:
                 use_tls=self.use_tls,
             )
             msg_id = f"smtp_{uuid.uuid4()}"
-            logger.info("smtp_email_sent", message_id=msg_id, to=message.to, subject=message.subject)
+            logger.info(
+                "smtp_email_sent",
+                extra={
+                    "message_id": msg_id,
+                    "to": message.to,
+                    "subject": message.subject,
+                },
+            )
             return SendResult(provider_message_id=msg_id, accepted=True)
         except Exception as exc:
-            logger.error("smtp_email_failed", error=str(exc), to=message.to)
+            logger.error(
+                "smtp_email_failed",
+                extra={"error": str(exc), "to": message.to},
+            )
             return SendResult(provider_message_id="", accepted=False, error=str(exc))
 
 {%- else %}

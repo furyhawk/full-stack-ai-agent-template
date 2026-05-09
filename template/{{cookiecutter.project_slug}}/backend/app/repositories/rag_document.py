@@ -8,7 +8,7 @@ Contains database operations for RAGDocument entities.
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.rag_document import RAGDocument
@@ -37,6 +37,30 @@ async def get_all(
     query = query.order_by(RAGDocument.created_at.desc())
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+{%- if cookiecutter.enable_teams %}
+
+
+async def get_for_kb(
+    db: AsyncSession,
+    kb_id: UUID,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[RAGDocument], int]:
+    """Page through documents linked to a Knowledge Base. Returns (rows, total)."""
+    base = select(RAGDocument).where(RAGDocument.knowledge_base_id == kb_id)
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar_one()
+    rows = (
+        await db.execute(
+            base.order_by(RAGDocument.created_at.desc()).offset(skip).limit(limit)
+        )
+    ).scalars().all()
+    return list(rows), int(total)
+{%- endif %}
 
 
 async def create(

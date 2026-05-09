@@ -57,14 +57,12 @@ export function StatCard({
     <div
       className={cn(
         "lift relative overflow-hidden rounded-2xl border p-5",
-        featured
-          ? "border-brand/40 bg-brand/[0.08]"
-          : "border-border bg-card",
+        featured ? "border-brand/40 bg-brand/[0.08]" : "border-border bg-card",
         className,
       )}
     >
       <div className="flex items-start justify-between">
-        <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">{label}</p>
+        <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">{label}</p>
         {Icon && <Icon className="text-foreground/45 h-4 w-4" />}
       </div>
 
@@ -76,13 +74,13 @@ export function StatCard({
       </div>
 
       {trend && (
-        <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="mt-2 flex items-center gap-1.5">
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 font-mono text-[11px] font-semibold",
-              trend === "up" && "text-brand",
-              trend === "down" && "text-destructive",
-              trend === "flat" && "text-foreground/55",
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums",
+              trend === "up" && "bg-chart/15 text-chart",
+              trend === "down" && "bg-destructive/10 text-destructive",
+              trend === "flat" && "bg-foreground/8 text-foreground/65",
             )}
           >
             {trend === "up" && <ArrowUpRight className="h-3 w-3" />}
@@ -90,7 +88,7 @@ export function StatCard({
             {trend === "flat" && <Minus className="h-3 w-3" />}
             {Math.abs(delta!).toFixed(1)}%
           </span>
-          <span className="text-foreground/45 font-mono text-[10px] uppercase tracking-wider">
+          <span className="text-foreground/45 font-mono text-[10px] tracking-wider uppercase">
             {deltaLabel}
           </span>
         </div>
@@ -101,7 +99,13 @@ export function StatCard({
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={spark.map((v, i) => ({ i, v }))}>
               <defs>
-                <linearGradient id={`spark-${label.replace(/\s+/g, "-")}`} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient
+                  id={`spark-${label.replace(/\s+/g, "-")}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
                   <stop
                     offset="0%"
                     stopColor="var(--color-brand)"

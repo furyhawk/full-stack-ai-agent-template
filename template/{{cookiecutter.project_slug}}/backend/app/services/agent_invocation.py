@@ -28,6 +28,17 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _provider_from_model(model_name: str) -> str:
+    name = (model_name or "").lower()
+    if name.startswith(("gpt", "o1", "o3", "o4", "openai")):
+        return "openai"
+    if name.startswith(("claude", "anthropic")):
+        return "anthropic"
+    if name.startswith(("gemini", "google")):
+        return "google"
+    return "unknown"
+
+
 class AgentInvocationService:
     """Invoke the configured AI agent and return the final text response.
 
@@ -168,6 +179,33 @@ class AgentInvocationService:
         )
 
         tool_events = self._extract_tool_events(result.all_messages())
+
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system and cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+        organization_id = kwargs.get("organization_id")
+        if organization_id is not None:
+            try:
+                from app.services.usage import UsageService
+
+                usage = result.usage()
+                effective_model = assistant.model_name or model_name or "unknown"
+                await UsageService(self.db).record(
+                    organization_id=organization_id,
+                    model=effective_model,
+                    provider=_provider_from_model(effective_model),
+                    input_tokens=getattr(usage, "input_tokens", 0) or 0,
+                    output_tokens=getattr(usage, "output_tokens", 0) or 0,
+                    cached_tokens=getattr(usage, "cache_read_tokens", 0) or 0,
+                    ai_framework="pydantic_ai",
+                    actor_user_id=kwargs.get("user_id"),
+                    conversation_id=kwargs.get("conversation_id"),
+                )
+            except Exception:
+                logger.exception(
+                    "channel_usage_record_failed",
+                    extra={"org_id": str(organization_id)},
+                )
+{%- endif %}
+
         return str(result.output), tool_events
 
     @staticmethod
@@ -439,7 +477,7 @@ class AgentInvocationService:
             user_id=user_id,
             organization_id=effective_org_id,
         )
-        active_set = set(str(i) for i in active_ids)
+        active_set = {str(i) for i in active_ids}
         return [kb.collection_name for kb in accessible if str(kb.id) in active_set]
 
 {%- elif cookiecutter.use_sqlite %}

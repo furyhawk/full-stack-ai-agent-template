@@ -3,6 +3,8 @@
 """Knowledge Base service (PostgreSQL async)."""
 
 import logging
+import re
+import secrets
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +15,12 @@ from app.repositories import conversation_repo, knowledge_base_repo
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseUpdate
 
 logger = logging.getLogger(__name__)
+
+
+def _derive_collection_name(name: str) -> str:
+    """Slugify the KB name and append a short random suffix to avoid collisions."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "kb"
+    return f"{slug[:48]}_{secrets.token_hex(3)}"
 
 
 class KnowledgeBaseService:
@@ -95,7 +103,7 @@ class KnowledgeBaseService:
         return await knowledge_base_repo.create(
             self.db,
             name=data.name,
-            collection_name=data.collection_name,
+            collection_name=data.collection_name or _derive_collection_name(data.name),
             scope=data.scope,
             description=data.description,
             owner_user_id=owner_user_id,
@@ -184,9 +192,10 @@ class KnowledgeBaseService:
             raise AuthorizationError(message="App admin required to modify app-scoped knowledge base")
         if kb.scope == KBScope.PERSONAL.value and str(kb.owner_user_id) != str(user_id):
             raise AuthorizationError(message="Only the owner can modify this knowledge base")
-        if kb.scope == KBScope.ORG.value:
-            if not organization_id or str(kb.organization_id) != str(organization_id):
-                raise AuthorizationError(message="Not a member of this knowledge base's organization")
+        if kb.scope == KBScope.ORG.value and (
+            not organization_id or str(kb.organization_id) != str(organization_id)
+        ):
+            raise AuthorizationError(message="Not a member of this knowledge base's organization")
 
     def _check_create_permission(
         self,
@@ -206,6 +215,8 @@ class KnowledgeBaseService:
 
 import json
 import logging
+import re
+import secrets
 
 from sqlalchemy.orm import Session
 
@@ -215,6 +226,12 @@ from app.repositories import conversation_repo, knowledge_base_repo
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseUpdate
 
 logger = logging.getLogger(__name__)
+
+
+def _derive_collection_name(name: str) -> str:
+    """Slugify the KB name and append a short random suffix to avoid collisions."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "kb"
+    return f"{slug[:48]}_{secrets.token_hex(3)}"
 
 
 class KnowledgeBaseService:
@@ -296,7 +313,7 @@ class KnowledgeBaseService:
         return knowledge_base_repo.create(
             self.db,
             name=data.name,
-            collection_name=data.collection_name,
+            collection_name=data.collection_name or _derive_collection_name(data.name),
             scope=data.scope,
             description=data.description,
             owner_user_id=owner_user_id,
@@ -380,9 +397,10 @@ class KnowledgeBaseService:
             raise AuthorizationError(message="App admin required to modify app-scoped knowledge base")
         if kb.scope == KBScope.PERSONAL.value and str(kb.owner_user_id) != str(user_id):
             raise AuthorizationError(message="Only the owner can modify this knowledge base")
-        if kb.scope == KBScope.ORG.value:
-            if not organization_id or str(kb.organization_id) != str(organization_id):
-                raise AuthorizationError(message="Not a member of this knowledge base's organization")
+        if kb.scope == KBScope.ORG.value and (
+            not organization_id or str(kb.organization_id) != str(organization_id)
+        ):
+            raise AuthorizationError(message="Not a member of this knowledge base's organization")
 
     def _check_create_permission(
         self,
@@ -401,11 +419,19 @@ class KnowledgeBaseService:
 """Knowledge Base service (MongoDB async)."""
 
 import logging
+import re
+import secrets
 
 from app.core.exceptions import AuthorizationError, NotFoundError
 from app.db.models.knowledge_base import KBScope, KnowledgeBase
 from app.repositories import conversation_repo, knowledge_base_repo
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseUpdate
+
+
+def _derive_collection_name(name: str) -> str:
+    """Slugify the KB name and append a short random suffix to avoid collisions."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "kb"
+    return f"{slug[:48]}_{secrets.token_hex(3)}"
 
 logger = logging.getLogger(__name__)
 
@@ -484,7 +510,7 @@ class KnowledgeBaseService:
         org_id = organization_id if data.scope in (KBScope.ORG.value, KBScope.PERSONAL.value) else None
         return await knowledge_base_repo.create(
             name=data.name,
-            collection_name=data.collection_name,
+            collection_name=data.collection_name or _derive_collection_name(data.name),
             scope=data.scope,
             description=data.description,
             owner_user_id=owner_user_id,
@@ -554,9 +580,10 @@ class KnowledgeBaseService:
             raise AuthorizationError(message="App admin required to modify app-scoped knowledge base")
         if kb.scope == KBScope.PERSONAL.value and str(kb.owner_user_id) != str(user_id):
             raise AuthorizationError(message="Only the owner can modify this knowledge base")
-        if kb.scope == KBScope.ORG.value:
-            if not organization_id or str(kb.organization_id) != str(organization_id):
-                raise AuthorizationError(message="Not a member of this knowledge base's organization")
+        if kb.scope == KBScope.ORG.value and (
+            not organization_id or str(kb.organization_id) != str(organization_id)
+        ):
+            raise AuthorizationError(message="Not a member of this knowledge base's organization")
 
     def _check_create_permission(self, *, scope: str, user_id: str, organization_id: str | None, is_app_admin: bool) -> None:
         if scope == KBScope.APP.value and not is_app_admin:

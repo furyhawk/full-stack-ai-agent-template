@@ -171,6 +171,18 @@ export function useCredits() {
     fetchTransactions();
   }, [fetchBalance, fetchTransactions]);
 
+  // Listen for billing-affecting events (e.g. a finished chat turn) and
+  // refetch the balance so the UI doesn't show stale numbers.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => {
+      fetchBalance();
+      fetchTransactions();
+    };
+    window.addEventListener("billing:refresh", handler);
+    return () => window.removeEventListener("billing:refresh", handler);
+  }, [fetchBalance, fetchTransactions]);
+
   return { balance, transactions, isLoading, txLoading, fetchBalance, fetchTransactions };
 }
 

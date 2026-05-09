@@ -38,15 +38,25 @@ class WebhookHandler:
     async def dispatch(self, event: stripe.Event) -> None:
         existing = await stripe_event_repo.get_by_stripe_id(self.db, event.id)
         if existing and existing.status in ("processed", "skipped"):
-            logger.info("stripe_event_already_processed", event_id=event.id, type=event.type)
+            logger.info(
+                "stripe_event_already_processed",
+                extra={"event_id": event.id, "type": event.type},
+            )
             return
 
-        db_event = await stripe_event_repo.create(
-            self.db,
-            stripe_event_id=event.id,
-            event_type=event.type,
-            payload=dict(event),
-        )
+        # Reuse the row on retry (status=failed/pending). Only insert when new.
+        if existing is not None:
+            db_event = existing
+            db_event.status = "pending"
+            db_event.payload = dict(event)
+            await self.db.flush()
+        else:
+            db_event = await stripe_event_repo.create(
+                self.db,
+                stripe_event_id=event.id,
+                event_type=event.type,
+                payload=dict(event),
+            )
 
         handler = EVENT_HANDLERS.get(event.type)
         if not handler:
@@ -58,7 +68,10 @@ class WebhookHandler:
             await handler(self.db, event)
             await stripe_event_repo.mark_processed(self.db, db_event=db_event)
         except Exception as exc:
-            logger.exception("webhook_handler_failed", event_id=event.id, type=event.type)
+            logger.exception(
+                "webhook_handler_failed",
+                extra={"event_id": event.id, "type": event.type},
+            )
             await stripe_event_repo.mark_failed(self.db, db_event=db_event, error=str(exc))
 
 {%- elif cookiecutter.use_sqlite %}

@@ -1,24 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { ChatContainer, ConversationSidebar } from "@/components/chat";
-import { useConversationStore } from "@/stores";
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
 import { KBPanel } from "@/components/chat";
 {%- endif %}
 
 export default function ChatPage() {
-  const searchParams = useSearchParams();
-  const { setCurrentConversationId } = useConversationStore();
-
-  useEffect(() => {
-    const conversationId = searchParams.get("id");
-    if (conversationId) {
-      setCurrentConversationId(conversationId);
-    }
-  }, [searchParams, setCurrentConversationId]);
-
+  // The ?id= query param is read by useConversations.fetchConversations on mount;
+  // it sets currentConversationId AND loads messages atomically. Pre-setting the
+  // id here would short-circuit that loader and leave the chat empty on refresh.
   return (
     <div className="-m-3 flex min-h-0 flex-1 sm:-m-6">
       <ConversationSidebar />

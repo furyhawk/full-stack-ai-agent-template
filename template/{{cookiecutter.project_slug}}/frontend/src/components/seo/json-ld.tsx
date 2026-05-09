@@ -5,12 +5,22 @@ interface JsonLdProps {
   data: Record<string, unknown> | Record<string, unknown>[];
 }
 
+/**
+ * Escape `<` and `>` so a malicious string in `data` can't terminate the
+ * surrounding `<script>` tag (e.g. `"</script><script>alert(1)</script>"`).
+ * `<` and `>` are interpreted as `<`/`>` by JSON parsers but are
+ * inert in HTML.
+ */
+function safeStringify(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+}
+
 export function JsonLd({ data }: JsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      // eslint-disable-next-line react/no-danger -- safe: server-side stringify of static schema
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      // eslint-disable-next-line react/no-danger -- escaped above; can't break out of <script>
+      dangerouslySetInnerHTML={{ __html: safeStringify(data) }}
     />
   );
 }

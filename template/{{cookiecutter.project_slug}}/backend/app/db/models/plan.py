@@ -3,7 +3,7 @@
 
 import uuid
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from datetime import datetime
+from datetime import UTC, datetime
 
 {%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
 from sqlalchemy import Column, String, Text, Boolean, Integer, DateTime
@@ -267,7 +267,7 @@ class Plan(Document):
     seats_max: Optional[int] = None
     monthly_credits_base: int = 0
     monthly_credits_per_seat: int = 0
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "plans"
@@ -284,7 +284,7 @@ class Price(Document):
     billing_scheme: str = "per_unit"
     tiers_mode: Optional[str] = None
     credits_grant: Optional[int] = None
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "prices"

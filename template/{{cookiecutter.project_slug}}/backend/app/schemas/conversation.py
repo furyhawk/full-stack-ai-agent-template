@@ -76,6 +76,21 @@ class ToolCallRead(ToolCallBase):
     duration_ms: int | None = None
 
 
+class ToolCallStat(BaseSchema):
+    """One tool's aggregated stats over a window."""
+
+    tool_name: str
+    total_calls: int
+    failed_calls: int
+    avg_duration_ms: int | None = None
+    last_used_at: datetime | None = None
+
+
+class ToolCallStatList(BaseSchema):
+    items: list[ToolCallStat]
+    days: int
+
+
 # Message Schemas
 
 

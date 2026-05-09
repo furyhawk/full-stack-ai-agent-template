@@ -52,6 +52,9 @@ from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_d
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
 from app.services.knowledge_base import KnowledgeBaseService
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+from app.repositories import organization_repo
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -145,14 +148,17 @@ async def persist_user_turn(
     file_ids: list[Any],
     requested_conversation_id: str | None,
     current_conversation_id: str | None,
-) -> tuple[str | None, bool]:
+) -> tuple[str | None, bool, str | None]:
     """Resolve the conversation, persist the user message, and link any uploaded files.
 
-    Returns ``(conversation_id, was_newly_created)``. When ``was_newly_created`` is True
-    the caller should emit a ``conversation_created`` WebSocket event; routes own the
-    WebSocket protocol and services own data.
+    Returns ``(conversation_id, was_newly_created, organization_id)``. When
+    ``was_newly_created`` is True the caller should emit a ``conversation_created``
+    WebSocket event. ``organization_id`` is the conversation's owning org (the user's
+    Personal org for new conversations) so usage events can be billed correctly;
+    None when teams are disabled or no org context is available.
     """
     newly_created = False
+    organization_id: str | None = None
     try:
 {%- if cookiecutter.use_postgresql %}
         async with get_db_context() as db:
@@ -169,11 +175,23 @@ async def persist_user_turn(
                         user_id=user.id,
 {%- endif %}
                     )
+{%- if cookiecutter.enable_teams %}
+                if getattr(conv, "organization_id", None) is not None:
+                    organization_id = str(conv.organization_id)
+{%- endif %}
             elif not current_conversation_id:
+{%- if cookiecutter.enable_teams and cookiecutter.websocket_auth_jwt %}
+                personal_org = await organization_repo.get_personal_for_user(db, user.id)
+                if personal_org is not None:
+                    organization_id = str(personal_org.id)
+{%- endif %}
                 conversation = await conv_service.create_conversation(
                     ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
                         user_id=user.id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.websocket_auth_jwt %}
+                        organization_id=personal_org.id if personal_org else None,
 {%- endif %}
                         title=truncate_title(user_message),
                     )
@@ -260,7 +278,7 @@ async def persist_user_turn(
     except Exception as e:
         logger.warning(f"Failed to persist conversation: {e}")
 
-    return current_conversation_id, newly_created
+    return current_conversation_id, newly_created, organization_id
 
 
 def normalize_tool_args(args: Any) -> dict[str, Any]:

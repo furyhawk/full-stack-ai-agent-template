@@ -67,7 +67,7 @@ export function RegisterForm() {
 
     setIsLoading(true);
     try {
-      await register({ email, password, name: name || undefined });
+      await register({ email, password, full_name: name || undefined });
       toast.success(t("registerSuccess"));
       router.push(ROUTES.LOGIN + "?registered=true");
     } catch (err) {
@@ -87,7 +87,10 @@ export function RegisterForm() {
         <h1 className="text-display-md text-foreground">{t("createAccount")}</h1>
         <p className="text-foreground/65 text-sm">
           {t("hasAccount")}{" "}
-          <Link href={ROUTES.LOGIN} className="text-foreground hover:text-foreground/80 font-medium underline-offset-4 hover:underline">
+          <Link
+            href={ROUTES.LOGIN}
+            className="text-foreground hover:text-foreground/80 font-medium underline-offset-4 hover:underline"
+          >
             {t("login")}
           </Link>
         </p>
@@ -98,7 +101,10 @@ export function RegisterForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="name" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+          <Label
+            htmlFor="name"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
             {t("nameOptional")}
           </Label>
           <Input
@@ -114,7 +120,10 @@ export function RegisterForm() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+          <Label
+            htmlFor="email"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
             {t("email")}
           </Label>
           <Input
@@ -135,7 +144,10 @@ export function RegisterForm() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+          <Label
+            htmlFor="password"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
             {t("password")}
           </Label>
           <Input
@@ -161,7 +173,7 @@ export function RegisterForm() {
                 ))}
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+                <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
                   {strength.label}
                 </p>
                 <div className="flex items-center gap-1.5 text-xs">
@@ -183,7 +195,10 @@ export function RegisterForm() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+          <Label
+            htmlFor="confirmPassword"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
             {t("confirmPassword")}
           </Label>
           <Input
@@ -213,7 +228,7 @@ export function RegisterForm() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/90"
+          className="bg-foreground text-background hover:bg-foreground/90 h-11 w-full rounded-full"
         >
           {isLoading ? (
             t("creatingAccount")
@@ -227,11 +242,17 @@ export function RegisterForm() {
 
         <p className="text-foreground/50 text-center text-xs">
           By creating an account, you agree to our{" "}
-          <Link href="/legal/terms" className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline">
+          <Link
+            href="/legal/terms"
+            className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline"
+          >
             Terms
           </Link>{" "}
           and{" "}
-          <Link href="/legal/privacy" className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline">
+          <Link
+            href="/legal/privacy"
+            className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline"
+          >
             Privacy Policy
           </Link>
           .

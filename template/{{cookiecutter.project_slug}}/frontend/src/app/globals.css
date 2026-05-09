@@ -49,6 +49,10 @@
   --color-brand: oklch(var(--brand-l) var(--brand-c) var(--brand-h));
   --color-brand-hover: oklch(calc(var(--brand-l) - 8%) var(--brand-c) var(--brand-h));
   --color-brand-muted: oklch(var(--brand-l) calc(var(--brand-c) * 0.4) var(--brand-h));
+  /* Chart strokes/fills — defaults to a darker brand variant so charts stay
+     readable on light backgrounds even when the brand itself is high-lightness
+     (e.g. lime). Dark themes override this to use the bright brand directly. */
+  --color-chart: oklch(55% var(--brand-c) var(--brand-h));
 
   /* Light theme — cream */
   --color-background: oklch(96% 0.005 90);
@@ -109,6 +113,7 @@
     --color-accent-foreground: oklch(95% 0 0);
     --color-border: oklch(22% 0.005 90);
     --color-input: oklch(22% 0.005 90);
+    --color-chart: var(--color-brand);
   }
 }
 
@@ -129,6 +134,7 @@
   --color-accent-foreground: oklch(95% 0 0);
   --color-border: oklch(22% 0.005 90);
   --color-input: oklch(22% 0.005 90);
+  --color-chart: var(--color-brand);
 }
 
 /* =========================================================================
@@ -154,6 +160,7 @@
   --color-muted: oklch(18% 0.005 90);
   --color-muted-foreground: oklch(63% 0.005 90);
   --color-border: oklch(22% 0.005 90);
+  --color-chart: var(--color-brand);
 }
 
 @layer base {
@@ -192,7 +199,9 @@
     border-radius: 4px;
   }
   /* Remove the default inner button focus ring on Firefox. */
-  ::-moz-focus-inner { border: 0; }
+  ::-moz-focus-inner {
+    border: 0;
+  }
 
   /* Skip link — hidden until focused. Used in [locale]/layout.tsx. */
   .skip-link {
@@ -226,10 +235,19 @@
    ========================================================================= */
 
 @layer utilities {
-  .font-display { font-family: var(--font-display); }
-  .font-body    { font-family: var(--font-body); }
-  .font-accent  { font-family: var(--font-accent); font-style: italic; }
-  .font-mono    { font-family: var(--font-mono); }
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-body {
+    font-family: var(--font-body);
+  }
+  .font-accent {
+    font-family: var(--font-accent);
+    font-style: italic;
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
 
   .text-display-3xl {
     font-family: var(--font-display);
@@ -243,7 +261,7 @@
     font-family: var(--font-display);
     font-weight: 800;
     font-size: clamp(3.5rem, 8vw + 1rem, 7rem);
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: -0.03em;
   }
 
@@ -306,30 +324,53 @@
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar — theme-aware, derived from --color-foreground.
+   Subtle at rest, more visible while the user is hovering the scroll area. */
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: oklch(50% 0 0 / 0.3) transparent;
+    /* Firefox: thumb + track. Colors are derived from the foreground so the
+       scrollbar reads correctly on both light cream and dark surfaces. */
+    scrollbar-color: oklch(from var(--color-foreground) l c h / 0.18) transparent;
+    transition: scrollbar-color 150ms ease;
+  }
+
+  .scrollbar-thin:hover {
+    scrollbar-color: oklch(from var(--color-foreground) l c h / 0.35) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
-    border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: oklch(50% 0 0 / 0.3);
-    border-radius: 3px;
+    background: oklch(from var(--color-foreground) l c h / 0.18);
+    border-radius: 9999px;
+    /* 2px transparent border + background-clip:padding-box gives a visible
+       thumb width of ~4px while keeping a wider hit target. */
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 150ms ease;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: oklch(50% 0 0 / 0.5);
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background: oklch(from var(--color-foreground) l c h / 0.35);
+    background-clip: padding-box;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+  .scrollbar-thin::-webkit-scrollbar-thumb:active {
+    background: oklch(from var(--color-foreground) l c h / 0.55);
+    background-clip: padding-box;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
@@ -376,14 +417,24 @@
     animation: marquee-slide 36s linear infinite reverse;
   }
   @keyframes marquee-slide {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
   }
 
   /* Tiny fade+scale entrance for popovers / dropdowns. */
   @keyframes lsFadeIn {
-    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   /* Subtle radial spotlight backdrop. Uses background-image so the section's
@@ -392,15 +443,31 @@
      the section inherits the body's bg, defeating .theme-dark. */
   .spotlight-bg {
     background-image:
-      radial-gradient(ellipse 80% 60% at 80% 0%, oklch(from var(--color-brand) l c h / 0.16), transparent 60%),
-      radial-gradient(ellipse 60% 50% at 0% 100%, oklch(from var(--color-brand) l c h / 0.06), transparent 70%);
+      radial-gradient(
+        ellipse 80% 60% at 80% 0%,
+        oklch(from var(--color-brand) l c h / 0.16),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 60% 50% at 0% 100%,
+        oklch(from var(--color-brand) l c h / 0.06),
+        transparent 70%
+      );
   }
 
   /* Subtle background grid — fades on the edges so it doesn't fight the content */
   .bg-grid {
     background-image:
-      linear-gradient(to right, oklch(from var(--color-foreground) l c h / 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(from var(--color-foreground) l c h / 0.06) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        oklch(from var(--color-foreground) l c h / 0.06) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        oklch(from var(--color-foreground) l c h / 0.06) 1px,
+        transparent 1px
+      );
     background-size: 64px 64px;
     background-position: -1px -1px;
     mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%);
@@ -410,7 +477,7 @@
   /* Dot grid — subtler than line grid, good for textural sections */
   .bg-dots {
     background-image: radial-gradient(
-      oklch(from var(--color-foreground) l c h / 0.10) 1px,
+      oklch(from var(--color-foreground) l c h / 0.1) 1px,
       transparent 1px
     );
     background-size: 24px 24px;
@@ -443,7 +510,9 @@
     animation: flow-dash 2.6s linear infinite;
   }
   @keyframes flow-dash {
-    to { stroke-dashoffset: -20; }
+    to {
+      stroke-dashoffset: -20;
+    }
   }
 
   /* Pulsing dot — used for "live" indicators (knowledge base nodes etc.) */
@@ -452,8 +521,15 @@
     transform-origin: center;
   }
   @keyframes pulse-dot {
-    0%, 100% { transform: scale(1); opacity: 0.85; }
-    50%      { transform: scale(1.6); opacity: 0.3; }
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.85;
+    }
+    50% {
+      transform: scale(1.6);
+      opacity: 0.3;
+    }
   }
 
   /* Rotating dashed ring — used on knowledge base node */
@@ -464,7 +540,9 @@
     animation: ring-rotate 30s linear infinite reverse;
   }
   @keyframes ring-rotate {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* Breathing radial glow — used on knowledge base ambient */
@@ -472,15 +550,22 @@
     animation: glow-breathe 4s ease-in-out infinite;
   }
   @keyframes glow-breathe {
-    0%, 100% { opacity: 0.6; transform: scale(1); }
-    50%      { opacity: 1;   transform: scale(1.06); }
+    0%,
+    100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
   }
 
   /* Comet trail circle — applied to SVG <circle> with <animateMotion>.
      Drop-shadow gives it the soft glow that reads as "speed". */
   .comet {
     filter: drop-shadow(0 0 6px var(--color-brand))
-            drop-shadow(0 0 12px oklch(from var(--color-brand) l c h / 0.5));
+      drop-shadow(0 0 12px oklch(from var(--color-brand) l c h / 0.5));
   }
 
   /* Floating accent pills around hero demo */
@@ -492,14 +577,20 @@
     animation-delay: -2s;
   }
   @keyframes float-y {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-8px); }
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
   }
 
   /* Hover lift card */
   .lift {
-    transition: transform var(--duration-fast) var(--ease-out),
-                box-shadow var(--duration-fast) var(--ease-out);
+    transition:
+      transform var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
   }
   .lift:hover {
     transform: translateY(-2px);
@@ -513,7 +604,10 @@
     animation: reveal-up var(--duration-slow) var(--ease-out) forwards;
   }
   @keyframes reveal-up {
-    to { opacity: 1; transform: translateY(0); }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Hover lift only when the device supports hover — touch devices skip the
@@ -531,7 +625,9 @@
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -686,39 +782,129 @@
     padding: 0;
     background: transparent;
   }
-  code.hljs { padding: 3px 5px; }
-  .hljs { color: #24292e; }
-  .hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
-  .hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #d73a49; }
-  .hljs-name, .hljs-tag { color: #22863a; }
-  .hljs-attr, .hljs-attribute { color: #6f42c1; }
-  .hljs-variable, .hljs-template-variable, .hljs-regexp, .hljs-link { color: #005cc5; }
-  .hljs-string, .hljs-symbol, .hljs-bullet { color: #032f62; }
-  .hljs-number { color: #005cc5; }
-  .hljs-meta, .hljs-built_in, .hljs-builtin-name, .hljs-type, .hljs-params { color: #e36209; }
-  .hljs-function .hljs-title { color: #6f42c1; }
-  .hljs-addition { color: #22863a; background-color: #f0fff4; }
-  .hljs-deletion { color: #b31d28; background-color: #ffeef0; }
+  code.hljs {
+    padding: 3px 5px;
+  }
+  .hljs {
+    color: #24292e;
+  }
+  .hljs-comment,
+  .hljs-quote {
+    color: #6a737d;
+    font-style: italic;
+  }
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal {
+    color: #d73a49;
+  }
+  .hljs-name,
+  .hljs-tag {
+    color: #22863a;
+  }
+  .hljs-attr,
+  .hljs-attribute {
+    color: #6f42c1;
+  }
+  .hljs-variable,
+  .hljs-template-variable,
+  .hljs-regexp,
+  .hljs-link {
+    color: #005cc5;
+  }
+  .hljs-string,
+  .hljs-symbol,
+  .hljs-bullet {
+    color: #032f62;
+  }
+  .hljs-number {
+    color: #005cc5;
+  }
+  .hljs-meta,
+  .hljs-built_in,
+  .hljs-builtin-name,
+  .hljs-type,
+  .hljs-params {
+    color: #e36209;
+  }
+  .hljs-function .hljs-title {
+    color: #6f42c1;
+  }
+  .hljs-addition {
+    color: #22863a;
+    background-color: #f0fff4;
+  }
+  .hljs-deletion {
+    color: #b31d28;
+    background-color: #ffeef0;
+  }
 
-  .dark .hljs, .theme-dark .hljs { color: #e1e4e8; }
-  .dark .hljs-comment, .dark .hljs-quote,
-  .theme-dark .hljs-comment, .theme-dark .hljs-quote { color: #6a737d; }
-  .dark .hljs-keyword, .dark .hljs-selector-tag, .dark .hljs-literal,
-  .theme-dark .hljs-keyword, .theme-dark .hljs-selector-tag, .theme-dark .hljs-literal { color: #ff7b72; }
-  .dark .hljs-name, .dark .hljs-tag,
-  .theme-dark .hljs-name, .theme-dark .hljs-tag { color: #7ee787; }
-  .dark .hljs-attr, .dark .hljs-attribute,
-  .theme-dark .hljs-attr, .theme-dark .hljs-attribute { color: #d2a8ff; }
-  .dark .hljs-string, .dark .hljs-symbol, .dark .hljs-bullet,
-  .theme-dark .hljs-string, .theme-dark .hljs-symbol, .theme-dark .hljs-bullet { color: #a5d6ff; }
+  .dark .hljs,
+  .theme-dark .hljs {
+    color: #e1e4e8;
+  }
+  .dark .hljs-comment,
+  .dark .hljs-quote,
+  .theme-dark .hljs-comment,
+  .theme-dark .hljs-quote {
+    color: #6a737d;
+  }
+  .dark .hljs-keyword,
+  .dark .hljs-selector-tag,
+  .dark .hljs-literal,
+  .theme-dark .hljs-keyword,
+  .theme-dark .hljs-selector-tag,
+  .theme-dark .hljs-literal {
+    color: #ff7b72;
+  }
+  .dark .hljs-name,
+  .dark .hljs-tag,
+  .theme-dark .hljs-name,
+  .theme-dark .hljs-tag {
+    color: #7ee787;
+  }
+  .dark .hljs-attr,
+  .dark .hljs-attribute,
+  .theme-dark .hljs-attr,
+  .theme-dark .hljs-attribute {
+    color: #d2a8ff;
+  }
+  .dark .hljs-string,
+  .dark .hljs-symbol,
+  .dark .hljs-bullet,
+  .theme-dark .hljs-string,
+  .theme-dark .hljs-symbol,
+  .theme-dark .hljs-bullet {
+    color: #a5d6ff;
+  }
   .dark .hljs-number,
-  .theme-dark .hljs-number { color: #79c0ff; }
-  .dark .hljs-meta, .dark .hljs-built_in, .dark .hljs-builtin-name, .dark .hljs-type, .dark .hljs-params,
-  .theme-dark .hljs-meta, .theme-dark .hljs-built_in, .theme-dark .hljs-builtin-name, .theme-dark .hljs-type, .theme-dark .hljs-params { color: #ffa657; }
+  .theme-dark .hljs-number {
+    color: #79c0ff;
+  }
+  .dark .hljs-meta,
+  .dark .hljs-built_in,
+  .dark .hljs-builtin-name,
+  .dark .hljs-type,
+  .dark .hljs-params,
+  .theme-dark .hljs-meta,
+  .theme-dark .hljs-built_in,
+  .theme-dark .hljs-builtin-name,
+  .theme-dark .hljs-type,
+  .theme-dark .hljs-params {
+    color: #ffa657;
+  }
   .dark .hljs-function .hljs-title,
-  .theme-dark .hljs-function .hljs-title { color: #d2a8ff; }
+  .theme-dark .hljs-function .hljs-title {
+    color: #d2a8ff;
+  }
   .dark .hljs-addition,
-  .theme-dark .hljs-addition { color: #aff5b4; background-color: #033a16; }
+  .theme-dark .hljs-addition {
+    color: #aff5b4;
+    background-color: #033a16;
+  }
   .dark .hljs-deletion,
-  .theme-dark .hljs-deletion { color: #ffdcd7; background-color: #67060c; }
+  .theme-dark .hljs-deletion {
+    color: #ffdcd7;
+    background-color: #67060c;
+  }
 }

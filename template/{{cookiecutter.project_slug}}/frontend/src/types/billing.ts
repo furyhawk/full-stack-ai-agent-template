@@ -29,12 +29,13 @@ export interface PlanRead {
 export interface PriceRead {
   id: string;
   stripe_price_id: string;
-  currency: string;
-  unit_amount: number;
   interval: string;
-  interval_count: number;
-  is_active: boolean;
+  amount_cents: number;
+  currency: string;
   trial_period_days: number | null;
+  is_active: boolean;
+  billing_scheme: string;
+  credits_grant: number | null;
 }
 
 export type SubscriptionStatus =
@@ -65,7 +66,7 @@ export interface SubscriptionRead {
 
 export interface CreditBalanceRead {
   balance: number;
-  threshold: number;
+  low_threshold: number;
 }
 
 export interface CreditTransactionRead {

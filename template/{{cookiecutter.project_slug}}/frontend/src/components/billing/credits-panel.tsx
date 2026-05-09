@@ -43,7 +43,7 @@ export function CreditsPanel() {
     );
   }
 
-  const low = balance && balance.balance < balance.threshold;
+  const low = balance && balance.balance < balance.low_threshold;
 
   return (
     <div className="space-y-4">
@@ -65,7 +65,7 @@ export function CreditsPanel() {
           <p className="text-muted-foreground mt-1 text-sm">credits remaining</p>
           {low && (
             <p className="text-destructive mt-2 text-sm">
-              Balance is below the alert threshold of {balance?.threshold.toLocaleString()} credits.
+              Balance is below the alert threshold of {balance?.low_threshold.toLocaleString()} credits.
             </p>
           )}
         </CardContent>

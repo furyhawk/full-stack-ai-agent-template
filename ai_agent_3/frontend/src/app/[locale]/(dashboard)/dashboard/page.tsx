@@ -15,20 +15,27 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { ActiveSessions } from "@/components/dashboard/active-sessions";
 import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { SegmentedControl } from "@/components/dashboard/segmented-control";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { SubscriptionChip } from "@/components/dashboard/subscription-chip";
+import { TeamSummary } from "@/components/dashboard/team-summary";
+import { ToolUsage } from "@/components/dashboard/tool-usage";
+import { TopModels } from "@/components/dashboard/top-models";
 import { UsageTimeline } from "@/components/dashboard/usage-timeline";
 import { useAuth } from "@/hooks";
 import { apiClient } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { listCollections, getCollectionInfo } from "@/lib/rag-api";
 import type { HealthResponse } from "@/types";
 
 interface CreditBalance {
   balance: number;
-  threshold: number;
+  low_threshold: number;
 }
 
 interface UsageBucket {
@@ -71,6 +78,7 @@ export default function DashboardPage() {
   const [convLoading, setConvLoading] = useState(true);
   const [ragStats, setRagStats] = useState<{ collections: number; vectors: number } | null>(null);
   const [timeline, setTimeline] = useState<UsageBucket[] | null>(null);
+  const [period, setPeriod] = useState<7 | 30 | 90>(7);
 
   useEffect(() => {
     apiClient
@@ -107,28 +115,42 @@ export default function DashboardPage() {
         setRagStats({ collections: list.items.length, vectors: totalVectors });
       })
       .catch(() => setRagStats({ collections: 0, vectors: 0 }));
-
-    apiClient
-      .get<UsageTimelineRead>("/billing/me/credits/usage/timeline?days=14")
-      .then((d) => setTimeline(d.buckets))
-      .catch(() => setTimeline([]));
   }, []);
 
-  // Derived sparklines + deltas (last 7d vs prior 7d)
-  const creditsSpark = (timeline ?? []).slice(-7).map((b) => b.credits_charged);
-  const callsSpark = (timeline ?? []).slice(-7).map((b) => b.total_calls);
+  // Refetch the timeline whenever the period changes.
+  // Fetch period * 2 days so we have current + prior windows for delta math.
+  useEffect(() => {
+    let cancelled = false;
+    setTimeline(null);
+    apiClient
+      .get<UsageTimelineRead>(`/billing/me/credits/usage/timeline?days=${period * 2}`)
+      .then((d) => {
+        if (!cancelled) setTimeline(d.buckets);
+      })
+      .catch(() => {
+        if (!cancelled) setTimeline([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
+
+  // Derived sparklines + deltas (last `period`d vs prior `period`d)
+  const creditsSpark = (timeline ?? []).slice(-period).map((b) => b.credits_charged);
+  const callsSpark = (timeline ?? []).slice(-period).map((b) => b.total_calls);
   const creditsDelta = timeline
     ? pctDelta(
-        timeline.slice(-7).map((b) => b.credits_charged),
-        timeline.slice(-14, -7).map((b) => b.credits_charged),
+        timeline.slice(-period).map((b) => b.credits_charged),
+        timeline.slice(-period * 2, -period).map((b) => b.credits_charged),
       )
     : undefined;
   const callsDelta = timeline
     ? pctDelta(
-        timeline.slice(-7).map((b) => b.total_calls),
-        timeline.slice(-14, -7).map((b) => b.total_calls),
+        timeline.slice(-period).map((b) => b.total_calls),
+        timeline.slice(-period * 2, -period).map((b) => b.total_calls),
       )
     : undefined;
+  const deltaLabel = `vs prior ${period}d`;
 
   return (
     <div className="space-y-6 pb-8">
@@ -142,8 +164,8 @@ export default function DashboardPage() {
           </p>
           <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
             {getGreeting()}
-            {user?.name
-              ? `, ${user.name.split(" ")[0]}`
+            {user?.full_name
+              ? `, ${user.full_name.split(" ")[0]}`
               : user?.email
                 ? `, ${user.email.split("@")[0]}`
                 : ""}
@@ -167,14 +189,28 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
+          Workspace metrics
+        </h2>
+        <SegmentedControl
+          value={String(period)}
+          onChange={(v) => setPeriod(Number(v) as 7 | 30 | 90)}
+          options={[
+            { label: "7d", value: "7" },
+            { label: "30d", value: "30" },
+            { label: "90d", value: "90" },
+          ]}
+        />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Credits balance"
           value={creditsLoading ? "—" : credits ? credits.balance.toLocaleString() : "0"}
           icon={Sparkles}
           delta={creditsDelta}
-          deltaLabel="vs prior 7d"
-          spark={creditsSpark.length >= 2 ? creditsSpark : undefined}
+          deltaLabel={deltaLabel}
+          spark={creditsSpark.length >= 2 ? creditsSpark : [0, 0]}
           loading={creditsLoading}
           featured
         />
@@ -185,12 +221,12 @@ export default function DashboardPage() {
           loading={convLoading}
         />
         <StatCard
-          label="API calls (7d)"
+          label={`API calls (${period}d)`}
           value={timeline ? callsSpark.reduce((a, b) => a + b, 0).toLocaleString() : "—"}
           icon={Activity}
           delta={callsDelta}
-          deltaLabel="vs prior 7d"
-          spark={callsSpark.length >= 2 ? callsSpark : undefined}
+          deltaLabel={deltaLabel}
+          spark={callsSpark.length >= 2 ? callsSpark : [0, 0]}
           loading={!timeline}
         />
         <StatCard
@@ -231,11 +267,25 @@ export default function DashboardPage() {
             ? `${ragStats.collections} collection${ragStats.collections === 1 ? "" : "s"}`
             : "—"}
         </span>
-        {credits && (
-          <span className="text-foreground/45 font-mono tracking-wider uppercase">
-            Threshold {credits.threshold.toLocaleString()}
+        {credits && credits.low_threshold > 0 && (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase",
+              credits.balance < credits.low_threshold
+                ? "bg-destructive/10 text-destructive"
+                : "text-foreground/45",
+            )}
+            title={
+              credits.balance < credits.low_threshold
+                ? "Balance dropped below the auto-refill threshold"
+                : "Auto-refill threshold (turns the chip red when crossed)"
+            }
+          >
+            {credits.balance < credits.low_threshold ? "Below threshold" : "Threshold"}{" "}
+            {credits.low_threshold.toLocaleString()}
           </span>
         )}
+        <SubscriptionChip />
         <Link
           href={ROUTES.BILLING}
           className="text-foreground/55 hover:text-foreground ml-auto inline-flex items-center gap-1 font-mono tracking-wider uppercase"
@@ -248,11 +298,22 @@ export default function DashboardPage() {
       {/* Usage timeline (full width) */}
       <UsageTimeline />
 
-      {/* Activity + quick actions side-by-side */}
+      {/* Activity + behavior insights */}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <RecentActivity />
-        <QuickActions />
+        <TopModels />
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ToolUsage />
+        <TeamSummary />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ActiveSessions />
+      </div>
+
+      <QuickActions />
 
       {/* Admin row */}
       {user?.role === "admin" && (

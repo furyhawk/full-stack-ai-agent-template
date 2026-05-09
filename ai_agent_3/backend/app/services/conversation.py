@@ -4,7 +4,7 @@ Contains business logic for conversation, message, and tool call operations.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
 from app.db.models.conversation import Conversation, Message, ToolCall
-from app.repositories import conversation_repo, conversation_share_repo
+from app.repositories import conversation_repo, conversation_share_repo, message_rating_repo
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -185,7 +185,31 @@ class ConversationService:
                     message="Conversation not found",
                     details={"conversation_id": str(conversation_id)},
                 )
+        if include_messages and user_id is not None and conversation.messages:
+            message_ids = [m.id for m in conversation.messages]
+            user_ratings = await message_rating_repo.get_user_ratings_for_messages(
+                self.db, message_ids=message_ids, user_id=user_id
+            )
+            rating_counts = await message_rating_repo.get_rating_counts_for_messages(
+                self.db, message_ids=message_ids
+            )
+            for msg in conversation.messages:
+                msg.user_rating = user_ratings.get(msg.id)  # type: ignore[attr-defined]
+                msg.rating_count = rating_counts.get(msg.id)  # type: ignore[attr-defined]
         return conversation
+
+    async def aggregate_tool_calls(
+        self,
+        organization_id: UUID,
+        *,
+        days: int = 7,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Top tool calls for an org over the last ``days``."""
+        since = datetime.now(UTC) - timedelta(days=days)
+        return await conversation_repo.aggregate_tool_calls_for_org(
+            self.db, organization_id, since=since, limit=limit
+        )
 
     async def list_conversations(
         self,
@@ -438,8 +462,6 @@ class ConversationService:
 
         # Enrich messages with rating data if user_id is provided
         if user_id is not None and items:
-            from app.repositories import message_rating_repo
-
             message_ids = [msg.id for msg in items]
             user_ratings = await message_rating_repo.get_user_ratings_for_messages(
                 self.db, message_ids=message_ids, user_id=user_id

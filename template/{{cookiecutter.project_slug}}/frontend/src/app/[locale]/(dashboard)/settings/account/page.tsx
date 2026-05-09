@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ShieldCheck } from "lucide-react";
+import { Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { SettingsSection } from "@/components/settings/settings-section";
@@ -97,7 +97,10 @@ export default function AccountSettingsPage() {
       >
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="current-pw" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+            <Label
+              htmlFor="current-pw"
+              className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+            >
               Current password
             </Label>
             <Input
@@ -111,7 +114,10 @@ export default function AccountSettingsPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="new-pw" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+              <Label
+                htmlFor="new-pw"
+                className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+              >
                 New password
               </Label>
               <Input
@@ -124,7 +130,10 @@ export default function AccountSettingsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-pw" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+              <Label
+                htmlFor="confirm-pw"
+                className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+              >
                 Confirm new password
               </Label>
               <Input
@@ -137,34 +146,6 @@ export default function AccountSettingsPage() {
               />
             </div>
           </div>
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Two-factor authentication"
-        description="Add an extra step at sign-in with a TOTP app like 1Password or Authy."
-      >
-        <div className="border-foreground/10 bg-background flex items-center justify-between gap-4 rounded-xl border p-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="bg-foreground/8 text-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
-              <ShieldCheck className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-foreground text-sm font-medium">TOTP app</p>
-              <p className="text-foreground/55 text-xs">
-                Disabled. Enable to require a 6-digit code at sign-in.
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="rounded-full"
-            title="Backend wiring required"
-          >
-            Coming soon
-          </Button>
         </div>
       </SettingsSection>
 
@@ -221,9 +202,8 @@ export default function AccountSettingsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete your account?</AlertDialogTitle>
               <AlertDialogDescription>
-                Your conversations, knowledge base contents, API keys, and all personal data will
-                be permanently deleted. Active subscriptions will be canceled. This cannot be
-                undone.
+                Your conversations, knowledge base contents, API keys, and all personal data will be
+                permanently deleted. Active subscriptions will be canceled. This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

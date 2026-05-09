@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     MODELS_CACHE_DIR: Path = Path("./models_cache")
     MEDIA_DIR: Path = Path("./media")
     MAX_UPLOAD_SIZE_MB: int = 50  # Max file upload size in MB
+    # Soft per-org storage cap surfaced on /billing — not enforced yet (5 GB).
+    STORAGE_SOFT_LIMIT_BYTES: int = 5 * 1024 * 1024 * 1024
 
     # === Logfire ===
     LOGFIRE_TOKEN: str | None = None

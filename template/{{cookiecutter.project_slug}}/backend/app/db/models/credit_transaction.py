@@ -4,7 +4,7 @@
 import enum
 import uuid
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from datetime import datetime
+from datetime import UTC, datetime
 
 {%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
 from sqlalchemy import Column, String, Text, Integer, DateTime, Enum as SQLEnum
@@ -39,7 +39,9 @@ class CreditTransaction(TimestampMixin, SQLModel, table=True):
     )
     delta: int = Field(sa_column=Column(Integer, nullable=False))
     balance_after: int = Field(sa_column=Column(Integer, nullable=False))
-    type: CreditTransactionType = Field(sa_column=Column(SQLEnum(CreditTransactionType), index=True, nullable=False))
+    # Stored as a plain VARCHAR(32) to match the migration. CreditTransactionType
+    # is a `str, enum.Enum` so its members serialize cleanly via their .value.
+    type: str = Field(sa_column=Column(String(32), index=True, nullable=False))
     description: str = Field(sa_column=Column(Text, nullable=False))
     stripe_reference: str | None = Field(default=None, sa_column=Column(String(128), nullable=True, index=True))
     usage_event_id: uuid.UUID | None = Field(default=None, sa_column=Column(PG_UUID(as_uuid=True), nullable=True))
@@ -100,7 +102,9 @@ class CreditTransaction(Base, TimestampMixin):
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     delta: Mapped[int] = mapped_column(Integer)
     balance_after: Mapped[int] = mapped_column(Integer)
-    type: Mapped[CreditTransactionType] = mapped_column(SQLEnum(CreditTransactionType), index=True)
+    # Stored as a plain VARCHAR(32) to match the migration. CreditTransactionType
+    # is a `str, enum.Enum` so its members serialize cleanly via their .value.
+    type: Mapped[str] = mapped_column(String(32), index=True)
     description: Mapped[str] = mapped_column(Text)
     stripe_reference: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     usage_event_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
@@ -208,7 +212,7 @@ class CreditTransaction(Document):
     description: str
     stripe_reference: Optional[str] = None
     usage_event_id: Optional[str] = None
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "credit_transactions"
@@ -225,7 +229,7 @@ class UsageEvent(Document):
     cached_tokens: int = 0
     credits_charged: int = 0
     ai_framework: str = ""
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "usage_events"
