@@ -823,13 +823,12 @@ if not enable_marketing_site and use_frontend:
     for d in ("about", "blog", "community", "contact", "help", "legal", "security"):
         remove_dir(os.path.join(locale_app, d))
 
-    # Per-locale public app-level files (sitemap / robots / icons / OG)
+    # Sitemap is genuinely marketing-specific — it walks blog posts and lists
+    # public landing pages we just removed. Drop only this; favicon, apple
+    # icon, manifest, robots, and the OG image are universally useful (browser
+    # tab icon, PWA install, shared-link previews on Slack/Twitter, search
+    # engine crawl rules) so they stay even when the marketing site is off.
     remove_file(os.path.join(frontend_src, "app", "sitemap.ts"))
-    remove_file(os.path.join(frontend_src, "app", "robots.ts"))
-    remove_file(os.path.join(frontend_src, "app", "manifest.ts"))
-    remove_file(os.path.join(frontend_src, "app", "icon.tsx"))
-    remove_file(os.path.join(frontend_src, "app", "apple-icon.tsx"))
-    remove_file(os.path.join(frontend_src, "app", "opengraph-image.tsx"))
 
     # Marketing-only sub-trees: only the ones used exclusively by the
     # blog / legal / SEO routes that we just removed. The shared marketing
