@@ -147,9 +147,18 @@ class LangChainAssistant:
         model_name: str | None = None,
         temperature: float | None = None,
         system_prompt: str | None = None,
+        thinking_effort: str | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
         self.temperature = temperature or settings.AI_TEMPERATURE
+        # Extended-thinking effort for reasoning-capable models. ``None`` keeps
+        # the model in plain mode; "low"/"medium"/"high" enables provider-
+        # specific reasoning (Claude extended thinking, OpenAI o-series, etc).
+        self.thinking_effort = (
+            thinking_effort
+            if thinking_effort is not None
+            else (settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None)
+        )
 {%- if cookiecutter.enable_rag %}
         self.system_prompt = system_prompt or get_system_prompt_with_rag()
 {%- else %}
@@ -167,20 +176,52 @@ class LangChainAssistant:
     def _create_agent(self) -> CompiledStateGraph:
         """Create and configure the LangChain agent."""
 {%- if cookiecutter.use_openai %}
+        # OpenAI: ``reasoning`` is honored only by the Responses API. We pass
+        # ``summary: "auto"`` so reasoning summaries stream as content blocks
+        # (the model never returns raw chain-of-thought).
+        openai_kwargs: dict[str, Any] = {}
+        if self.thinking_effort:
+            openai_kwargs["reasoning"] = {
+                "effort": self.thinking_effort,
+                "summary": "auto",
+            }
+            openai_kwargs["use_responses_api"] = True
+            openai_kwargs["output_version"] = "responses/v1"
         model = ChatOpenAI(
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.OPENAI_API_KEY,
+            **openai_kwargs,
         )
 {%- endif %}
 {%- if cookiecutter.use_anthropic %}
+        # Claude: extended thinking needs an explicit token budget. Map effort
+        # to a budget that scales with the requested depth. ``max_tokens`` must
+        # exceed the budget so the model still has room for the final answer.
+        anthropic_kwargs: dict[str, Any] = {}
+        if self.thinking_effort:
+            budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
+                self.thinking_effort, 4096
+            )
+            anthropic_kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": budget,
+            }
+            anthropic_kwargs["max_tokens"] = budget + 4096
+            # Anthropic requires temperature=1 when thinking is on.
+            anthropic_kwargs["temperature"] = 1.0
         model = ChatAnthropic(
             model=self.model_name,
-            temperature=self.temperature,
+            temperature=anthropic_kwargs.pop("temperature", self.temperature),
             api_key=settings.ANTHROPIC_API_KEY,
+            **anthropic_kwargs,
         )
 {%- endif %}
 {%- if cookiecutter.use_google %}
+        # Gemini 2.5+ has thinking enabled by default for thinking-capable
+        # models; ``thinking_budget=-1`` (the SDK default) lets the model pick.
+        # We don't currently expose effort — the streaming code surfaces any
+        # ``thought`` chunks the model emits.
         model = ChatGoogleGenerativeAI(
             model=self.model_name,
             temperature=self.temperature,
@@ -325,18 +366,20 @@ class LangChainAssistant:
 
 def get_agent(
     model_name: str | None = None,
-    thinking_effort: str | None = None,  # noqa: ARG001 — LangChain has no thinking concept
+    thinking_effort: str | None = None,
 ) -> LangChainAssistant:
     """Factory function to create a LangChainAssistant.
 
     Args:
         model_name: Override the default AI model.
-        thinking_effort: Accepted for API parity with other agents; ignored.
+        thinking_effort: Extended-thinking effort ("low"/"medium"/"high") or
+            ``None`` to disable. Wired to ``thinking={...}`` for Anthropic and
+            ``reasoning={...}`` for OpenAI Responses-API models.
 
     Returns:
         Configured LangChainAssistant instance.
     """
-    return LangChainAssistant(model_name=model_name)
+    return LangChainAssistant(model_name=model_name, thinking_effort=thinking_effort)
 
 
 async def run_agent(

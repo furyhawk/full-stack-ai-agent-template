@@ -533,19 +533,45 @@ class AgentSession:
         token: AIMessageChunk,
         seen_tool_call_ids: set[str],
     ) -> str:
-        """Emit text deltas + partial tool_call events from a streaming AIMessageChunk."""
+        """Emit text + reasoning deltas + partial tool_call events from a streaming chunk.
+
+        Detects three reasoning shapes:
+          * Anthropic extended thinking — content blocks ``{"type":"thinking","thinking":"..."}``
+          * OpenAI Responses API — ``{"type":"reasoning","summary":[{"type":"summary_text","text":"..."}]}``
+          * Legacy LangChain providers — ``additional_kwargs.reasoning_content`` (string)
+        """
         text_content = ""
+        reasoning_content = ""
         if token.content:
             if isinstance(token.content, str):
                 text_content = token.content
             elif isinstance(token.content, list):
                 for block in token.content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text_content += block.get("text", "")
-                    elif isinstance(block, str):
+                    if isinstance(block, str):
                         text_content += block
+                    elif isinstance(block, dict):
+                        block_type = block.get("type")
+                        if block_type == "text":
+                            text_content += block.get("text", "")
+                        elif block_type == "thinking":
+                            reasoning_content += block.get("thinking", "") or ""
+                        elif block_type == "reasoning":
+                            for summary in block.get("summary", []) or []:
+                                if (
+                                    isinstance(summary, dict)
+                                    and summary.get("type") == "summary_text"
+                                ):
+                                    reasoning_content += summary.get("text", "") or ""
             if text_content:
                 await send_event(self.websocket, "text_delta", {"content": text_content})
+        # Legacy shape: some providers stash the chain-of-thought outside content.
+        legacy_reasoning = (token.additional_kwargs or {}).get("reasoning_content")
+        if isinstance(legacy_reasoning, str) and legacy_reasoning:
+            reasoning_content += legacy_reasoning
+        if reasoning_content:
+            await send_event(
+                self.websocket, "thinking_delta", {"content": reasoning_content}
+            )
 
         if token.tool_call_chunks:
             for tc_chunk in token.tool_call_chunks:
@@ -789,19 +815,45 @@ class AgentSession:
         chunk: AIMessageChunk,
         seen_tool_call_ids: set[str],
     ) -> str:
-        """Emit text deltas + partial tool_call events from a streaming AIMessageChunk."""
+        """Emit text + reasoning deltas + partial tool_call events from a streaming chunk.
+
+        Detects three reasoning shapes:
+          * Anthropic extended thinking — content blocks ``{"type":"thinking","thinking":"..."}``
+          * OpenAI Responses API — ``{"type":"reasoning","summary":[{"type":"summary_text","text":"..."}]}``
+          * Legacy LangChain providers — ``additional_kwargs.reasoning_content`` (string)
+        """
         text_content = ""
+        reasoning_content = ""
         if chunk.content:
             if isinstance(chunk.content, str):
                 text_content = chunk.content
             elif isinstance(chunk.content, list):
                 for block in chunk.content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text_content += block.get("text", "")
-                    elif isinstance(block, str):
+                    if isinstance(block, str):
                         text_content += block
+                    elif isinstance(block, dict):
+                        block_type = block.get("type")
+                        if block_type == "text":
+                            text_content += block.get("text", "")
+                        elif block_type == "thinking":
+                            reasoning_content += block.get("thinking", "") or ""
+                        elif block_type == "reasoning":
+                            for summary in block.get("summary", []) or []:
+                                if (
+                                    isinstance(summary, dict)
+                                    and summary.get("type") == "summary_text"
+                                ):
+                                    reasoning_content += summary.get("text", "") or ""
             if text_content:
                 await send_event(self.websocket, "text_delta", {"content": text_content})
+        # Legacy shape: some providers stash the chain-of-thought outside content.
+        legacy_reasoning = (chunk.additional_kwargs or {}).get("reasoning_content")
+        if isinstance(legacy_reasoning, str) and legacy_reasoning:
+            reasoning_content += legacy_reasoning
+        if reasoning_content:
+            await send_event(
+                self.websocket, "thinking_delta", {"content": reasoning_content}
+            )
 
         if chunk.tool_call_chunks:
             for tc_chunk in chunk.tool_call_chunks:
@@ -1162,6 +1214,11 @@ class AgentSession:
         self.thread_id: str = str(uuid.uuid4())
         self.pending_interrupt: InterruptData | None = None
         self.assistant = get_agent()
+        # Track the thinking effort baked into ``self.assistant``; if the
+        # client toggles it between turns we rebuild the assistant so the new
+        # setting takes effect (HITL state is per-graph and changing it would
+        # invalidate any pending interrupt anyway).
+        self._current_thinking_effort: str | None = None
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
@@ -1243,6 +1300,14 @@ class AgentSession:
         if not user_message and not file_ids:
             await send_event(self.websocket, "error", {"message": "Empty message"})
             return
+
+        # Re-instantiate the assistant if the client toggled thinking effort
+        # between turns. The graph caches the model with thinking baked in, so
+        # we rebuild lazily to honor the new setting.
+        new_thinking_effort = data.get("thinking_effort")
+        if new_thinking_effort != self._current_thinking_effort:
+            self.assistant = get_agent(thinking_effort=new_thinking_effort)
+            self._current_thinking_effort = new_thinking_effort
 
 {%- if cookiecutter.use_database %}
         self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
@@ -1404,19 +1469,45 @@ class AgentSession:
         chunk: AIMessageChunk,
         seen_tool_call_ids: set[str],
     ) -> str:
-        """Emit text deltas + partial tool_call events from a streaming AIMessageChunk."""
+        """Emit text + reasoning deltas + partial tool_call events from a streaming chunk.
+
+        Detects three reasoning shapes:
+          * Anthropic extended thinking — content blocks ``{"type":"thinking","thinking":"..."}``
+          * OpenAI Responses API — ``{"type":"reasoning","summary":[{"type":"summary_text","text":"..."}]}``
+          * Legacy LangChain providers — ``additional_kwargs.reasoning_content`` (string)
+        """
         text_content = ""
+        reasoning_content = ""
         if chunk.content:
             if isinstance(chunk.content, str):
                 text_content = chunk.content
             elif isinstance(chunk.content, list):
                 for block in chunk.content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text_content += block.get("text", "")
-                    elif isinstance(block, str):
+                    if isinstance(block, str):
                         text_content += block
+                    elif isinstance(block, dict):
+                        block_type = block.get("type")
+                        if block_type == "text":
+                            text_content += block.get("text", "")
+                        elif block_type == "thinking":
+                            reasoning_content += block.get("thinking", "") or ""
+                        elif block_type == "reasoning":
+                            for summary in block.get("summary", []) or []:
+                                if (
+                                    isinstance(summary, dict)
+                                    and summary.get("type") == "summary_text"
+                                ):
+                                    reasoning_content += summary.get("text", "") or ""
             if text_content:
                 await send_event(self.websocket, "text_delta", {"content": text_content})
+        # Legacy shape: some providers stash the chain-of-thought outside content.
+        legacy_reasoning = (chunk.additional_kwargs or {}).get("reasoning_content")
+        if isinstance(legacy_reasoning, str) and legacy_reasoning:
+            reasoning_content += legacy_reasoning
+        if reasoning_content:
+            await send_event(
+                self.websocket, "thinking_delta", {"content": reasoning_content}
+            )
 
         if chunk.tool_call_chunks:
             for tc_chunk in chunk.tool_call_chunks:
@@ -1609,6 +1700,7 @@ class AgentSession:
         try:
             assistant = get_agent(
                 model_name=data.get("model"),
+                thinking_effort=data.get("thinking_effort"),
 {%- if cookiecutter.use_database %}
                 conversation_id=self.current_conversation_id or "default",
 {%- else %}

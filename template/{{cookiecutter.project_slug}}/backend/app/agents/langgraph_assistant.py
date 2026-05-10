@@ -171,9 +171,18 @@ class LangGraphAssistant:
         model_name: str | None = None,
         temperature: float | None = None,
         system_prompt: str | None = None,
+        thinking_effort: str | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
         self.temperature = temperature or settings.AI_TEMPERATURE
+        # Extended-thinking effort for reasoning-capable models (Claude
+        # extended thinking, OpenAI o-series). ``None`` keeps the model in
+        # plain mode.
+        self.thinking_effort = (
+            thinking_effort
+            if thinking_effort is not None
+            else (settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None)
+        )
 {%- if cookiecutter.enable_rag %}
         self.system_prompt = system_prompt or get_system_prompt_with_rag()
 {%- else %}
@@ -186,20 +195,48 @@ class LangGraphAssistant:
     def _create_model(self) -> BaseChatModel:
         """Create the LLM model with tools bound."""
 {%- if cookiecutter.use_openai %}
+        # OpenAI: ``reasoning`` is honored only by the Responses API. Summary
+        # blocks stream through as content; the model never returns raw CoT.
+        openai_kwargs: dict[str, Any] = {}
+        if self.thinking_effort:
+            openai_kwargs["reasoning"] = {
+                "effort": self.thinking_effort,
+                "summary": "auto",
+            }
+            openai_kwargs["use_responses_api"] = True
+            openai_kwargs["output_version"] = "responses/v1"
         model = ChatOpenAI(
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.OPENAI_API_KEY,
+            **openai_kwargs,
         )
 {%- endif %}
 {%- if cookiecutter.use_anthropic %}
+        # Claude: extended thinking needs an explicit token budget. ``max_tokens``
+        # must exceed the budget so the answer still has room. Anthropic also
+        # forces ``temperature=1`` whenever thinking is enabled.
+        anthropic_kwargs: dict[str, Any] = {}
+        if self.thinking_effort:
+            budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
+                self.thinking_effort, 4096
+            )
+            anthropic_kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": budget,
+            }
+            anthropic_kwargs["max_tokens"] = budget + 4096
+            anthropic_kwargs["temperature"] = 1.0
         model = ChatAnthropic(
             model=self.model_name,
-            temperature=self.temperature,
+            temperature=anthropic_kwargs.pop("temperature", self.temperature),
             api_key=settings.ANTHROPIC_API_KEY,
+            **anthropic_kwargs,
         )
 {%- endif %}
 {%- if cookiecutter.use_google %}
+        # Gemini 2.5+ has thinking enabled by default for thinking-capable
+        # models. The streaming code surfaces any ``thought`` blocks emitted.
         model = ChatGoogleGenerativeAI(
             model=self.model_name,
             temperature=self.temperature,
@@ -402,14 +439,20 @@ class LangGraphAssistant:
 
 def get_agent(
     model_name: str | None = None,
-    thinking_effort: str | None = None,  # noqa: ARG001 — LangGraph has no thinking concept
+    thinking_effort: str | None = None,
 ) -> LangGraphAssistant:
     """Factory function to create a LangGraphAssistant.
+
+    Args:
+        model_name: Override the default AI model.
+        thinking_effort: Extended-thinking effort ("low"/"medium"/"high") or
+            ``None`` to disable. Wired to ``thinking={...}`` for Anthropic and
+            ``reasoning={...}`` for OpenAI Responses-API models.
 
     Returns:
         Configured LangGraphAssistant instance.
     """
-    return LangGraphAssistant(model_name=model_name)
+    return LangGraphAssistant(model_name=model_name, thinking_effort=thinking_effort)
 
 
 async def run_agent(

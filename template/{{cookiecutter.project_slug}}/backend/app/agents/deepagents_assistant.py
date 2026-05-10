@@ -248,6 +248,7 @@ class DeepAgentsAssistant:
         memory: list[str] | None = None,
         interrupt_on: dict[str, bool | dict[str, list[str]]] | None = None,
         conversation_id: str | None = None,
+        thinking_effort: str | None = None,
     ):
         """Initialize DeepAgentsAssistant.
 
@@ -259,9 +260,16 @@ class DeepAgentsAssistant:
             memory: List of AGENTS.md memory paths (default from settings.DEEPAGENTS_MEMORY_PATHS)
             interrupt_on: Dict of tool names to interrupt configs (default from settings)
             conversation_id: Unique ID for the conversation.
+            thinking_effort: Extended-thinking effort ("low"/"medium"/"high")
+                or ``None`` to disable. Wired to the underlying chat model.
         """
         self.model_name = model_name or settings.AI_MODEL
         self.temperature = temperature or settings.AI_TEMPERATURE
+        self.thinking_effort = (
+            thinking_effort
+            if thinking_effort is not None
+            else (settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None)
+        )
 {%- if cookiecutter.enable_rag %}
         self.system_prompt = system_prompt or get_system_prompt_with_rag()
 {%- else %}
@@ -285,22 +293,49 @@ class DeepAgentsAssistant:
     def _create_model(self) -> BaseChatModel:
         """Create the LLM model for DeepAgents."""
 {%- if cookiecutter.use_openai %}
+        # OpenAI: ``reasoning`` is honored only by the Responses API. Summary
+        # blocks stream through as content; the model never returns raw CoT.
+        openai_kwargs: dict[str, Any] = {}
+        if self.thinking_effort:
+            openai_kwargs["reasoning"] = {
+                "effort": self.thinking_effort,
+                "summary": "auto",
+            }
+            openai_kwargs["use_responses_api"] = True
+            openai_kwargs["output_version"] = "responses/v1"
         return ChatOpenAI(
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.OPENAI_API_KEY,
             streaming=True,
+            **openai_kwargs,
         )
 {%- endif %}
 {%- if cookiecutter.use_anthropic %}
+        # Claude: extended thinking needs an explicit token budget; Anthropic
+        # forces ``temperature=1`` whenever thinking is on.
+        anthropic_kwargs: dict[str, Any] = {}
+        if self.thinking_effort:
+            budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
+                self.thinking_effort, 4096
+            )
+            anthropic_kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": budget,
+            }
+            anthropic_kwargs["max_tokens"] = budget + 4096
+            anthropic_kwargs["temperature"] = 1.0
         return ChatAnthropic(
             model=self.model_name,
-            temperature=self.temperature,
+            temperature=anthropic_kwargs.pop("temperature", self.temperature),
             api_key=settings.ANTHROPIC_API_KEY,
             streaming=True,
+            **anthropic_kwargs,
         )
 {%- endif %}
 {%- if cookiecutter.use_google %}
+        # Gemini 2.5+ has thinking enabled by default for thinking-capable
+        # models. The streaming code surfaces any ``thought`` blocks emitted.
         return ChatGoogleGenerativeAI(
             model=self.model_name,
             temperature=self.temperature,
@@ -659,7 +694,7 @@ class DeepAgentsAssistant:
 
 def get_agent(
     model_name: str | None = None,
-    thinking_effort: str | None = None,  # noqa: ARG001 — DeepAgents has no thinking concept
+    thinking_effort: str | None = None,
     skills: list[str] | None = None,
     memory: list[str] | None = None,
     interrupt_on: dict[str, bool | dict[str, list[str]]] | None = None,
@@ -669,7 +704,9 @@ def get_agent(
 
     Args:
         model_name: Override the default AI model.
-        thinking_effort: Accepted for API parity with other agents; ignored.
+        thinking_effort: Extended-thinking effort ("low"/"medium"/"high") or
+            ``None`` to disable. Wired to the underlying chat model — Anthropic
+            extended thinking, OpenAI Responses-API reasoning.
         skills: Optional list of skill paths to override settings.
         memory: Optional list of AGENTS.md memory paths to override settings.
         interrupt_on: Optional interrupt config to override settings.
@@ -680,6 +717,7 @@ def get_agent(
     """
     return DeepAgentsAssistant(
         model_name=model_name,
+        thinking_effort=thinking_effort,
         skills=skills,
         memory=memory,
         interrupt_on=interrupt_on,

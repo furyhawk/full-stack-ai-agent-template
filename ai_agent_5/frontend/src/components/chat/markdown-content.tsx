@@ -76,12 +76,12 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
               href={href}
               target={isExternal ? "_blank" : undefined}
               rel={isExternal ? "noopener noreferrer" : undefined}
-              className="text-brand hover:text-brand-hover decoration-brand/40 hover:decoration-brand inline-flex items-baseline gap-0.5 underline underline-offset-2 transition-colors"
+              className="text-foreground hover:text-brand-hover decoration-brand decoration-2 underline-offset-[3px] hover:decoration-brand inline-flex items-baseline gap-0.5 font-medium underline transition-colors"
               {...props}
             >
               {children}
               {isExternal && (
-                <ExternalLink className="text-brand/60 inline h-[0.8em] w-[0.8em] shrink-0 -translate-y-[1px]" />
+                <ExternalLink className="text-foreground/60 inline h-[0.8em] w-[0.8em] shrink-0 -translate-y-[1px]" />
               )}
             </a>
           );

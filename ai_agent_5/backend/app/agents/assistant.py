@@ -84,9 +84,20 @@ class AssistantAgent:
         if self.thinking_effort:
             capabilities.append(Thinking(effort=self.thinking_effort))
 
+        # The unified ``Thinking()`` capability enables reasoning, but for the
+        # OpenAI Responses API it sets only the effort — not the *summary*
+        # field that controls whether the model streams reasoning summaries
+        # back to the client. Without ``openai_reasoning_summary`` set, the
+        # model reasons internally and we never see ThinkingPart events.
+        # ``openai_*``-prefixed fields on TypedDict settings are silently
+        # ignored by other providers, so this is safe to apply unconditionally.
+        model_settings: ModelSettings = ModelSettings(temperature=self.temperature)
+        if self.thinking_effort:
+            model_settings["openai_reasoning_summary"] = "auto"  # type: ignore[typeddict-unknown-key]
+
         agent = Agent[Deps, str](
             model=model,
-            model_settings=ModelSettings(temperature=self.temperature),
+            model_settings=model_settings,
             system_prompt=self.system_prompt,
             capabilities=capabilities,
         )
