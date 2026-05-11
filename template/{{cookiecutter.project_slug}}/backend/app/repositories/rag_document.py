@@ -8,7 +8,7 @@ Contains database operations for RAGDocument entities.
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.rag_document import RAGDocument
@@ -22,14 +22,45 @@ async def get_by_id(db: AsyncSession, doc_id: UUID) -> RAGDocument | None:
 async def get_all(
     db: AsyncSession,
     collection_name: str | None = None,
+{%- if cookiecutter.enable_teams %}
+    organization_id: UUID | None = None,
+{%- endif %}
 ) -> list[RAGDocument]:
     """Get all RAG documents, optionally filtered by collection."""
     query = select(RAGDocument)
     if collection_name:
         query = query.where(RAGDocument.collection_name == collection_name)
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query = query.where(RAGDocument.organization_id == organization_id)
+{%- endif %}
     query = query.order_by(RAGDocument.created_at.desc())
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+{%- if cookiecutter.enable_teams %}
+
+
+async def get_for_kb(
+    db: AsyncSession,
+    kb_id: UUID,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[RAGDocument], int]:
+    """Page through documents linked to a Knowledge Base. Returns (rows, total)."""
+    base = select(RAGDocument).where(RAGDocument.knowledge_base_id == kb_id)
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar_one()
+    rows = (
+        await db.execute(
+            base.order_by(RAGDocument.created_at.desc()).offset(skip).limit(limit)
+        )
+    ).scalars().all()
+    return list(rows), int(total)
+{%- endif %}
 
 
 async def create(
@@ -41,6 +72,12 @@ async def create(
     filetype: str,
     storage_path: str,
     status: str = "processing",
+{%- if cookiecutter.enable_teams %}
+    organization_id: UUID | None = None,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    knowledge_base_id: UUID | None = None,
+{%- endif %}
 ) -> RAGDocument:
     """Create a new RAG document record."""
     doc = RAGDocument(
@@ -50,6 +87,12 @@ async def create(
         filetype=filetype,
         storage_path=storage_path,
         status=status,
+{%- if cookiecutter.enable_teams %}
+        organization_id=organization_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        knowledge_base_id=knowledge_base_id,
+{%- endif %}
     )
     db.add(doc)
     await db.flush()
@@ -126,11 +169,18 @@ def get_by_id(db: Session, doc_id: str) -> RAGDocument | None:
 def get_all(
     db: Session,
     collection_name: str | None = None,
+{%- if cookiecutter.enable_teams %}
+    organization_id: str | None = None,
+{%- endif %}
 ) -> list[RAGDocument]:
     """Get all RAG documents, optionally filtered by collection."""
     query = select(RAGDocument)
     if collection_name:
         query = query.where(RAGDocument.collection_name == collection_name)
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query = query.where(RAGDocument.organization_id == organization_id)
+{%- endif %}
     query = query.order_by(RAGDocument.created_at.desc())
     result = db.execute(query)
     return list(result.scalars().all())
@@ -145,6 +195,9 @@ def create(
     filetype: str,
     storage_path: str,
     status: str = "processing",
+{%- if cookiecutter.enable_teams %}
+    organization_id: str | None = None,
+{%- endif %}
 ) -> RAGDocument:
     """Create a new RAG document record."""
     doc = RAGDocument(
@@ -154,6 +207,9 @@ def create(
         filetype=filetype,
         storage_path=storage_path,
         status=status,
+{%- if cookiecutter.enable_teams %}
+        organization_id=organization_id,
+{%- endif %}
     )
     db.add(doc)
     db.flush()

@@ -1,7 +1,6 @@
-{%- if cookiecutter.use_jwt %}
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:{{ cookiecutter.backend_port }}";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,9 +30,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{%- else %}
-// File upload not available (requires conversation persistence + JWT)
-export async function POST() {
-  return new Response("Not implemented", { status: 501 });
-}
-{%- endif %}

@@ -8,8 +8,17 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic_ai import Agent, RunContext
-from pydantic_ai.capabilities import WebFetch, WebSearch
+from pydantic_ai import Agent, ModelRetry{%- if cookiecutter.enable_rag %}, RunContext{%- endif %}
+from pydantic_ai.capabilities import (
+    ReinjectSystemPrompt,
+    Thinking,
+{%- if cookiecutter.enable_web_fetch %}
+    WebFetch,
+{%- endif %}
+{%- if cookiecutter.enable_web_search %}
+    WebSearch,
+{%- endif %}
+)
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -39,15 +48,84 @@ from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
 from app.agents.tools import get_current_datetime
-{%- if cookiecutter.enable_web_search %}
-from app.agents.tools.web_search import web_search
-{%- endif %}
 {%- if cookiecutter.enable_rag %}
 from app.agents.tools.rag_tool import search_knowledge_base
 {%- endif %}
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+{%- if cookiecutter.use_all_providers %}
+
+
+def _build_model(model_name: str):
+    """Dispatch to the right pydantic-ai Model for ``model_name``.
+
+    Multi-provider deployments accept any model name from any installed SDK.
+    Routing is done by name prefix:
+      - openai/gpt-*, openai/o*, openai/text-* → OpenAI
+      - anthropic/claude-*                      → Anthropic
+      - google/gemini-*                         → Google
+      - openrouter/<provider>/<model>           → OpenRouter
+      - bare names (no slash) → fall back to OpenAI for backwards compat.
+    """
+    name = model_name or settings.AI_MODEL
+    lowered = name.lower()
+    if "/" in lowered:
+        prefix, _, rest = lowered.partition("/")
+        if prefix == "openai":
+            return OpenAIResponsesModel(
+                rest, provider=OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+            )
+        if prefix == "anthropic":
+            return AnthropicModel(rest)
+        if prefix == "google":
+            return GoogleModel(
+                rest, provider=GoogleProvider(api_key=settings.GOOGLE_API_KEY)
+            )
+        if prefix == "openrouter":
+            return OpenRouterModel(
+                rest, provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY)
+            )
+    # Bare model name — best-effort sniff by family.
+    if lowered.startswith(("claude-", "claude/")):
+        return AnthropicModel(name.removeprefix("claude/"))
+    if lowered.startswith("gemini"):
+        return GoogleModel(name, provider=GoogleProvider(api_key=settings.GOOGLE_API_KEY))
+    return OpenAIResponsesModel(
+        name, provider=OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+    )
+{%- elif cookiecutter.use_openai %}
+
+
+def _build_model(model_name: str):
+    """OpenAI-only deployment."""
+    return OpenAIResponsesModel(
+        model_name or settings.AI_MODEL,
+        provider=OpenAIProvider(api_key=settings.OPENAI_API_KEY),
+    )
+{%- elif cookiecutter.use_anthropic %}
+
+
+def _build_model(model_name: str):
+    return AnthropicModel(model_name or settings.AI_MODEL)
+{%- elif cookiecutter.use_google %}
+
+
+def _build_model(model_name: str):
+    return GoogleModel(
+        model_name or settings.AI_MODEL,
+        provider=GoogleProvider(api_key=settings.GOOGLE_API_KEY),
+    )
+{%- elif cookiecutter.use_openrouter %}
+
+
+def _build_model(model_name: str):
+    return OpenRouterModel(
+        model_name or settings.AI_MODEL,
+        provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
+    )
+{%- endif %}
 
 
 @dataclass
@@ -59,6 +137,10 @@ class Deps:
 
     user_id: str | None = None
     user_name: str | None = None
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
+    # Resolved server-side from conversation.active_knowledge_base_ids — never from the LLM
+    kb_collection_names: list[str] = field(default_factory=list)
+{%- endif %}
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -73,9 +155,13 @@ class AssistantAgent:
         model_name: str | None = None,
         temperature: float | None = None,
         system_prompt: str | None = None,
+        thinking_effort: str | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
-        self.temperature = temperature or settings.AI_TEMPERATURE
+        self.temperature = temperature if temperature is not None else settings.AI_TEMPERATURE
+        self.thinking_effort = thinking_effort if thinking_effort is not None else (
+            settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None
+        )
 {%- if cookiecutter.enable_rag %}
         self.system_prompt = system_prompt or get_system_prompt_with_rag()
 {%- else %}
@@ -85,38 +171,34 @@ class AssistantAgent:
 
     def _create_agent(self) -> Agent[Deps, str]:
         """Create and configure the PydanticAI agent."""
-{%- if cookiecutter.use_openai %}
-        model = OpenAIResponsesModel(
-            self.model_name,
-            provider=OpenAIProvider(api_key=settings.OPENAI_API_KEY),
-        )
+        model = _build_model(self.model_name)
+
+        capabilities = [ReinjectSystemPrompt()]
+        if self.thinking_effort:
+            capabilities.append(Thinking(effort=self.thinking_effort))
+{%- if cookiecutter.enable_web_search %}
+        capabilities.append(WebSearch())
 {%- endif %}
-{%- if cookiecutter.use_anthropic %}
-        model = AnthropicModel(
-            self.model_name,
-        )
+{%- if cookiecutter.enable_web_fetch %}
+        capabilities.append(WebFetch())
 {%- endif %}
-{%- if cookiecutter.use_google %}
-        model = GoogleModel(
-            self.model_name,
-            provider=GoogleProvider(api_key=settings.GOOGLE_API_KEY),
-        )
-{%- endif %}
-{%- if cookiecutter.use_openrouter %}
-        model = OpenRouterModel(
-            self.model_name,
-            provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
-        )
-{%- endif %}
+
+        # The unified ``Thinking()`` capability enables reasoning, but for the
+        # OpenAI Responses API it sets only the effort — not the *summary*
+        # field that controls whether the model streams reasoning summaries
+        # back to the client. Without ``openai_reasoning_summary`` set, the
+        # model reasons internally and we never see ThinkingPart events.
+        # ``openai_*``-prefixed fields on TypedDict settings are silently
+        # ignored by other providers, so this is safe to apply unconditionally.
+        model_settings: ModelSettings = ModelSettings(temperature=self.temperature)
+        if self.thinking_effort:
+            model_settings["openai_reasoning_summary"] = "auto"  # type: ignore[typeddict-unknown-key]  # ty: ignore[invalid-key]
 
         agent = Agent[Deps, str](
             model=model,
-            model_settings=ModelSettings(temperature=self.temperature),
+            model_settings=model_settings,
             system_prompt=self.system_prompt,
-            capabilities=[
-                WebSearch(),
-                WebFetch(),
-            ],
+            capabilities=capabilities,
         )
 
         self._register_tools(agent)
@@ -126,8 +208,8 @@ class AssistantAgent:
     def _register_tools(self, agent: Agent[Deps, str]) -> None:
         """Register all tools on the agent."""
 
-        @agent.tool
-        async def current_datetime(ctx: RunContext[Deps]) -> str:
+        @agent.tool_plain
+        def current_datetime() -> dict[str, str]:
             """Get the current date and time.
 
             Use this tool when you need to know the current date or time.
@@ -142,7 +224,6 @@ class AssistantAgent:
             """Search the knowledge base for relevant documents.
 
             Use this tool to find information from uploaded documents before answering user queries.
-            Searches across all available collections automatically.
             Cite sources by referring to the document filename from the search results.
 
             Args:
@@ -152,22 +233,37 @@ class AssistantAgent:
             Returns:
                 Formatted string with search results including content and scores.
             """
-            return await search_knowledge_base(query=query, top_k=top_k)
+{%- if cookiecutter.enable_teams %}
+            try:
+                return await search_knowledge_base(
+                    query=query,
+                    kb_collection_names=ctx.deps.kb_collection_names,
+                    top_k=top_k,
+                )
+            except Exception as e:
+                raise ModelRetry("Knowledge base temporarily unavailable, please try again.") from e
+{%- else %}
+            try:
+                return await search_knowledge_base(query=query, top_k=top_k)
+            except Exception as e:
+                raise ModelRetry("Knowledge base temporarily unavailable, please try again.") from e
+{%- endif %}
 {%- endif %}
 
-{%- if cookiecutter.enable_web_search %}
-        @agent.tool
-        async def search_web(ctx: RunContext[Deps], query: str, max_results: int = 5) -> str:
-            """Search the web for current information.
 
-            Use this tool when you need up-to-date information from the internet.
-
-            Args:
-                query: The search query.
-                max_results: Number of results (1-10, default: 5).
-            """
-            return await web_search(query=query, max_results=max_results)
-{%- endif %}
+    @staticmethod
+    def _build_model_history(
+        history: list[dict[str, str]] | None,
+    ) -> list[ModelRequest | ModelResponse]:
+        model_history: list[ModelRequest | ModelResponse] = []
+        for msg in history or []:
+            if msg["role"] == "user":
+                model_history.append(ModelRequest(parts=[UserPromptPart(content=msg["content"])]))
+            elif msg["role"] == "assistant":
+                model_history.append(ModelResponse(parts=[TextPart(content=msg["content"])]))
+            elif msg["role"] == "system":
+                model_history.append(ModelRequest(parts=[SystemPromptPart(content=msg["content"])]))
+        return model_history
 
     @property
     def agent(self) -> Agent[Deps, str]:
@@ -192,20 +288,14 @@ class AssistantAgent:
         Returns:
             Tuple of (output_text, tool_events, deps).
         """
-        model_history: list[ModelRequest | ModelResponse] = []
-
-        for msg in history or []:
-            if msg["role"] == "user":
-                model_history.append(ModelRequest(parts=[UserPromptPart(content=msg["content"])]))
-            elif msg["role"] == "assistant":
-                model_history.append(ModelResponse(parts=[TextPart(content=msg["content"])]))
-            elif msg["role"] == "system":
-                model_history.append(ModelRequest(parts=[SystemPromptPart(content=msg["content"])]))
-
         agent_deps = deps if deps is not None else Deps()
 
         logger.info(f"Running agent with user input: {user_input[:100]}...")
-        result = await self.agent.run(user_input, deps=agent_deps, message_history=model_history)
+        result = await self.agent.run(
+            user_input,
+            deps=agent_deps,
+            message_history=self._build_model_history(history),
+        )
 
         tool_events: list[Any] = []
         for message in result.all_messages():
@@ -234,37 +324,38 @@ class AssistantAgent:
         Yields:
             Agent events for streaming responses.
         """
-        model_history: list[ModelRequest | ModelResponse] = []
-
-        for msg in history or []:
-            if msg["role"] == "user":
-                model_history.append(ModelRequest(parts=[UserPromptPart(content=msg["content"])]))
-            elif msg["role"] == "assistant":
-                model_history.append(ModelResponse(parts=[TextPart(content=msg["content"])]))
-            elif msg["role"] == "system":
-                model_history.append(ModelRequest(parts=[SystemPromptPart(content=msg["content"])]))
-
         agent_deps = deps if deps is not None else Deps()
 
         async with self.agent.iter(
             user_input,
             deps=agent_deps,
-            message_history=model_history,
+            message_history=self._build_model_history(history),
         ) as run:
             async for event in run:
                 yield event
 
 
-def get_agent(model_name: str | None = None) -> AssistantAgent:
+def get_agent(
+    model_name: str | None = None,
+    thinking_effort: str | None = None,
+    temperature: float | None = None,
+) -> AssistantAgent:
     """Factory function to create an AssistantAgent.
 
     Args:
         model_name: Override the default AI model.
+        thinking_effort: Override thinking effort ("low", "medium", "high", or None to disable).
+        temperature: Sampling temperature (typically 0.0-2.0). ``None`` falls back to
+            ``settings.AI_TEMPERATURE``.
 
     Returns:
         Configured AssistantAgent instance.
     """
-    return AssistantAgent(model_name=model_name)
+    return AssistantAgent(
+        model_name=model_name,
+        thinking_effort=thinking_effort,
+        temperature=temperature,
+    )
 
 
 async def run_agent(

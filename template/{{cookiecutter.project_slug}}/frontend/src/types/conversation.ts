@@ -1,21 +1,16 @@
-{%- if cookiecutter.use_database %}
 /**
  * Conversation types for AI chat persistence.
  */
-{%- if cookiecutter.use_jwt %}
 import { RatingValue, type UserRating } from "./chat";
-{%- endif %}
 
 export interface Conversation {
   id: string;
   user_id?: string;
-{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-  project_id?: string;
-{%- endif %}
   title?: string;
   created_at: string;
   updated_at: string;
   is_archived: boolean;
+  active_knowledge_base_ids?: string[];
 }
 
 export interface ConversationMessage {
@@ -27,10 +22,8 @@ export interface ConversationMessage {
   model_name?: string;
   tokens_used?: number;
   tool_calls?: ConversationToolCall[];
-{%- if cookiecutter.use_jwt %}
   user_rating?: UserRating;
   rating_count?: { likes: number; dislikes: number } | null;
-{%- endif %}
 }
 
 export interface ConversationToolCall {
@@ -54,8 +47,6 @@ export interface ConversationListResponse {
 export interface ConversationWithMessages extends Conversation {
   messages: ConversationMessage[];
 }
-
-{%- if cookiecutter.use_jwt %}
 /**
  * Message rating types.
  */
@@ -116,9 +107,6 @@ export interface ConversationShareListResponse {
 export interface AdminConversation {
   id: string;
   user_id?: string;
-{%- if cookiecutter.use_pydantic_deep %}
-  project_id?: string;
-{%- endif %}
   title?: string;
   is_archived: boolean;
   message_count: number;
@@ -136,7 +124,9 @@ export interface AdminUser {
   id: string;
   email: string;
   full_name?: string;
+  role?: string;
   is_active: boolean;
+  is_app_admin?: boolean;
   conversation_count: number;
   created_at: string;
 }
@@ -145,5 +135,3 @@ export interface AdminUserListResponse {
   items: AdminUser[];
   total: number;
 }
-{%- endif %}
-{%- endif %}

@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_frontend %}
 "use client";
 
 import { useEffect } from "react";
@@ -45,9 +44,3 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   return <>{children}</>;
 }
-{%- else %}
-/* Theme provider - frontend not configured */
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
-{%- endif %}

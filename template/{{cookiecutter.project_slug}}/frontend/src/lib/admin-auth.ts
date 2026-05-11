@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_jwt %}
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch } from "@/lib/server-api";
 
@@ -10,16 +9,13 @@ import { backendFetch } from "@/lib/server-api";
  * is not authenticated or not an admin.
  */
 export async function requireAdmin(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<{ error: NextResponse } | { accessToken: string }> {
   const accessToken = request.cookies.get("access_token")?.value;
 
   if (!accessToken) {
     return {
-      error: NextResponse.json(
-        { detail: "Not authenticated" },
-        { status: 401 }
-      ),
+      error: NextResponse.json({ detail: "Not authenticated" }, { status: 401 }),
     };
   }
 
@@ -37,11 +33,7 @@ export async function requireAdmin(
     return { accessToken };
   } catch {
     return {
-      error: NextResponse.json(
-        { detail: "Not authenticated" },
-        { status: 401 }
-      ),
+      error: NextResponse.json({ detail: "Not authenticated" }, { status: 401 }),
     };
   }
 }
-{%- endif %}

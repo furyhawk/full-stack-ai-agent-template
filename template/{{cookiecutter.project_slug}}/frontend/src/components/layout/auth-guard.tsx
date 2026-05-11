@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_jwt or cookiecutter.use_api_key %}
 "use client";
 
 import { useEffect, useState } from "react";
@@ -42,4 +41,3 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-{%- endif %}

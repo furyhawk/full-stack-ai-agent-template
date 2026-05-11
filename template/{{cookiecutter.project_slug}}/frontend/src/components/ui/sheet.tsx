@@ -42,18 +42,14 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
   );
 }
 
-export function SheetContent({
-  children,
-  className,
-  side = "left",
-}: SheetContentProps) {
+export function SheetContent({ children, className, side = "left" }: SheetContentProps) {
   return (
     <div
       className={cn(
-        "fixed inset-y-0 z-50 flex w-72 flex-col bg-background shadow-lg",
+        "bg-background fixed inset-y-0 z-50 flex w-72 flex-col shadow-lg",
         "animate-in duration-300",
-        side === "left" ? "left-0 slide-in-from-left" : "right-0 slide-in-from-right",
-        className
+        side === "left" ? "slide-in-from-left left-0" : "slide-in-from-right right-0",
+        className,
       )}
     >
       {children}
@@ -85,21 +81,15 @@ export function SheetTitle({
   return <h2 className={cn("text-lg font-semibold", className)}>{children}</h2>;
 }
 
-export function SheetClose({
-  onClick,
-  className,
-}: {
-  onClick: () => void;
-  className?: string;
-}) {
+export function SheetClose({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "rounded-sm opacity-70 ring-offset-background transition-opacity",
-        "hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-        "h-10 w-10 flex items-center justify-center",
-        className
+        "ring-offset-background rounded-sm opacity-70 transition-opacity",
+        "focus:ring-ring hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none",
+        "flex h-10 w-10 items-center justify-center",
+        className,
       )}
     >
       <X className="h-5 w-5" />

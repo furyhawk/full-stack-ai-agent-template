@@ -1,6 +1,4 @@
 "use client";
-
-{%- if cookiecutter.use_jwt %}
 import { useState, useCallback, useMemo } from "react";
 import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -21,7 +19,10 @@ interface RatingButtonsProps {
   conversationId: string;
   currentRating: UserRating;
   ratingCount?: { likes: number; dislikes: number };
-  onRatingChange?: (data: { rating: UserRating; rating_count: { likes: number; dislikes: number } }) => void;
+  onRatingChange?: (data: {
+    rating: UserRating;
+    rating_count: { likes: number; dislikes: number };
+  }) => void;
   isAssistant: boolean;
 }
 
@@ -40,22 +41,23 @@ export function RatingButtons({
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const calculateNewCounts = useMemo(() =>
-    (oldRating: UserRating, newRating: UserRating): { likes: number; dislikes: number } => {
-      const likes = ratingCount?.likes ?? 0;
-      const dislikes = ratingCount?.dislikes ?? 0;
+  const calculateNewCounts = useMemo(
+    () =>
+      (oldRating: UserRating, newRating: UserRating): { likes: number; dislikes: number } => {
+        const likes = ratingCount?.likes ?? 0;
+        const dislikes = ratingCount?.dislikes ?? 0;
 
-      let newLikes = likes;
-      let newDislikes = dislikes;
-      if (oldRating === RatingValue.LIKE) newLikes -= 1;
-      if (oldRating === RatingValue.DISLIKE) newDislikes -= 1;
+        let newLikes = likes;
+        let newDislikes = dislikes;
+        if (oldRating === RatingValue.LIKE) newLikes -= 1;
+        if (oldRating === RatingValue.DISLIKE) newDislikes -= 1;
 
-      if (newRating === RatingValue.LIKE) newLikes += 1;
-      if (newRating === RatingValue.DISLIKE) newDislikes += 1;
+        if (newRating === RatingValue.LIKE) newLikes += 1;
+        if (newRating === RatingValue.DISLIKE) newDislikes += 1;
 
-      return { likes: Math.max(0, newLikes), dislikes: Math.max(0, newDislikes) };
-    },
-    [ratingCount]
+        return { likes: Math.max(0, newLikes), dislikes: Math.max(0, newDislikes) };
+      },
+    [ratingCount],
   );
 
   // submitRating must be declared before handleRate since handleRate uses it
@@ -73,7 +75,7 @@ export function RatingButtons({
               rating,
               comment: commentText,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -92,7 +94,7 @@ export function RatingButtons({
         setIsLoading(false);
       }
     },
-    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange]
+    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange, t],
   );
 
   const handleRate = useCallback(
@@ -111,7 +113,7 @@ export function RatingButtons({
             {
               method: "DELETE",
               credentials: "include",
-            }
+            },
           );
 
           if (!response.ok) {
@@ -136,7 +138,15 @@ export function RatingButtons({
         }
       }
     },
-    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange, submitRating]
+    [
+      conversationId,
+      messageId,
+      currentRating,
+      calculateNewCounts,
+      onRatingChange,
+      submitRating,
+      t,
+    ],
   );
 
   const handleCloseDialog = useCallback(() => {
@@ -156,12 +166,12 @@ export function RatingButtons({
           onClick={() => handleRate(RatingValue.LIKE)}
           disabled={isLoading || isMissingConversationId}
           className={cn(
-            "inline-flex items-center p-1.5 rounded-md transition-colors",
+            "inline-flex items-center rounded-md p-1.5 transition-colors",
             "hover:bg-muted/80",
             "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
             currentRating === RatingValue.LIKE &&
               "bg-green-500/30 text-green-600 dark:text-green-400",
-            isMissingConversationId && "opacity-50 cursor-not-allowed"
+            isMissingConversationId && "cursor-not-allowed opacity-50",
           )}
           title={isMissingConversationId ? t("saveConversationToRate") : t("helpful")}
         >
@@ -179,12 +189,11 @@ export function RatingButtons({
           onClick={() => handleRate(RatingValue.DISLIKE)}
           disabled={isLoading || isMissingConversationId}
           className={cn(
-            "inline-flex items-center p-1.5 rounded-md transition-colors",
+            "inline-flex items-center rounded-md p-1.5 transition-colors",
             "hover:bg-muted/80",
             "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
-            currentRating === RatingValue.DISLIKE &&
-              "bg-red-500/30 text-red-600 dark:text-red-400",
-            isMissingConversationId && "opacity-50 cursor-not-allowed"
+            currentRating === RatingValue.DISLIKE && "bg-red-500/30 text-red-600 dark:text-red-400",
+            isMissingConversationId && "cursor-not-allowed opacity-50",
           )}
           title={isMissingConversationId ? t("saveConversationToRate") : t("notHelpful")}
         >
@@ -203,28 +212,20 @@ export function RatingButtons({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("whatWentWrong")}</DialogTitle>
-            <DialogDescription>
-              {t("feedbackHelp")}
-            </DialogDescription>
+            <DialogDescription>{t("feedbackHelp")}</DialogDescription>
           </DialogHeader>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder={t("describeIssue")}
-            className="w-full min-h-[100px] p-2 rounded-md border bg-background"
+            className="bg-background min-h-[100px] w-full rounded-md border p-2"
             maxLength={2000}
             autoFocus
           />
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {comment.length} / 2000
-            </span>
+            <span className="text-muted-foreground text-xs">{comment.length} / 2000</span>
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                onClick={handleCloseDialog}
-                disabled={isLoading}
-              >
+              <Button variant="ghost" onClick={handleCloseDialog} disabled={isLoading}>
                 {tc("cancel")}
               </Button>
               <Button
@@ -249,9 +250,3 @@ export function RatingButtons({
     </>
   );
 }
-{%- else %}
-// Rating component placeholder - JWT not enabled
-export function RatingButtons() {
-  return null;
-}
-{%- endif %}

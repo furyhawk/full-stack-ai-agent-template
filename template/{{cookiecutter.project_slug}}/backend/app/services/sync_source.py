@@ -12,10 +12,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.db.models.sync_log import SyncLog
 from app.db.models.sync_source import SyncSource
-from app.rag.connectors import CONNECTOR_REGISTRY
+from app.services.rag.connectors import CONNECTOR_REGISTRY
 from app.repositories import sync_log as sync_log_repo
 from app.repositories import sync_source as sync_source_repo
 from app.schemas.sync_source import (
@@ -79,16 +79,22 @@ class SyncSourceService:
         Validates the connector type and its configuration before creating.
 
         Raises:
-            ValueError: If connector type is unknown or config is invalid.
+            BadRequestError: If connector type is unknown or config is invalid.
         """
         if data.connector_type not in CONNECTOR_REGISTRY:
-            raise ValueError(f"Unknown connector type: {data.connector_type}")
+            raise BadRequestError(
+                message=f"Unknown connector type: {data.connector_type}",
+                details={"connector_type": data.connector_type},
+            )
 
         connector_cls = CONNECTOR_REGISTRY[data.connector_type]
         connector = connector_cls()
         is_valid, error = await connector.validate_config(data.config)
         if not is_valid:
-            raise ValueError(f"Invalid config: {error}")
+            raise BadRequestError(
+                message=f"Invalid connector config: {error}",
+                details={"connector_type": data.connector_type},
+            )
 
         source = await sync_source_repo.create(
             self.db,
@@ -128,20 +134,38 @@ class SyncSourceService:
         await sync_source_repo.delete(self.db, UUID(source_id))
 
     async def trigger_sync(self, source_id: str) -> SyncLog:
-        """Trigger a manual sync for a source. Returns the created SyncLog.
+        """Trigger a manual sync — persists a SyncLog and dispatches the task.
 
         Raises:
             NotFoundError: If sync source does not exist.
         """
         source = await self.get_source(source_id)
-
-        return await sync_log_repo.create(
+        sync_log = await sync_log_repo.create(
             self.db,
             source=source.connector_type,
             collection_name=source.collection_name,
             mode=source.sync_mode,
             sync_source_id=source.id,
         )
+{%- if cookiecutter.use_celery or cookiecutter.use_taskiq %}
+        from app.worker.tasks.rag_tasks import sync_single_source_task
+
+        sync_single_source_task.delay(source_id, str(sync_log.id))
+{%- elif cookiecutter.use_arq %}
+        from app.worker.arq_app import get_arq_pool
+
+        pool = await get_arq_pool()
+        await pool.enqueue_job("sync_single_source", source_id, str(sync_log.id))
+{%- else %}
+        from app.worker.background import fire_and_forget
+        from app.worker.background.rag import sync_source_in_background
+
+        fire_and_forget(
+            sync_source_in_background(source_id, str(sync_log.id)),
+            label="rag.sync_source",
+        )
+{%- endif %}
+        return sync_log
 
     async def update_after_sync(
         self,
@@ -189,10 +213,10 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.db.models.sync_log import SyncLog
 from app.db.models.sync_source import SyncSource
-from app.rag.connectors import CONNECTOR_REGISTRY
+from app.services.rag.connectors import CONNECTOR_REGISTRY
 from app.repositories import sync_log as sync_log_repo
 from app.repositories import sync_source as sync_source_repo
 from app.schemas.sync_source import (
@@ -256,10 +280,13 @@ class SyncSourceService:
         Validates the connector type and its configuration before creating.
 
         Raises:
-            ValueError: If connector type is unknown or config is invalid.
+            BadRequestError: If connector type is unknown or config is invalid.
         """
         if data.connector_type not in CONNECTOR_REGISTRY:
-            raise ValueError(f"Unknown connector type: {data.connector_type}")
+            raise BadRequestError(
+                message=f"Unknown connector type: {data.connector_type}",
+                details={"connector_type": data.connector_type},
+            )
 
         connector_cls = CONNECTOR_REGISTRY[data.connector_type]
         connector = connector_cls()
@@ -274,7 +301,10 @@ class SyncSourceService:
             loop.close()
 
         if not is_valid:
-            raise ValueError(f"Invalid config: {error}")
+            raise BadRequestError(
+                message=f"Invalid connector config: {error}",
+                details={"connector_type": data.connector_type},
+            )
 
         source = sync_source_repo.create(
             self.db,

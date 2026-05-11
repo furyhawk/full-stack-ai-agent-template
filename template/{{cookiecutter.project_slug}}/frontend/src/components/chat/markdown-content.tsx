@@ -1,12 +1,21 @@
-"use client";
+{% raw %}"use client";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import { ExternalLink } from "lucide-react";
+
 import { CopyButton } from "./copy-button";
 
 interface MarkdownContentProps {
   content: string;
+}
+
+/** Parse `language-xyz` from a `<code>` className that rehype-highlight emits. */
+function languageLabel(className: string | undefined): string | null {
+  if (!className) return null;
+  const match = /(?:^|\s)language-([a-z0-9+\-]+)/i.exec(className);
+  return match && match[1] ? match[1].toLowerCase() : null;
 }
 
 export function MarkdownContent({ content }: MarkdownContentProps) {
@@ -14,29 +23,37 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeHighlight]}
-      components={% raw %}{{{% endraw %}
+      components={{
         pre({ children, ...props }) {
+          // Pull language + raw text out of the inner <code> so we can show a
+          // language pill and keep CopyButton functional.
           const codeElement = children as React.ReactElement<{
             children?: string;
+            className?: string;
           }>;
           const codeContent =
-            typeof codeElement?.props?.children === "string"
-              ? codeElement.props.children
-              : "";
+            typeof codeElement?.props?.children === "string" ? codeElement.props.children : "";
+          const lang = languageLabel(codeElement?.props?.className);
 
           return (
-            <div className="group relative">
+            <div className="group border-foreground/10 bg-card/60 my-3 overflow-hidden rounded-xl border">
+              {(lang || codeContent) && (
+                <div className="border-foreground/8 text-foreground/55 flex items-center justify-between border-b px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase">
+                  <span>{lang ?? "text"}</span>
+                  {codeContent && (
+                    <CopyButton
+                      text={codeContent}
+                      className="opacity-100 transition-opacity"
+                    />
+                  )}
+                </div>
+              )}
               <pre
-                className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-xs"
+                className="overflow-x-auto p-3.5 text-[12.5px] leading-relaxed"
                 {...props}
               >
                 {children}
               </pre>
-              {codeContent && (
-                <div className="absolute right-2 top-2">
-                  <CopyButton text={codeContent} className="opacity-100" />
-                </div>
-              )}
             </div>
           );
         },
@@ -45,7 +62,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           if (isInline) {
             return (
               <code
-                className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono"
+                className="bg-foreground/8 text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
                 {...props}
               >
                 {children}
@@ -59,63 +76,82 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           );
         },
         a({ href, children, ...props }) {
+          const isExternal = !!href && /^https?:\/\//i.test(href);
           return (
             <a
               href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline hover:text-primary/80"
+              target={isExternal ? "_blank" : undefined}
+              rel={isExternal ? "noopener noreferrer" : undefined}
+              className="text-foreground hover:text-brand-hover decoration-brand decoration-2 underline-offset-[3px] hover:decoration-brand inline-flex items-baseline gap-0.5 font-medium underline transition-colors"
               {...props}
             >
               {children}
+              {isExternal && (
+                <ExternalLink className="text-foreground/60 inline h-[0.8em] w-[0.8em] shrink-0 -translate-y-[1px]" />
+              )}
             </a>
           );
         },
         p({ children, ...props }) {
           return (
-            <p className="mb-2 last:mb-0" {...props}>
+            <p className="mb-3 leading-relaxed last:mb-0" {...props}>
               {children}
             </p>
           );
         },
         ul({ children, ...props }) {
           return (
-            <ul className="mb-2 ml-4 list-disc last:mb-0" {...props}>
+            <ul
+              className="marker:text-foreground/40 mb-3 ml-5 list-disc space-y-1 last:mb-0"
+              {...props}
+            >
               {children}
             </ul>
           );
         },
         ol({ children, ...props }) {
           return (
-            <ol className="mb-2 ml-4 list-decimal last:mb-0" {...props}>
+            <ol
+              className="marker:text-foreground/40 mb-3 ml-5 list-decimal space-y-1 last:mb-0"
+              {...props}
+            >
               {children}
             </ol>
           );
         },
         li({ children, ...props }) {
           return (
-            <li className="mb-1" {...props}>
+            <li className="leading-relaxed" {...props}>
               {children}
             </li>
           );
         },
         h1({ children, ...props }) {
           return (
-            <h1 className="mb-2 text-lg font-bold" {...props}>
+            <h1
+              className="font-display mt-4 mb-2 text-xl font-bold tracking-tight first:mt-0"
+              {...props}
+            >
               {children}
             </h1>
           );
         },
         h2({ children, ...props }) {
           return (
-            <h2 className="mb-2 text-base font-bold" {...props}>
+            <h2
+              className="font-display mt-4 mb-2 text-lg font-semibold tracking-tight first:mt-0"
+              {...props}
+            >
               {children}
             </h2>
           );
         },
         h3({ children, ...props }) {
           return (
-            <h3 className="mb-2 text-sm font-bold" {...props}>
+            <h3
+              className="font-display mt-3 mb-2 text-base font-semibold first:mt-0"
+              {...props}
+            >
               {children}
             </h3>
           );
@@ -123,7 +159,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         blockquote({ children, ...props }) {
           return (
             <blockquote
-              className="mb-2 border-l-2 border-muted-foreground/50 pl-3 italic"
+              className="border-brand/40 text-foreground/75 my-3 border-l-2 pl-4 italic"
               {...props}
             >
               {children}
@@ -132,17 +168,24 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         },
         table({ children, ...props }) {
           return (
-            <div className="mb-2 overflow-x-auto">
+            <div className="border-foreground/10 my-3 overflow-x-auto rounded-lg border">
               <table className="min-w-full text-sm" {...props}>
                 {children}
               </table>
             </div>
           );
         },
+        thead({ children, ...props }) {
+          return (
+            <thead className="bg-foreground/[0.04]" {...props}>
+              {children}
+            </thead>
+          );
+        },
         th({ children, ...props }) {
           return (
             <th
-              className="border-b border-muted px-2 py-1 text-left font-semibold"
+              className="border-foreground/10 border-b px-3 py-2 text-left font-mono text-[11px] font-semibold tracking-wider uppercase"
               {...props}
             >
               {children}
@@ -151,17 +194,18 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         },
         td({ children, ...props }) {
           return (
-            <td className="border-b border-muted/50 px-2 py-1" {...props}>
+            <td className="border-foreground/8 border-b px-3 py-2 last:border-0" {...props}>
               {children}
             </td>
           );
         },
         hr({ ...props }) {
-          return <hr className="my-3 border-muted" {...props} />;
+          return <hr className="border-foreground/10 my-4" {...props} />;
         },
-      {% raw %}}}{% endraw %}
+      }}
     >
       {content}
     </ReactMarkdown>
   );
 }
+{% endraw %}

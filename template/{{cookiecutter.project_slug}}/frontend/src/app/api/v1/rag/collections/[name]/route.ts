@@ -1,12 +1,10 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // POST /api/v1/rag/collections/{name} - Create collection
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ name: string }> }
+  { params }: { params: Promise<{ name: string }> },
 ) {
   try {
     const { name } = await params;
@@ -32,7 +30,7 @@ export async function POST(
 // DELETE /api/v1/rag/collections/{name} - Delete collection
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ name: string }> }
+  { params }: { params: Promise<{ name: string }> },
 ) {
   try {
     const { name } = await params;
@@ -54,7 +52,3 @@ export async function DELETE(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG route - not configured
-{%- endif %}

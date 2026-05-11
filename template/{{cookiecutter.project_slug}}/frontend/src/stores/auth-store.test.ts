@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_frontend and cookiecutter.use_jwt %}
 import { describe, it, expect, beforeEach } from "vitest";
 import { useAuthStore } from "./auth-store";
 import type { User } from "@/types";
@@ -58,15 +57,3 @@ describe("Auth Store", () => {
     expect(useAuthStore.getState().isLoading).toBe(false);
   });
 });
-{%- elif cookiecutter.use_frontend %}
-import { describe, it, expect } from "vitest";
-
-describe("Auth Store", () => {
-  it.skip("JWT authentication not enabled", () => {
-    // Skip auth store tests when JWT is not configured
-  });
-});
-{%- else %}
-/* Auth store tests - frontend not configured */
-export {};
-{%- endif %}

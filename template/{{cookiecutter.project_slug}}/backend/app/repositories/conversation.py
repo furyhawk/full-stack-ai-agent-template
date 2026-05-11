@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update as sql_update
+from sqlalchemy import case, func, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 {%- if cookiecutter.use_jwt %}
@@ -31,7 +31,10 @@ async def get_conversation_by_id(
     if include_messages:
         query = (
             select(Conversation)
-            .options(selectinload(Conversation.messages).selectinload(Message.tool_calls))
+            .options(
+                selectinload(Conversation.messages).selectinload(Message.tool_calls),
+                selectinload(Conversation.messages).selectinload(Message.files),
+            )
             .where(Conversation.id == conversation_id)
         )
         result = await db.execute(query)
@@ -44,6 +47,9 @@ async def get_conversations_by_user(
 {%- if cookiecutter.use_jwt %}
     user_id: UUID | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams %}
+    organization_id: UUID | None = None,
+{%- endif %}
     *,
     skip: int = 0,
     limit: int = 50,
@@ -54,6 +60,10 @@ async def get_conversations_by_user(
 {%- if cookiecutter.use_jwt %}
     if user_id:
         query = query.where(Conversation.user_id == user_id)
+{%- endif %}
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query = query.where(Conversation.organization_id == organization_id)
 {%- endif %}
     if not include_archived:
         query = query.where(Conversation.is_archived == False)  # noqa: E712
@@ -149,6 +159,9 @@ async def admin_list_with_users(
     search: str | None = None,
     user_id: UUID | None = None,
     include_archived: bool = False,
+    archived_only: bool = False,
+    sort_by: str = "updated_at",
+    sort_dir: str = "desc",
 ) -> tuple[list[tuple[Conversation, int, str | None]], int]:
     """Admin: list conversations across all users with message counts and owner email.
 
@@ -156,12 +169,9 @@ async def admin_list_with_users(
     """
     from app.db.models.user import User
 
+    msg_count_col = func.count(Message.id).label("message_count")
     query = (
-        select(
-            Conversation,
-            func.count(Message.id).label("message_count"),
-            User.email.label("user_email"),
-        )
+        select(Conversation, msg_count_col, User.email.label("user_email"))
         .outerjoin(Message, Message.conversation_id == Conversation.id)
         .outerjoin(User, User.id == Conversation.user_id)
         .group_by(Conversation.id, User.email)
@@ -174,11 +184,24 @@ async def admin_list_with_users(
     if user_id is not None:
         query = query.where(Conversation.user_id == user_id)
         count_query = count_query.where(Conversation.user_id == user_id)
-    if not include_archived:
+    if archived_only:
+        query = query.where(Conversation.is_archived.is_(True))
+        count_query = count_query.where(Conversation.is_archived.is_(True))
+    elif not include_archived:
         query = query.where(Conversation.is_archived.is_(False))
         count_query = count_query.where(Conversation.is_archived.is_(False))
 
-    query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
+    sort_columns: dict[str, Any] = {
+        "title": Conversation.title,
+        "created_at": Conversation.created_at,
+        "updated_at": Conversation.updated_at,
+        "owner": User.email,
+        "messages": msg_count_col,
+    }
+    sort_col = sort_columns.get(sort_by, Conversation.updated_at)
+    sort_col = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
+    query = query.order_by(sort_col).offset(skip).limit(limit)
+
     total = await db.scalar(count_query) or 0
     rows = (await db.execute(query)).all()
     return [(conv, msg_count, email) for conv, msg_count, email in rows], total
@@ -190,6 +213,9 @@ async def count_conversations(
 {%- if cookiecutter.use_jwt %}
     user_id: UUID | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams %}
+    organization_id: UUID | None = None,
+{%- endif %}
     *,
     include_archived: bool = False,
 ) -> int:
@@ -198,6 +224,10 @@ async def count_conversations(
 {%- if cookiecutter.use_jwt %}
     if user_id:
         query = query.where(Conversation.user_id == user_id)
+{%- endif %}
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query = query.where(Conversation.organization_id == organization_id)
 {%- endif %}
     if not include_archived:
         query = query.where(Conversation.is_archived == False)  # noqa: E712
@@ -211,6 +241,12 @@ async def create_conversation(
 {%- if cookiecutter.use_jwt %}
     user_id: UUID | None = None,
 {%- endif %}
+{%- if cookiecutter.use_external_user_id_in_conversations %}
+    external_user_id: str | None = None,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    organization_id: UUID | None = None,
+{%- endif %}
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: UUID | None = None,
 {%- endif %}
@@ -221,6 +257,12 @@ async def create_conversation(
 {%- if cookiecutter.use_jwt %}
         user_id=user_id,
 {%- endif %}
+{%- if cookiecutter.use_external_user_id_in_conversations %}
+        external_user_id=external_user_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id=organization_id,
+{%- endif %}
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
         project_id=project_id,
 {%- endif %}
@@ -230,6 +272,35 @@ async def create_conversation(
     await db.flush()
     await db.refresh(conversation)
     return conversation
+
+
+{%- if cookiecutter.use_external_user_id_in_conversations %}
+
+
+async def list_conversations_by_external_user_id(
+    db: AsyncSession,
+    external_user_id: str,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+    include_archived: bool = False,
+) -> list[Conversation]:
+    """Fetch conversations by client-known IdP `sub` (delegated mode).
+
+    Lets the client list a user's chats without ever knowing the internal
+    User UUID. No FK join — direct index scan on the denormalized column.
+    """
+    query = select(Conversation).where(Conversation.external_user_id == external_user_id)
+    if not include_archived:
+        query = query.where(Conversation.is_archived == False)  # noqa: E712
+    query = (
+        query.order_by(Conversation.updated_at.desc().nullslast(), Conversation.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+{%- endif %}
 
 
 async def update_conversation(
@@ -351,6 +422,53 @@ async def delete_message(db: AsyncSession, message_id: UUID) -> bool:
 
 # ToolCall Operations
 
+{%- if cookiecutter.enable_teams %}
+
+
+async def aggregate_tool_calls_for_org(
+    db: AsyncSession,
+    organization_id: UUID,
+    *,
+    since: datetime,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Return per-tool aggregates for an org, ordered by call count desc.
+
+    Joins ``tool_calls → messages → conversations`` so the same org filter the
+    rest of the dashboard uses applies here. Excludes tool calls whose backing
+    conversation has no ``organization_id`` (orphans).
+    """
+    query = (
+        select(
+            ToolCall.tool_name.label("tool_name"),
+            func.count().label("total_calls"),
+            func.sum(case((ToolCall.status == "failed", 1), else_=0)).label("failed_calls"),
+            func.avg(ToolCall.duration_ms).label("avg_duration_ms"),
+            func.max(ToolCall.started_at).label("last_used_at"),
+        )
+        .join(Message, Message.id == ToolCall.message_id)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .where(
+            Conversation.organization_id == organization_id,
+            ToolCall.started_at >= since,
+        )
+        .group_by(ToolCall.tool_name)
+        .order_by(func.count().desc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return [
+        {
+            "tool_name": row.tool_name,
+            "total_calls": int(row.total_calls or 0),
+            "failed_calls": int(row.failed_calls or 0),
+            "avg_duration_ms": int(row.avg_duration_ms) if row.avg_duration_ms else None,
+            "last_used_at": row.last_used_at,
+        }
+        for row in result.all()
+    ]
+{%- endif %}
+
 
 async def get_tool_call_by_id(db: AsyncSession, tool_call_id: UUID) -> ToolCall | None:
     """Get tool call by ID."""
@@ -463,6 +581,9 @@ def get_conversations_by_user(
 {%- if cookiecutter.use_jwt %}
     user_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams %}
+    organization_id: str | None = None,
+{%- endif %}
     *,
     skip: int = 0,
     limit: int = 50,
@@ -473,6 +594,10 @@ def get_conversations_by_user(
 {%- if cookiecutter.use_jwt %}
     if user_id:
         query = query.where(Conversation.user_id == user_id)
+{%- endif %}
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query = query.where(Conversation.organization_id == organization_id)
 {%- endif %}
     if not include_archived:
         query = query.where(Conversation.is_archived == False)  # noqa: E712
@@ -564,6 +689,9 @@ def admin_list_with_users(
     search: str | None = None,
     user_id: str | None = None,
     include_archived: bool = False,
+    archived_only: bool = False,
+    sort_by: str = "updated_at",
+    sort_dir: str = "desc",
 ) -> tuple[list[tuple[Conversation, int, str | None]], int]:
     """Admin: list conversations across all users with message counts and owner email.
 
@@ -571,12 +699,9 @@ def admin_list_with_users(
     """
     from app.db.models.user import User
 
+    msg_count_col = func.count(Message.id).label("message_count")
     query = (
-        select(
-            Conversation,
-            func.count(Message.id).label("message_count"),
-            User.email.label("user_email"),
-        )
+        select(Conversation, msg_count_col, User.email.label("user_email"))
         .outerjoin(Message, Message.conversation_id == Conversation.id)
         .outerjoin(User, User.id == Conversation.user_id)
         .group_by(Conversation.id, User.email)
@@ -589,11 +714,24 @@ def admin_list_with_users(
     if user_id is not None:
         query = query.where(Conversation.user_id == user_id)
         count_query = count_query.where(Conversation.user_id == user_id)
-    if not include_archived:
+    if archived_only:
+        query = query.where(Conversation.is_archived.is_(True))
+        count_query = count_query.where(Conversation.is_archived.is_(True))
+    elif not include_archived:
         query = query.where(Conversation.is_archived.is_(False))
         count_query = count_query.where(Conversation.is_archived.is_(False))
 
-    query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
+    sort_columns: dict[str, Any] = {
+        "title": Conversation.title,
+        "created_at": Conversation.created_at,
+        "updated_at": Conversation.updated_at,
+        "owner": User.email,
+        "messages": msg_count_col,
+    }
+    sort_col = sort_columns.get(sort_by, Conversation.updated_at)
+    sort_col = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
+    query = query.order_by(sort_col).offset(skip).limit(limit)
+
     total = db.scalar(count_query) or 0
     rows = db.execute(query).all()
     return [(conv, msg_count, email) for conv, msg_count, email in rows], total
@@ -605,6 +743,9 @@ def count_conversations(
 {%- if cookiecutter.use_jwt %}
     user_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams %}
+    organization_id: str | None = None,
+{%- endif %}
     *,
     include_archived: bool = False,
 ) -> int:
@@ -613,6 +754,10 @@ def count_conversations(
 {%- if cookiecutter.use_jwt %}
     if user_id:
         query = query.where(Conversation.user_id == user_id)
+{%- endif %}
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query = query.where(Conversation.organization_id == organization_id)
 {%- endif %}
     if not include_archived:
         query = query.where(Conversation.is_archived == False)  # noqa: E712
@@ -629,6 +774,9 @@ def create_conversation(
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    organization_id: str | None = None,
+{%- endif %}
     title: str | None = None,
 ) -> Conversation:
     """Create a new conversation."""
@@ -638,6 +786,9 @@ def create_conversation(
 {%- endif %}
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
         project_id=project_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id=organization_id,
 {%- endif %}
         title=title,
     )
@@ -880,6 +1031,9 @@ async def get_conversations_by_user(
 {%- if cookiecutter.use_jwt %}
     user_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams %}
+    organization_id: str | None = None,
+{%- endif %}
     *,
     skip: int = 0,
     limit: int = 50,
@@ -890,6 +1044,10 @@ async def get_conversations_by_user(
 {%- if cookiecutter.use_jwt %}
     if user_id:
         query_filter["user_id"] = user_id
+{%- endif %}
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query_filter["organization_id"] = organization_id
 {%- endif %}
     if not include_archived:
         query_filter["is_archived"] = False
@@ -981,6 +1139,9 @@ async def admin_list_with_users(
     search: str | None = None,
     user_id: str | None = None,
     include_archived: bool = False,
+    archived_only: bool = False,
+    sort_by: str = "updated_at",
+    sort_dir: str = "desc",
 ) -> tuple[list[tuple[Conversation, int, str | None]], int]:
     """Admin: list conversations with message counts and owner email.
 
@@ -993,13 +1154,23 @@ async def admin_list_with_users(
         query_filter["title"] = {"$regex": re.escape(search), "$options": "i"}
     if user_id:
         query_filter["user_id"] = user_id
-    if not include_archived:
+    if archived_only:
+        query_filter["is_archived"] = True
+    elif not include_archived:
         query_filter["is_archived"] = False
+
+    sort_field_map = {
+        "title": "title",
+        "created_at": "created_at",
+        "updated_at": "updated_at",
+    }
+    sort_field = sort_field_map.get(sort_by, "updated_at")
+    sort_prefix = "-" if sort_dir == "desc" else "+"
 
     total = await Conversation.find(query_filter).count()
     conversations = (
         await Conversation.find(query_filter)
-        .sort("-updated_at")
+        .sort(f"{sort_prefix}{sort_field}")
         .skip(skip)
         .limit(limit)
         .to_list()
@@ -1021,6 +1192,9 @@ async def count_conversations(
 {%- if cookiecutter.use_jwt %}
     user_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams %}
+    organization_id: str | None = None,
+{%- endif %}
     *,
     include_archived: bool = False,
 ) -> int:
@@ -1029,6 +1203,10 @@ async def count_conversations(
 {%- if cookiecutter.use_jwt %}
     if user_id:
         query_filter["user_id"] = user_id
+{%- endif %}
+{%- if cookiecutter.enable_teams %}
+    if organization_id is not None:
+        query_filter["organization_id"] = organization_id
 {%- endif %}
     if not include_archived:
         query_filter["is_archived"] = False
@@ -1044,6 +1222,9 @@ async def create_conversation(
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    organization_id: str | None = None,
+{%- endif %}
     title: str | None = None,
 ) -> Conversation:
     """Create a new conversation."""
@@ -1053,6 +1234,9 @@ async def create_conversation(
 {%- endif %}
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
         project_id=project_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id=organization_id,
 {%- endif %}
         title=title,
     )

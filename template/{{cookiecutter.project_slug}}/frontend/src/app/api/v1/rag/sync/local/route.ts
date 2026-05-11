@@ -1,5 +1,3 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
@@ -23,7 +21,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG route - not configured
-{%- endif %}

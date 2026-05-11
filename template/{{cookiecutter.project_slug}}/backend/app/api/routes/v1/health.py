@@ -173,15 +173,112 @@ async def readiness_probe(
         }
 {%- endif %}
 
-    # Determine overall health
-    all_healthy = all(
-        check.get("status") == "healthy" for check in checks.values()
-    ) if checks else True
+{%- if cookiecutter.enable_rag and cookiecutter.vector_store == "milvus" %}
+    # Vector store — Milvus connectivity probe (TCP).
+    try:
+        import socket
 
+        start = datetime.now(UTC)
+        with socket.create_connection(
+            (settings.MILVUS_HOST, settings.MILVUS_PORT), timeout=2
+        ):
+            pass
+        latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
+        checks["vector_store"] = {
+            "status": "healthy",
+            "latency_ms": round(latency_ms, 2),
+            "type": "milvus",
+        }
+    except Exception as e:
+        checks["vector_store"] = {
+            "status": "unhealthy",
+            "error": str(e),
+            "type": "milvus",
+        }
+{%- elif cookiecutter.enable_rag and cookiecutter.vector_store == "qdrant" %}
+    # Vector store — Qdrant connectivity probe (TCP).
+    try:
+        import socket
+
+        start = datetime.now(UTC)
+        with socket.create_connection(
+            (settings.QDRANT_HOST, settings.QDRANT_PORT), timeout=2
+        ):
+            pass
+        latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
+        checks["vector_store"] = {
+            "status": "healthy",
+            "latency_ms": round(latency_ms, 2),
+            "type": "qdrant",
+        }
+    except Exception as e:
+        checks["vector_store"] = {
+            "status": "unhealthy",
+            "error": str(e),
+            "type": "qdrant",
+        }
+{%- elif cookiecutter.enable_rag %}
+    # Vector store — generic configuration check.
+    checks["vector_store"] = {
+        "status": "unknown",
+        "detail": "configured but no probe implemented",
+        "type": "{{ cookiecutter.vector_store }}",
+    }
+{%- endif %}
+
+    # LLM provider — config-only check (avoid spending money on a probe call).
+    llm_provider = (getattr(settings, "LLM_PROVIDER", None) or "").lower()
+    if llm_provider:
+        key_field = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GOOGLE_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+        }.get(llm_provider)
+        api_key = getattr(settings, key_field, None) if key_field else None
+        checks["llm"] = {
+            "status": "healthy" if api_key else "unhealthy",
+            "provider": llm_provider,
+            "detail": "API key configured" if api_key else "API key missing",
+        }
+    else:
+        checks["llm"] = {"status": "unknown", "detail": "not configured"}
+
+{%- if cookiecutter.enable_billing %}
+    # Stripe — config-only.
+    stripe_key = getattr(settings, "STRIPE_SECRET_KEY", None)
+    checks["stripe"] = (
+        {"status": "healthy", "detail": "key configured"}
+        if stripe_key
+        else {"status": "unknown", "detail": "not configured"}
+    )
+{%- endif %}
+
+{%- if cookiecutter.use_celery %}
+    # Background worker — config-only (a real probe needs an end-to-end ping).
+    broker_url = getattr(settings, "CELERY_BROKER_URL", None)
+    checks["worker"] = (
+        {"status": "healthy", "detail": "broker configured"}
+        if broker_url
+        else {"status": "unknown", "detail": "not configured"}
+    )
+{%- endif %}
+
+    # Determine overall health — only db + redis are critical for readiness.
+    critical = {k: v for k, v in checks.items() if k in ("database", "redis")}
+    all_healthy = (
+        all(check.get("status") == "healthy" for check in critical.values())
+        if critical
+        else True
+    )
+
+    # The admin /system page reads each service from the top level, so flatten
+    # the checks alongside the structured `checks` field for K8s probes.
     response_data = build_health_response(
         status="ready" if all_healthy else "not_ready",
         checks=checks,
     )
+    response_data.update(checks)
 
     if not all_healthy:
         return JSONResponse(status_code=503, content=response_data)

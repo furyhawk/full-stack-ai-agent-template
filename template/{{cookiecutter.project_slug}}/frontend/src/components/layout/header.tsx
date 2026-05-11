@@ -5,22 +5,42 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks";
 import { Button } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme";
+{%- if cookiecutter.enable_i18n %}
 import { LanguageSwitcherCompact } from "@/components/language-switcher";
+{%- endif %}
 import { APP_NAME, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { LogOut, Menu, LayoutDashboard, MessageSquare{%- if cookiecutter.enable_rag %}, Database{%- endif %}{%- if cookiecutter.use_jwt %}, UserCircle{%- endif %} } from "lucide-react";
+import {
+  LogOut,
+  Menu,
+  LayoutDashboard,
+  MessageSquare,
+  Database,
+  UserCircle,
+  Building2,
+  CreditCard,
+  ShieldCheck,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import { useSidebarStore } from "@/stores";
+{%- if cookiecutter.enable_teams %}
+import { OrgSwitcher } from "@/components/teams";
+{%- endif %}
 
 const adminNavItems = [
-  { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard, adminOnly: true },
+  { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard, adminOnly: false },
   { name: "Chat", href: ROUTES.CHAT, icon: MessageSquare, adminOnly: false },
-{%- if cookiecutter.enable_rag %}
-  { name: "Knowledge Base", href: ROUTES.RAG, icon: Database, adminOnly: true },
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
+  { name: "Knowledge Bases", href: ROUTES.KB, icon: Database, adminOnly: false },
 {%- endif %}
-{%- if cookiecutter.use_jwt %}
+{%- if cookiecutter.enable_teams %}
+  { name: "Organizations", href: ROUTES.ORGS, icon: Building2, adminOnly: false },
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+  { name: "Billing", href: ROUTES.BILLING, icon: CreditCard, adminOnly: false },
+{%- endif %}
   { name: "Profile", href: ROUTES.PROFILE, icon: UserCircle, adminOnly: false },
-{%- endif %}
+  { name: "Admin", href: ROUTES.ADMIN, icon: ShieldCheck, adminOnly: true },
 ];
 
 export function Header() {
@@ -44,39 +64,48 @@ export function Header() {
 
           {/* Desktop nav links */}
           <nav className="hidden items-center gap-0.5 md:flex">
-            {adminNavItems.filter(item => !item.adminOnly || user?.role === "admin").map((item) => {
-              const isActive = pathname?.includes(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-3.5 w-3.5" />
-                  {item.name}
-                </Link>
-              );
-            })}
+            {adminNavItems
+              .filter((item) => !item.adminOnly || user?.role === "admin")
+              .map((item) => {
+                const isActive = pathname?.includes(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <item.icon className="h-3.5 w-3.5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
           </nav>
         </div>
 
-        {/* Right: language, theme, user */}
+        {/* Right: org switcher, language, theme, user */}
         <div className="flex items-center gap-2 sm:gap-3">
+{%- if cookiecutter.enable_teams %}
+          {isAuthenticated && <OrgSwitcher />}
+{%- endif %}
+{%- if cookiecutter.enable_i18n %}
           <LanguageSwitcherCompact />
+{%- endif %}
           <ThemeToggle />
           {isAuthenticated ? (
             <>
               <Button variant="ghost" size="sm" asChild className="h-10 px-2 sm:px-3">
                 <Link href={ROUTES.PROFILE} className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
-                    {user?.avatar_url && <AvatarImage src={`/api/users/avatar/${user.id}`} alt={user.email} />}
-                    <AvatarFallback className="bg-brand/10 text-brand text-[10px]">
+                    {user?.avatar_url && (
+                      <AvatarImage src={`/api/users/avatar/${user.id}`} alt={user.email} />
+                    )}
+                    <AvatarFallback className="bg-foreground text-background text-[10px] font-semibold">
                       {user?.email?.substring(0, 2).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>

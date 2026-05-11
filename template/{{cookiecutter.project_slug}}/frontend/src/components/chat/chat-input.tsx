@@ -1,26 +1,58 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button, Badge, Spinner } from "@/components/ui";
 import { Send, Mic, MicOff, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { uploadFile, getFileUrl, type FileUploadResponse } from "@/lib/file-api";
+import {
+  BUILTIN_COMMANDS,
+  searchCommands,
+  type SlashCommand,
+  type SlashCommandContext,
+} from "./slash-commands";
+import { SlashCommandPalette } from "./slash-command-palette";
 
 interface ChatInputProps {
-  onSend: (message: string, fileIds?: string[]) => void;
+  onSend: (message: string, fileIds?: string[], files?: FileUploadResponse[]) => void;
   disabled?: boolean;
   isProcessing?: boolean;
+  /** Local actions for slash commands. Wire from <ChatContainer>. */
+  slashContext?: SlashCommandContext;
+  /** Effective slash commands (built-ins + user customs, after overrides). */
+  commands?: SlashCommand[];
 }
 
-export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  disabled,
+  isProcessing,
+  slashContext,
+  commands,
+}: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<FileUploadResponse[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  // Slash-command palette state. Open while message starts with "/" and the
+  // caller wired a context — without one, commands have nothing to do.
+  const [paletteIndex, setPaletteIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const showPalette = !!slashContext && message.startsWith("/") && !message.includes("\n");
+  const allCommands = commands ?? BUILTIN_COMMANDS;
+  const filteredCommands = useMemo(
+    () => (showPalette ? searchCommands(allCommands, message) : []),
+    [showPalette, message, allCommands],
+  );
+
+  // Reset selection when the filter set changes.
+  useEffect(() => {
+    setPaletteIndex(0);
+  }, [filteredCommands.length, message]);
 
   useEffect(() => {
     if (!isProcessing && !isUploading && textareaRef.current) {
@@ -35,19 +67,68 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
     }
   }, [message]);
 
+  const runSlashCommand = useCallback(
+    (cmd: SlashCommand) => {
+      if (cmd.action.kind === "client") {
+        cmd.action.run(slashContext!);
+        setMessage("");
+        return;
+      }
+      // send-as-message — replace the slash with the canned prompt and send
+      // through the normal flow so it lands as a regular user turn.
+      const fileIds = attachedFiles.length > 0 ? attachedFiles.map((f) => f.id) : undefined;
+      const files = attachedFiles.length > 0 ? attachedFiles : undefined;
+      onSend(cmd.action.replaceWith, fileIds, files);
+      setMessage("");
+      setAttachedFiles([]);
+    },
+    [attachedFiles, onSend, slashContext],
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (showPalette && filteredCommands[paletteIndex]) {
+      runSlashCommand(filteredCommands[paletteIndex]);
+      return;
+    }
     const trimmed = message.trim();
     if (!trimmed && attachedFiles.length === 0) return;
     if (disabled || isUploading) return;
 
     const fileIds = attachedFiles.length > 0 ? attachedFiles.map((f) => f.id) : undefined;
-    onSend(trimmed || "Analyze the attached file(s)", fileIds);
+    const files = attachedFiles.length > 0 ? attachedFiles : undefined;
+    onSend(trimmed || "Analyze the attached file(s)", fileIds, files);
     setMessage("");
     setAttachedFiles([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showPalette && filteredCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPaletteIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPaletteIndex(
+          (i) => (i - 1 + filteredCommands.length) % filteredCommands.length,
+        );
+        return;
+      }
+      if (e.key === "Tab") {
+        // Tab autocompletes to the highlighted command name.
+        e.preventDefault();
+        const cmd = filteredCommands[paletteIndex];
+        if (cmd) setMessage("/" + cmd.name + " ");
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMessage("");
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -62,8 +143,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
       return;
     }
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.info("Voice input is only supported in Chrome. Use Chrome for speech-to-text.");
       return;
@@ -109,40 +189,45 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
   }, [isListening, message]);
 
   // File upload to backend
-  const handleFileSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files || files.length === 0) return;
-      e.target.value = "";
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    e.target.value = "";
 
-      const maxMb = parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB || "50", 10);
-      for (const file of Array.from(files)) {
-        if (file.size > maxMb * 1024 * 1024) {
-          toast.error(`${file.name}: File too large. Maximum ${maxMb}MB.`);
-          continue;
-        }
-
-        setIsUploading(true);
-        try {
-          const result = await uploadFile(file);
-          setAttachedFiles((prev) => [...prev, result]);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Upload failed";
-          toast.error(`${file.name}: ${msg}`);
-        } finally {
-          setIsUploading(false);
-        }
+    const maxMb = parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB || "50", 10);
+    for (const file of Array.from(files)) {
+      if (file.size > maxMb * 1024 * 1024) {
+        toast.error(`${file.name}: File too large. Maximum ${maxMb}MB.`);
+        continue;
       }
-    },
-    []
-  );
+
+      setIsUploading(true);
+      try {
+        const result = await uploadFile(file);
+        setAttachedFiles((prev) => [...prev, result]);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        toast.error(`${file.name}: ${msg}`);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  }, []);
 
   const removeFile = (fileId: string) => {
     setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId));
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="relative">
+      {showPalette && (
+        <SlashCommandPalette
+          commands={filteredCommands}
+          selectedIndex={paletteIndex}
+          onSelectIndex={setPaletteIndex}
+          onPick={runSlashCommand}
+        />
+      )}
       {/* Attached files */}
       {attachedFiles.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 pb-2">
@@ -160,7 +245,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
                   <button
                     type="button"
                     onClick={() => removeFile(file.id)}
-                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                    className="bg-destructive text-destructive-foreground absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -168,9 +253,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
               ) : (
                 <Badge variant="secondary" className="gap-1.5 pr-1">
                   <FileText className="h-3 w-3" />
-                  <span className="max-w-[150px] truncate text-xs">
-                    {file.filename}
-                  </span>
+                  <span className="max-w-[150px] truncate text-xs">{file.filename}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(file.id)}
@@ -200,7 +283,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
           placeholder="Type a message..."
           disabled={disabled}
           rows={1}
-          className="scrollbar-thin placeholder:text-muted-foreground min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
+          className="placeholder:text-muted-foreground min-h-[40px] flex-1 resize-none scrollbar-thin bg-transparent py-2.5 text-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
         />
 
         <div className="flex shrink-0 items-center gap-0.5 pb-1">
@@ -253,11 +336,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
             disabled={disabled || isUploading || (!message.trim() && attachedFiles.length === 0)}
             className="h-9 w-9 rounded-lg"
           >
-            {isProcessing ? (
-              <Spinner className="h-4 w-4" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            {isProcessing ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
             <span className="sr-only">Send message</span>
           </Button>
         </div>

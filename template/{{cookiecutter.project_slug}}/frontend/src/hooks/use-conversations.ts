@@ -1,15 +1,10 @@
-{%- if cookiecutter.use_database %}
 "use client";
 
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { useConversationStore, useChatStore } from "@/stores";
-import type {
-  Conversation,
-  ConversationMessage,
-  ConversationListResponse,
-} from "@/types";
+import type { Conversation, ConversationMessage, ConversationListResponse } from "@/types";
 
 interface CreateConversationResponse {
   id: string;
@@ -48,32 +43,42 @@ export function useConversations() {
     setLoading(true);
     setError(null);
     try {
+      // Fetch both active and archived in one call so the sidebar tabs can
+      // partition them client-side. Archived items are filtered out of the
+      // default tab, and surfaced only when the user opens "Archived".
       const response = await apiClient.get<ConversationListResponse>(
-        `/conversations?limit=${PAGE_SIZE}`
+        `/conversations?limit=${PAGE_SIZE}&include_archived=true`,
       );
       setConversations(response.items);
       hasMoreRef.current = response.items.length >= PAGE_SIZE;
       // URL ?id= param always takes priority
       const urlId = new URLSearchParams(window.location.search).get("id");
-      if (urlId && response.items.some(c => c.id === urlId)) {
-        if (useConversationStore.getState().currentConversationId !== urlId) {
-          setCurrentConversationId(urlId);
-          clearMessages();
-          setCurrentMessages([]);
-          try {
-            const msgs = await apiClient.get<MessagesResponse>(`/conversations/${urlId}/messages`);
-            setCurrentMessages(msgs.items);
-          } catch {}
+      if (urlId && useConversationStore.getState().currentConversationId !== urlId) {
+        setCurrentConversationId(urlId);
+        clearMessages();
+        setCurrentMessages([]);
+        try {
+          const msgs = await apiClient.get<MessagesResponse>(`/conversations/${urlId}/messages`);
+          setCurrentMessages(msgs.items);
+        } catch {
+          // Not accessible (deleted, no permission) — clear the stale id
+          setCurrentConversationId(null);
         }
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to fetch conversations";
+      const message = err instanceof Error ? err.message : "Failed to fetch conversations";
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, [setConversations, setLoading, setError, setCurrentConversationId, setCurrentMessages, clearMessages]);
+  }, [
+    setConversations,
+    setLoading,
+    setError,
+    setCurrentConversationId,
+    setCurrentMessages,
+    clearMessages,
+  ]);
 
   const loadingMoreRef = useRef(false);
 
@@ -83,13 +88,14 @@ export function useConversations() {
     const current = useConversationStore.getState().conversations;
     try {
       const response = await apiClient.get<ConversationListResponse>(
-        `/conversations?limit=${PAGE_SIZE}&skip=${current.length}`
+        `/conversations?limit=${PAGE_SIZE}&skip=${current.length}&include_archived=true`,
       );
       if (response.items.length > 0) {
         setConversations([...current, ...response.items]);
       }
       hasMoreRef.current = response.items.length >= PAGE_SIZE;
-    } catch {} finally {
+    } catch {
+    } finally {
       loadingMoreRef.current = false;
     }
   }, [setConversations]);
@@ -99,10 +105,9 @@ export function useConversations() {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiClient.post<CreateConversationResponse>(
-          "/conversations",
-          { title }
-        );
+        const response = await apiClient.post<CreateConversationResponse>("/conversations", {
+          title,
+        });
         const newConversation: Conversation = {
           id: response.id,
           title: response.title,
@@ -113,15 +118,14 @@ export function useConversations() {
         addConversation(newConversation);
         return newConversation;
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to create conversation";
+        const message = err instanceof Error ? err.message : "Failed to create conversation";
         setError(message);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [addConversation, setLoading, setError]
+    [addConversation, setLoading, setError],
   );
 
   const selectConversation = useCallback(
@@ -134,19 +138,16 @@ export function useConversations() {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiClient.get<MessagesResponse>(
-          `/conversations/${id}/messages`
-        );
+        const response = await apiClient.get<MessagesResponse>(`/conversations/${id}/messages`);
         setCurrentMessages(response.items);
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to fetch messages";
+        const message = err instanceof Error ? err.message : "Failed to fetch messages";
         setError(message);
       } finally {
         setLoading(false);
       }
     },
-    [setCurrentConversationId, clearMessages, setCurrentMessages, setLoading, setError]
+    [setCurrentConversationId, clearMessages, setCurrentMessages, setLoading, setError],
   );
 
   const archiveConversation = useCallback(
@@ -156,13 +157,27 @@ export function useConversations() {
         updateConversation(id, { is_archived: true });
         toast.success("Conversation archived");
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to archive conversation";
+        const message = err instanceof Error ? err.message : "Failed to archive conversation";
         setError(message);
         toast.error(message);
       }
     },
-    [updateConversation, setError]
+    [updateConversation, setError],
+  );
+
+  const unarchiveConversation = useCallback(
+    async (id: string) => {
+      try {
+        await apiClient.patch(`/conversations/${id}`, { is_archived: false });
+        updateConversation(id, { is_archived: false });
+        toast.success("Conversation restored");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to restore conversation";
+        setError(message);
+        toast.error(message);
+      }
+    },
+    [updateConversation, setError],
   );
 
   const deleteConversation = useCallback(
@@ -172,13 +187,12 @@ export function useConversations() {
         removeConversation(id);
         toast.success("Conversation deleted");
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to delete conversation";
+        const message = err instanceof Error ? err.message : "Failed to delete conversation";
         setError(message);
         toast.error(message);
       }
     },
-    [removeConversation, setError]
+    [removeConversation, setError],
   );
 
   const renameConversation = useCallback(
@@ -188,13 +202,25 @@ export function useConversations() {
         updateConversation(id, { title });
         toast.success("Conversation renamed");
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to rename conversation";
+        const message = err instanceof Error ? err.message : "Failed to rename conversation";
         setError(message);
         toast.error(message);
       }
     },
-    [updateConversation, setError]
+    [updateConversation, setError],
+  );
+  const updateActiveKBs = useCallback(
+    async (conversationId: string, kbIds: string[]) => {
+      updateConversation(conversationId, { active_knowledge_base_ids: kbIds });
+      try {
+        await apiClient.patch(`/conversations/${conversationId}`, {
+          active_knowledge_base_ids: kbIds,
+        });
+      } catch {
+        toast.error("Failed to update knowledge bases");
+      }
+    },
+    [updateConversation],
   );
 
   const startNewChat = useCallback(async () => {
@@ -209,14 +235,18 @@ export function useConversations() {
     }
     clearMessages();
     setCurrentMessages([]);
-    const newConversation = await createConversation();
-    if (newConversation) {
-      setCurrentConversationId(newConversation.id);
+    setCurrentConversationId(null);
+    // Strip the stale ?id= immediately so a refresh mid-flight lands on a
+    // fresh /chat instead of the old conversation. The new id will be set
+    // by the WS conversation_created event on first message.
+    if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.set("id", newConversation.id);
-      window.history.replaceState({}, "", url.toString());
+      if (url.searchParams.has("id")) {
+        url.searchParams.delete("id");
+        window.history.replaceState({}, "", url.toString());
+      }
     }
-  }, [clearMessages, setCurrentMessages, createConversation, setCurrentConversationId]);
+  }, [clearMessages, setCurrentMessages, setCurrentConversationId]);
 
   return {
     conversations,
@@ -230,9 +260,10 @@ export function useConversations() {
     createConversation,
     selectConversation,
     archiveConversation,
+    unarchiveConversation,
     deleteConversation,
     renameConversation,
     startNewChat,
+    updateActiveKBs,
   };
 }
-{%- endif %}

@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_frontend %}
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Button } from "./button";
@@ -41,7 +40,7 @@ describe("Button component", () => {
     render(
       <Button disabled onClick={handleClick}>
         Disabled
-      </Button>
+      </Button>,
     );
 
     fireEvent.click(screen.getByRole("button"));
@@ -59,7 +58,7 @@ describe("Button component", () => {
       <Button asChild>
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/test/">Link Button</a>
-      </Button>
+      </Button>,
     );
     expect(screen.getByRole("link")).toBeInTheDocument();
   });
@@ -70,7 +69,3 @@ describe("Button component", () => {
     expect(button).toHaveAttribute("type", "submit");
   });
 });
-{%- else %}
-/* Button tests - frontend not configured */
-export {};
-{%- endif %}

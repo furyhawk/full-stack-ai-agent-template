@@ -1,10 +1,8 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_frontend %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // POST /api/v1/rag/search - Search documents
 export async function POST(request: NextRequest) {
-
   try {
     const body = await request.json();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -23,13 +21,9 @@ export async function POST(request: NextRequest) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
         { detail: error.message || "Failed to search documents" },
-        { status: error.status }
+        { status: error.status },
       );
     }
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG search route - not configured (enable_rag is false or frontend is disabled)
-{%- endif %}

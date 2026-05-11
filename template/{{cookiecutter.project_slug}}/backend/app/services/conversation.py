@@ -5,7 +5,7 @@ Contains business logic for conversation, message, and tool call operations.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -20,7 +20,7 @@ from app.db.models.user import User
 {%- endif %}
 from app.repositories import conversation_repo
 {%- if cookiecutter.use_jwt %}
-from app.repositories import conversation_share_repo
+from app.repositories import conversation_share_repo, message_rating_repo
 {%- endif %}
 from app.schemas.conversation import (
     ConversationCreate,
@@ -64,10 +64,6 @@ class ConversationService:
         duplicating conversations when data changes during export.
         """
         import json
-{%- if cookiecutter.use_jwt %}
-
-        from app.repositories import message_rating_repo
-{%- endif %}
 
         export_data: list[dict[str, Any]] = []
         last_created_at: datetime | None = None
@@ -195,13 +191,43 @@ class ConversationService:
                     message="Conversation not found",
                     details={"conversation_id": str(conversation_id)},
                 )
+        if include_messages and user_id is not None and conversation.messages:
+            message_ids = [m.id for m in conversation.messages]
+            user_ratings = await message_rating_repo.get_user_ratings_for_messages(
+                self.db, message_ids=message_ids, user_id=user_id
+            )
+            rating_counts = await message_rating_repo.get_rating_counts_for_messages(
+                self.db, message_ids=message_ids
+            )
+            for msg in conversation.messages:
+                msg.user_rating = user_ratings.get(msg.id)  # type: ignore[attr-defined]
+                msg.rating_count = rating_counts.get(msg.id)  # type: ignore[attr-defined]
 {%- endif %}
         return conversation
+
+{%- if cookiecutter.enable_teams %}
+
+    async def aggregate_tool_calls(
+        self,
+        organization_id: UUID,
+        *,
+        days: int = 7,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Top tool calls for an org over the last ``days``."""
+        since = datetime.now(UTC) - timedelta(days=days)
+        return await conversation_repo.aggregate_tool_calls_for_org(
+            self.db, organization_id, since=since, limit=limit
+        )
+{%- endif %}
 
     async def list_conversations(
         self,
 {%- if cookiecutter.use_jwt %}
         user_id: UUID | None = None,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id: UUID | None = None,
 {%- endif %}
         *,
         skip: int = 0,
@@ -218,6 +244,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
             user_id=user_id,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=organization_id,
+{%- endif %}
             skip=skip,
             limit=limit,
             include_archived=include_archived,
@@ -226,6 +255,9 @@ class ConversationService:
             self.db,
 {%- if cookiecutter.use_jwt %}
             user_id=user_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=organization_id,
 {%- endif %}
             include_archived=include_archived,
         )
@@ -269,6 +301,9 @@ class ConversationService:
         search: str | None = None,
         user_id: UUID | None = None,
         include_archived: bool = False,
+        archived_only: bool = False,
+        sort_by: str = "updated_at",
+        sort_dir: str = "desc",
     ) -> "AdminConversationList":
         """Admin: list conversations with owner email and message counts."""
         from app.schemas.conversation_share import AdminConversationList, AdminConversationRead
@@ -280,6 +315,9 @@ class ConversationService:
             search=search,
             user_id=user_id,
             include_archived=include_archived,
+            archived_only=archived_only,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
         )
         items = [
             AdminConversationRead(
@@ -310,8 +348,14 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
             user_id=data.user_id,
 {%- endif %}
+{%- if cookiecutter.use_external_user_id_in_conversations %}
+            external_user_id=getattr(data, "external_user_id", None),
+{%- endif %}
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
             project_id=data.project_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=getattr(data, "organization_id", None),
 {%- endif %}
             title=data.title,
         )
@@ -336,9 +380,31 @@ class ConversationService:
 {%- endif %}
         )
         update_data = data.model_dump(exclude_unset=True)
+        if "active_knowledge_base_ids" in update_data and update_data["active_knowledge_base_ids"] is not None:
+            update_data["active_knowledge_base_ids"] = [str(kb_id) for kb_id in update_data["active_knowledge_base_ids"]]
         return await conversation_repo.update_conversation(
             self.db, db_conversation=conversation, update_data=update_data
         )
+
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
+    async def update_kb_settings(
+        self,
+        conversation_id: UUID,
+        active_knowledge_base_ids: list[str] | None,
+        user_id: UUID | None = None,
+    ) -> Conversation:
+        """Update active KB selection for a conversation.
+
+        Raises:
+            NotFoundError: If conversation does not exist or user has no access.
+        """
+        conversation = await self.get_conversation(conversation_id, user_id=user_id)
+        return await conversation_repo.update_conversation(
+            self.db,
+            db_conversation=conversation,
+            update_data={"active_knowledge_base_ids": active_knowledge_base_ids},
+        )
+{%- endif %}
 
     async def archive_conversation(
         self,
@@ -457,8 +523,6 @@ class ConversationService:
 
         # Enrich messages with rating data if user_id is provided
         if user_id is not None and items:
-            from app.repositories import message_rating_repo
-
             message_ids = [msg.id for msg in items]
             user_ratings = await message_rating_repo.get_user_ratings_for_messages(
                 self.db, message_ids=message_ids, user_id=user_id
@@ -808,6 +872,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
         user_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id: str | None = None,
+{%- endif %}
         *,
         skip: int = 0,
         limit: int = 50,
@@ -823,6 +890,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
             user_id=user_id,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=organization_id,
+{%- endif %}
             skip=skip,
             limit=limit,
             include_archived=include_archived,
@@ -831,6 +901,9 @@ class ConversationService:
             self.db,
 {%- if cookiecutter.use_jwt %}
             user_id=user_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=organization_id,
 {%- endif %}
             include_archived=include_archived,
         )
@@ -874,6 +947,9 @@ class ConversationService:
         search: str | None = None,
         user_id: str | None = None,
         include_archived: bool = False,
+        archived_only: bool = False,
+        sort_by: str = "updated_at",
+        sort_dir: str = "desc",
     ) -> "AdminConversationList":
         """Admin: list conversations with owner email and message counts."""
         from app.schemas.conversation_share import AdminConversationList, AdminConversationRead
@@ -885,6 +961,9 @@ class ConversationService:
             search=search,
             user_id=user_id,
             include_archived=include_archived,
+            archived_only=archived_only,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
         )
         items = [
             AdminConversationRead(
@@ -915,6 +994,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
             user_id=data.user_id,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=getattr(data, "organization_id", None),
+{%- endif %}
             title=data.title,
         )
 
@@ -938,9 +1020,35 @@ class ConversationService:
 {%- endif %}
         )
         update_data = data.model_dump(exclude_unset=True)
+        if "active_knowledge_base_ids" in update_data:
+            import json
+            ids = update_data["active_knowledge_base_ids"]
+            update_data["active_knowledge_base_ids"] = json.dumps([str(kb_id) for kb_id in ids]) if ids is not None else None
         return conversation_repo.update_conversation(
             self.db, db_conversation=conversation, update_data=update_data
         )
+
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
+    def update_kb_settings(
+        self,
+        conversation_id: str,
+        active_knowledge_base_ids: list[str] | None,
+        user_id: str | None = None,
+    ) -> Conversation:
+        """Update active KB selection for a conversation.
+
+        Raises:
+            NotFoundError: If conversation does not exist or user has no access.
+        """
+        import json
+        conversation = self.get_conversation(conversation_id, user_id=user_id)
+        serialized = json.dumps(active_knowledge_base_ids) if active_knowledge_base_ids is not None else None
+        return conversation_repo.update_conversation(
+            self.db,
+            db_conversation=conversation,
+            update_data={"active_knowledge_base_ids": serialized},
+        )
+{%- endif %}
 
     def archive_conversation(
         self,
@@ -1284,6 +1392,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
         user_id: str | None = None,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+        organization_id: str | None = None,
+{%- endif %}
         *,
         skip: int = 0,
         limit: int = 50,
@@ -1298,6 +1409,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
             user_id=user_id,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=organization_id,
+{%- endif %}
             skip=skip,
             limit=limit,
             include_archived=include_archived,
@@ -1305,6 +1419,9 @@ class ConversationService:
         total = await conversation_repo.count_conversations(
 {%- if cookiecutter.use_jwt %}
             user_id=user_id,
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=organization_id,
 {%- endif %}
             include_archived=include_archived,
         )
@@ -1347,6 +1464,9 @@ class ConversationService:
         search: str | None = None,
         user_id: str | None = None,
         include_archived: bool = False,
+        archived_only: bool = False,
+        sort_by: str = "updated_at",
+        sort_dir: str = "desc",
     ) -> "AdminConversationList":
         """Admin: list conversations with owner email and message counts."""
         from app.schemas.conversation_share import AdminConversationList, AdminConversationRead
@@ -1357,6 +1477,9 @@ class ConversationService:
             search=search,
             user_id=user_id,
             include_archived=include_archived,
+            archived_only=archived_only,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
         )
         items = [
             AdminConversationRead(
@@ -1386,6 +1509,9 @@ class ConversationService:
 {%- if cookiecutter.use_jwt %}
             user_id=data.user_id,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+            organization_id=getattr(data, "organization_id", None),
+{%- endif %}
             title=data.title,
         )
 
@@ -1409,9 +1535,30 @@ class ConversationService:
 {%- endif %}
         )
         update_data = data.model_dump(exclude_unset=True)
+        if "active_knowledge_base_ids" in update_data and update_data["active_knowledge_base_ids"] is not None:
+            update_data["active_knowledge_base_ids"] = [str(kb_id) for kb_id in update_data["active_knowledge_base_ids"]]
         return await conversation_repo.update_conversation(
             db_conversation=conversation, update_data=update_data
         )
+
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
+    async def update_kb_settings(
+        self,
+        conversation_id: str,
+        active_knowledge_base_ids: list[str] | None,
+        user_id: str | None = None,
+    ) -> Conversation:
+        """Update active KB selection for a conversation.
+
+        Raises:
+            NotFoundError: If conversation does not exist or user has no access.
+        """
+        conversation = await self.get_conversation(conversation_id, user_id=user_id)
+        return await conversation_repo.update_conversation(
+            db_conversation=conversation,
+            update_data={"active_knowledge_base_ids": active_knowledge_base_ids},
+        )
+{%- endif %}
 
     async def archive_conversation(
         self,

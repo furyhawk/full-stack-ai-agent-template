@@ -2,7 +2,7 @@
 """Tests for service layer."""
 {%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 {%- elif cookiecutter.use_sqlite %}
 
 from unittest.mock import MagicMock, patch
@@ -105,9 +105,31 @@ class TestUserServicePostgresql:
     @pytest.mark.anyio
     async def test_register_success(self, user_service: UserService, mock_user: MockUser):
         """Test registering a new user."""
-        with patch("app.services.user.user_repo") as mock_repo:
+        # Stub the count-of-users SELECT used by the first-user → app-admin
+        # promotion. Side effects we don't care about (welcome email, personal
+        # org creation, count query) are mocked out so the test stays focused
+        # on user_repo.create being invoked.
+        scalar_one_result = MagicMock()
+        scalar_one_result.scalar_one.return_value = 1
+        user_service.db.execute = AsyncMock(return_value=scalar_one_result)
+
+        with (
+            patch("app.services.user.user_repo") as mock_repo,
+{%- if cookiecutter.enable_teams %}
+            patch("app.services.user.OrganizationService") as mock_org_svc,
+{%- endif %}
+{%- if cookiecutter.enable_email %}
+            patch("app.services.user.get_email_service") as mock_email,
+{%- endif %}
+        ):
             mock_repo.get_by_email = AsyncMock(return_value=None)
             mock_repo.create = AsyncMock(return_value=mock_user)
+{%- if cookiecutter.enable_teams %}
+            mock_org_svc.return_value.create_personal_org = AsyncMock()
+{%- endif %}
+{%- if cookiecutter.enable_email %}
+            mock_email.return_value.send_welcome = AsyncMock()
+{%- endif %}
 
             user_in = UserCreate(
                 email="new@example.com",
@@ -250,24 +272,27 @@ class TestUserServiceSQLite:
         """Create a mock user."""
         return MockUser()
 
-    def test_get_by_id_success(self, user_service: UserService, mock_user: MockUser):
+    @pytest.mark.anyio
+    async def test_get_by_id_success(self, user_service: UserService, mock_user: MockUser):
         """Test getting user by ID successfully."""
         with patch("app.services.user.user_repo") as mock_repo:
             mock_repo.get_by_id = MagicMock(return_value=mock_user)
 
-            result = user_service.get_by_id(mock_user.id)
+            result = await user_service.get_by_id(mock_user.id)
 
             assert result == mock_user
 
-    def test_get_by_id_not_found(self, user_service: UserService):
+    @pytest.mark.anyio
+    async def test_get_by_id_not_found(self, user_service: UserService):
         """Test getting non-existent user raises NotFoundError."""
         with patch("app.services.user.user_repo") as mock_repo:
             mock_repo.get_by_id = MagicMock(return_value=None)
 
             with pytest.raises(NotFoundError):
-                user_service.get_by_id("nonexistent")
+                await user_service.get_by_id("nonexistent")
 
-    def test_authenticate_success(self, user_service: UserService, mock_user: MockUser):
+    @pytest.mark.anyio
+    async def test_authenticate_success(self, user_service: UserService, mock_user: MockUser):
         """Test successful authentication."""
         with (
             patch("app.services.user.user_repo") as mock_repo,
@@ -275,22 +300,31 @@ class TestUserServiceSQLite:
         ):
             mock_repo.get_by_email = MagicMock(return_value=mock_user)
 
-            result = user_service.authenticate("test@example.com", "password123")
+            result = await user_service.authenticate("test@example.com", "password123")
 
             assert result == mock_user
 
-    def test_register_success(self, user_service: UserService, mock_user: MockUser):
+    @pytest.mark.anyio
+    async def test_register_success(self, user_service: UserService, mock_user: MockUser):
         """Test registering a new user."""
-        with patch("app.services.user.user_repo") as mock_repo:
+        with (
+            patch("app.services.user.user_repo") as mock_repo,
+{%- if cookiecutter.enable_teams %}
+            patch("app.services.user.OrganizationService") as mock_org_svc,
+{%- endif %}
+        ):
             mock_repo.get_by_email = MagicMock(return_value=None)
             mock_repo.create = MagicMock(return_value=mock_user)
+{%- if cookiecutter.enable_teams %}
+            mock_org_svc.return_value.create_personal_org = MagicMock()
+{%- endif %}
 
             user_in = UserCreate(
                 email="new@example.com",
                 password="password123",
                 full_name="New User",
             )
-            result = user_service.register(user_in)
+            result = await user_service.register(user_in)
 
             assert result == mock_user
 {%- endif %}
@@ -347,9 +381,18 @@ class TestUserServiceMongoDB:
     @pytest.mark.anyio
     async def test_register_success(self, user_service: UserService, mock_user: MockUser):
         """Test registering a new user."""
-        with patch("app.services.user.user_repo") as mock_repo:
+        with (
+            patch("app.services.user.user_repo") as mock_repo,
+{%- if cookiecutter.enable_teams %}
+            patch("app.services.user.OrganizationService") as mock_org_svc,
+{%- endif %}
+        ):
             mock_repo.get_by_email = AsyncMock(return_value=None)
+            mock_repo.has_any = AsyncMock(return_value=False)
             mock_repo.create = AsyncMock(return_value=mock_user)
+{%- if cookiecutter.enable_teams %}
+            mock_org_svc.return_value.create_personal_org = AsyncMock()
+{%- endif %}
 
             user_in = UserCreate(
                 email="new@example.com",

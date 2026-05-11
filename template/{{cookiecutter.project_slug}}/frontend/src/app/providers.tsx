@@ -20,15 +20,13 @@ export function Providers({ children }: ProvidersProps) {
             retry: 1,
           },
         },
-      })
+      }),
   );
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
+        <TooltipProvider>{children}</TooltipProvider>
         <Toaster richColors position="bottom-right" />
       </ThemeProvider>
     </QueryClientProvider>

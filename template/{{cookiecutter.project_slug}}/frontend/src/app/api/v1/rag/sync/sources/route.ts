@@ -1,5 +1,4 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // GET /api/v1/rag/sync/sources - List sync sources
@@ -40,7 +39,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// Sync sources API route - not configured (enable_rag or use_jwt is false)
-{%- endif %}

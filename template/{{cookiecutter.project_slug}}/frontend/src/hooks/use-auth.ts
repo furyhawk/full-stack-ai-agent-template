@@ -10,8 +10,7 @@ import { ROUTES } from "@/lib/constants";
 
 export function useAuth() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, setUser, setLoading, logout } =
-    useAuthStore();
+  const { user, isAuthenticated, isLoading, setUser, setLoading, logout } = useAuthStore();
 
   // Check auth status on mount — always fetch fresh user data.
   // /auth/me returns the access_token in the body so we can use it for
@@ -51,19 +50,13 @@ export function useAuth() {
         setLoading(false);
       }
     },
-    [router, setUser, setLoading]
+    [router, setUser, setLoading],
   );
 
-  const register = useCallback(
-    async (data: RegisterRequest) => {
-      const response = await apiClient.post<{ id: string; email: string }>(
-        "/auth/register",
-        data
-      );
-      return response;
-    },
-    []
-  );
+  const register = useCallback(async (data: RegisterRequest) => {
+    const response = await apiClient.post<{ id: string; email: string }>("/auth/register", data);
+    return response;
+  }, []);
 
   const handleLogout = useCallback(async () => {
     try {

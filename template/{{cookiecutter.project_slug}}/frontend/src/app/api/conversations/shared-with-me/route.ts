@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const data = await backendFetch(
       `/api/v1/conversations/shared-with-me?skip=${skip}&limit=${limit}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
     return NextResponse.json(data);

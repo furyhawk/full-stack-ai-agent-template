@@ -8,14 +8,8 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof BackendApiError) {
-      return NextResponse.json(
-        { detail: "Backend service unavailable" },
-        { status: error.status }
-      );
+      return NextResponse.json({ detail: "Backend service unavailable" }, { status: error.status });
     }
-    return NextResponse.json(
-      { detail: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }

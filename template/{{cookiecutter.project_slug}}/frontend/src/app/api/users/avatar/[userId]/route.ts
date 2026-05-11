@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ userId: string }> },
 ) {
   try {
     const { userId } = await params;

@@ -1,12 +1,10 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ docId: string }> }
+  { params }: { params: Promise<{ docId: string }> },
 ) {
   try {
     const { docId } = await params;
@@ -16,7 +14,9 @@ export async function GET(
       headers["Authorization"] = `Bearer ${accessToken}`;
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/rag/documents/${docId}/download`, { headers });
+    const response = await fetch(`${BACKEND_URL}/api/v1/rag/documents/${docId}/download`, {
+      headers,
+    });
 
     if (!response.ok) {
       return NextResponse.json({ detail: "File not found" }, { status: response.status });
@@ -37,7 +37,3 @@ export async function GET(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG route - not configured
-{%- endif %}

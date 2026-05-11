@@ -3,7 +3,7 @@
 """Webhook database models using SQLModel (PostgreSQL async)."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
@@ -88,7 +88,7 @@ class WebhookDelivery(SQLModel, table=True):
 """Webhook database models (PostgreSQL async)."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
@@ -157,7 +157,7 @@ class WebhookDelivery(Base):
     attempt_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False, index=True
+        DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True
     )
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -170,7 +170,7 @@ class WebhookDelivery(Base):
 
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
@@ -264,7 +264,7 @@ class WebhookDelivery(SQLModel, table=True):
 
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
@@ -341,7 +341,7 @@ class WebhookDelivery(Base):
     attempt_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False, index=True
+        DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True
     )
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

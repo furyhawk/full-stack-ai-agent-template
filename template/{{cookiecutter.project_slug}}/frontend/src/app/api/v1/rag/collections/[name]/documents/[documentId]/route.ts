@@ -1,11 +1,9 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ name: string; documentId: string }> }
+  { params }: { params: Promise<{ name: string; documentId: string }> },
 ) {
   try {
     const { name, documentId } = await params;
@@ -27,7 +25,3 @@ export async function DELETE(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG route - not configured
-{%- endif %}

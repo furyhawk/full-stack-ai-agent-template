@@ -28,17 +28,17 @@ from app.core.middleware import RequestIDMiddleware
 from app.clients.redis import RedisClient
 {%- endif %}
 {%- if cookiecutter.enable_rag %}
-from app.rag.embeddings import EmbeddingService
+from app.services.rag.embeddings import EmbeddingService
 {%- if cookiecutter.use_milvus %}
-from app.rag.vectorstore import MilvusVectorStore
+from app.services.rag.vectorstore import MilvusVectorStore
 {%- elif cookiecutter.use_qdrant %}
-from app.rag.vectorstore import QdrantVectorStore
+from app.services.rag.vectorstore import QdrantVectorStore
 {%- elif cookiecutter.use_chromadb %}
-from app.rag.vectorstore import ChromaVectorStore
+from app.services.rag.vectorstore import ChromaVectorStore
 {%- elif cookiecutter.use_pgvector %}
-from app.rag.vectorstore import PgVectorStore
+from app.services.rag.vectorstore import PgVectorStore
 {%- endif %}
-from app.rag.vectorstore import BaseVectorStore
+from app.services.rag.vectorstore import BaseVectorStore
 {%- endif %}
 {%- endif %}
 
@@ -121,7 +121,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- if cookiecutter.enable_reranker %}
     # Initialize and warmup reranker (downloads model or validates API key)
     try:
-        from app.rag.reranker import RerankService
+        from app.services.rag.reranker import RerankService
         rerank_service = RerankService(settings=settings.rag)
         rerank_service.warmup()
         state["rerank_service"] = rerank_service
@@ -168,8 +168,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- if cookiecutter.use_telegram %}
 
     # === Telegram Channel Polling ===
-    from app.channels import register_adapter
-    from app.channels.telegram import TelegramAdapter
+    from app.services.channels import register_adapter
+    from app.services.channels.telegram import TelegramAdapter
     from app.core.channel_crypto import decrypt_token
     _telegram_adapter = TelegramAdapter()
     register_adapter(_telegram_adapter)
@@ -200,8 +200,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- if cookiecutter.use_slack %}
 
     # === Slack Adapter (Socket Mode polling for dev, Events API for prod) ===
-    from app.channels import register_adapter as _slack_register
-    from app.channels.slack import SlackAdapter
+    from app.services.channels import register_adapter as _slack_register
+    from app.services.channels.slack import SlackAdapter
     from app.core.channel_crypto import decrypt_token as _slack_decrypt
     _slack_adapter = SlackAdapter()
     _slack_register(_slack_adapter)
@@ -227,6 +227,50 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
         logger.info("Slack: Socket Mode started for %d bot(s)", len(_slack_bots))
     except Exception as _slack_exc:
         logger.error("Slack: failed to start Socket Mode: %s", _slack_exc)
+{%- endif %}
+
+{%- if cookiecutter.enable_seed_admin and (cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_mongodb) %}
+    # === Auto-promote FIRST_ADMIN_EMAIL to app-admin ===
+    from app.core.config import settings as _settings
+    _first_admin = getattr(_settings, "FIRST_ADMIN_EMAIL", "")
+    if _first_admin:
+{%- if cookiecutter.use_postgresql %}
+        from app.db.session import get_db_context as _get_db_ctx
+        from app.repositories import user_repo as _user_repo
+        try:
+            async with _get_db_ctx() as _db:
+                _u = await _user_repo.get_by_email(_db, _first_admin)
+                if _u and not getattr(_u, "is_app_admin", False):
+                    _u.is_app_admin = True
+                    await _db.flush()
+                    logger.info("Auto-promoted %s to app-admin (FIRST_ADMIN_EMAIL)", _first_admin)
+        except Exception as _e:
+            logger.warning("FIRST_ADMIN_EMAIL promotion failed: %s", _e)
+{%- elif cookiecutter.use_sqlite %}
+        from app.db.session import get_db_session as _get_db_s
+        from app.repositories import user_repo as _user_repo
+        try:
+            with next(_get_db_s()) as _db:
+                _u = _user_repo.get_by_email(_db, _first_admin)
+                if _u and not getattr(_u, "is_app_admin", False):
+                    _u.is_app_admin = True
+                    _db.flush()
+                    logger.info("Auto-promoted %s to app-admin (FIRST_ADMIN_EMAIL)", _first_admin)
+        except Exception as _e:
+            logger.warning("FIRST_ADMIN_EMAIL promotion failed: %s", _e)
+{%- elif cookiecutter.use_mongodb %}
+        from app.db.session import init_db as _init_db
+        from app.repositories import user_repo as _user_repo
+        try:
+            await _init_db()
+            _u = await _user_repo.get_by_email(_first_admin)
+            if _u and not getattr(_u, "is_app_admin", False):
+                _u.is_app_admin = True
+                await _u.save()
+                logger.info("Auto-promoted %s to app-admin (FIRST_ADMIN_EMAIL)", _first_admin)
+        except Exception as _e:
+            logger.warning("FIRST_ADMIN_EMAIL promotion failed: %s", _e)
+{%- endif %}
 {%- endif %}
 
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag or cookiecutter.use_telegram or cookiecutter.use_slack %}
@@ -331,20 +375,24 @@ def create_app() -> FastAPI:
             "description": "Session management - view and manage active login sessions",
         },
 {%- endif %}
+{%- if cookiecutter.use_ai %}
         {
             "name": "conversations",
             "description": "AI conversation persistence - manage chat history",
         },
+{%- endif %}
 {%- if cookiecutter.enable_webhooks %}
         {
             "name": "webhooks",
             "description": "Webhook management - subscribe to events and manage deliveries",
         },
 {%- endif %}
+{%- if cookiecutter.use_ai %}
         {
             "name": "agent",
             "description": "AI agent WebSocket endpoint for real-time chat",
         },
+{%- endif %}
 {%- if cookiecutter.enable_websockets %}
         {
             "name": "websocket",
@@ -420,7 +468,10 @@ def create_app() -> FastAPI:
     )
 
 {%- if cookiecutter.enable_logfire %}
-    # Logfire instrumentation
+    # Logfire instrumentation. setup_logfire() is also called from the lifespan
+    # for the runtime app, but we call it here too so that import-time test
+    # clients (which never run lifespan) silence the "configure first" warning.
+    setup_logfire()
     instrument_app(app)
 {%- endif %}
 
@@ -465,11 +516,30 @@ def create_app() -> FastAPI:
         inprogress_name="http_requests_inprogress",
         inprogress_labels=True,
     )
-    instrumentator.instrument(app).expose(
-        app,
-        endpoint=settings.PROMETHEUS_METRICS_PATH,
-        include_in_schema=settings.PROMETHEUS_INCLUDE_IN_SCHEMA,
-    )
+    # Optional Bearer-token guard so the metrics endpoint can be exposed on a
+    # public ingress without leaking internals. When PROMETHEUS_AUTH_TOKEN is
+    # empty the endpoint is unauthenticated (typical for private networks).
+    if settings.PROMETHEUS_AUTH_TOKEN:
+        from fastapi import Depends, Header, HTTPException, status as http_status
+
+        def _verify_metrics_token(authorization: str = Header(default="")) -> None:
+            expected = f"Bearer {settings.PROMETHEUS_AUTH_TOKEN}"
+            import secrets as _secrets
+            if not _secrets.compare_digest(authorization, expected):
+                raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED)
+
+        instrumentator.instrument(app).expose(
+            app,
+            endpoint=settings.PROMETHEUS_METRICS_PATH,
+            include_in_schema=settings.PROMETHEUS_INCLUDE_IN_SCHEMA,
+            dependencies=[Depends(_verify_metrics_token)],
+        )
+    else:
+        instrumentator.instrument(app).expose(
+            app,
+            endpoint=settings.PROMETHEUS_METRICS_PATH,
+            include_in_schema=settings.PROMETHEUS_INCLUDE_IN_SCHEMA,
+        )
 {%- endif %}
 
 {%- if cookiecutter.enable_rate_limiting %}

@@ -241,8 +241,8 @@ class TestRatingFeatureFilesGenerated:
         assert page_path.exists(), "admin/ratings/page.tsx should be generated"
         content = page_path.read_text()
         assert "BarChart" in content or "recharts" in content
-        assert "ratingsTitle" in content
-        assert "viewConversation" in content
+        assert "AdminRatingsPage" in content
+        assert "conversation_id" in content
 
     def test_frontend_types_include_rating(self, project_with_ratings: Path) -> None:
         """Test that frontend types include rating enums."""
@@ -401,7 +401,7 @@ class TestRatingFeatureCodeQuality:
             ],
             capture_output=True,
             text=True,
-            cwd=project_with_ratings,
+            cwd=project_with_ratings / "backend",
         )
         assert result.returncode == 0, f"Ty failed for rating files:\n{result.stdout}"
 

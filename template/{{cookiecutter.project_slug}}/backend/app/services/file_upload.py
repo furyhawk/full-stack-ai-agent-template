@@ -10,6 +10,7 @@ from typing import Any
 {%- if cookiecutter.use_all_pdf_parsers or cookiecutter.use_llamaparse %}
 import os
 import tempfile
+from app.core.config import settings
 {%- endif %}
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,7 +109,6 @@ class FileUploadService:
         """Extract text from PDF using LlamaParse."""
         try:
             from llama_cloud import AsyncLlamaCloud
-            from app.core.config import settings
 
             if not settings.LLAMAPARSE_API_KEY:
                 logger.warning("LLAMAPARSE_API_KEY not set, falling back to PyMuPDF")
@@ -131,7 +131,10 @@ class FileUploadService:
             return self._parse_pdf_pymupdf(data)
 
     async def _parse_pdf_liteparse(self, data: bytes) -> str | None:
-        """Extract text from PDF using LiteParse."""
+        """Extract text from PDF using LiteParse.
+
+        Falls back to PyMuPDF on any failure so chat uploads stay best-effort.
+        """
         try:
             from liteparse import LiteParse
 
@@ -140,11 +143,17 @@ class FileUploadService:
                 temp_path = f.name
             try:
                 parser = LiteParse()
-                result = await parser.aparse(temp_path)
-                pages = result.pages if hasattr(result, "pages") else [result]
-                text = "\n\n".join(
-                    p.content if hasattr(p, "content") else str(p) for p in pages
+                ocr_url = getattr(settings, "LITEPARSE_OCR_SERVER_URL", "") or None
+                ocr_lang = getattr(settings, "LITEPARSE_OCR_LANGUAGE", "en")
+                timeout_s = float(getattr(settings, "LITEPARSE_TIMEOUT_SECONDS", 600.0))
+                result = await parser.parse_async(
+                    temp_path,
+                    ocr_enabled=getattr(settings, "RAG_ENABLE_OCR", False),
+                    ocr_server_url=ocr_url,
+                    ocr_language=ocr_lang,
+                    timeout=timeout_s,
                 )
+                text = "\n\n".join(p.text for p in result.pages if p.text.strip())
                 return text if text.strip() else None
             finally:
                 os.unlink(temp_path)
@@ -154,7 +163,6 @@ class FileUploadService:
 
     async def _parse_pdf_content(self, data: bytes) -> str | None:
         """Parse PDF using the parser selected by CHAT_PDF_PARSER env var."""
-        from app.core.config import settings
 
         parser = getattr(settings, "CHAT_PDF_PARSER", "pymupdf")
         if parser == "llamaparse":
@@ -272,8 +280,11 @@ creation. Moves parsing helpers and file classification out of the route layer.
 import logging
 from typing import Any
 {%- if cookiecutter.use_all_pdf_parsers or cookiecutter.use_llamaparse %}
+import asyncio
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from app.core.config import settings
 {%- endif %}
 
 from sqlalchemy.orm import Session
@@ -371,8 +382,6 @@ class FileUploadService:
     def _parse_pdf_llamaparse(self, data: bytes) -> str | None:
         """Extract text from PDF using LlamaParse."""
         try:
-            import asyncio
-            from app.core.config import settings
 
             if not settings.LLAMAPARSE_API_KEY:
                 logger.warning("LLAMAPARSE_API_KEY not set, falling back to PyMuPDF")
@@ -391,7 +400,8 @@ class FileUploadService:
                         )
                     return "\n\n".join(p.markdown for p in result.pages) if result.pages else None
 
-                return asyncio.run(_parse())
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    return pool.submit(asyncio.run, _parse()).result()
             finally:
                 os.unlink(temp_path)
         except Exception as e:
@@ -399,7 +409,10 @@ class FileUploadService:
             return self._parse_pdf_pymupdf(data) if hasattr(self, '_parse_pdf_pymupdf') else None
 
     def _parse_pdf_liteparse(self, data: bytes) -> str | None:
-        """Extract text from PDF using LiteParse (sync)."""
+        """Extract text from PDF using LiteParse (sync).
+
+        Falls back to PyMuPDF on any failure so chat uploads stay best-effort.
+        """
         try:
             from liteparse import LiteParse
 
@@ -408,11 +421,17 @@ class FileUploadService:
                 temp_path = f.name
             try:
                 parser = LiteParse()
-                result = parser.parse(temp_path)
-                pages = result.pages if hasattr(result, "pages") else [result]
-                text = "\n\n".join(
-                    p.content if hasattr(p, "content") else str(p) for p in pages
+                ocr_url = getattr(settings, "LITEPARSE_OCR_SERVER_URL", "") or None
+                ocr_lang = getattr(settings, "LITEPARSE_OCR_LANGUAGE", "en")
+                timeout_s = float(getattr(settings, "LITEPARSE_TIMEOUT_SECONDS", 600.0))
+                result = parser.parse(
+                    temp_path,
+                    ocr_enabled=getattr(settings, "RAG_ENABLE_OCR", False),
+                    ocr_server_url=ocr_url,
+                    ocr_language=ocr_lang,
+                    timeout=timeout_s,
                 )
+                text = "\n\n".join(p.text for p in result.pages if p.text.strip())
                 return text if text.strip() else None
             finally:
                 os.unlink(temp_path)
@@ -422,7 +441,6 @@ class FileUploadService:
 
     def _parse_pdf_content(self, data: bytes) -> str | None:
         """Parse PDF using the parser selected by CHAT_PDF_PARSER env var."""
-        from app.core.config import settings
 
         parser = getattr(settings, "CHAT_PDF_PARSER", "pymupdf")
         if parser == "llamaparse":

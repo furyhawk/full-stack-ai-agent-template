@@ -1,15 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage, ChatMessageFile } from "@/types";
 import { ToolCallCard } from "./tool-call-card";
 import { MarkdownContent } from "./markdown-content";
 import { CopyButton } from "./copy-button";
-{%- if cookiecutter.use_jwt %}
 import { RatingButtons } from "./rating-buttons";
-import { useChatStore } from "@/stores";
-{%- endif %}
-import { User, Bot } from "lucide-react";
+import { useChatStore, useFilePreviewStore } from "@/stores";
+import { Bot, FileText, Paperclip, RefreshCw, User } from "lucide-react";
 import Image from "next/image";
 import { useAuthStore } from "@/stores";
 import { getFileUrl } from "@/lib/file-api";
@@ -17,28 +15,28 @@ import { getFileUrl } from "@/lib/file-api";
 interface MessageItemProps {
   message: ChatMessage;
   groupPosition?: "first" | "middle" | "last" | "single";
+  onRegenerate?: () => void;
 }
 
-export function MessageItem({ message, groupPosition }: MessageItemProps) {
+export function MessageItem({ message, groupPosition, onRegenerate }: MessageItemProps) {
   const isUser = message.role === "user";
-{%- if cookiecutter.use_jwt %}
   const updateMessage = useChatStore((state) => state.updateMessage);
-{%- endif %}
+  const openPreview = useFilePreviewStore((s) => s.open);
   const { user: authUser } = useAuthStore();
   const isGrouped = groupPosition && groupPosition !== "single";
 
   return (
     <div
       className={cn(
-        "group flex gap-2 sm:gap-4 relative overflow-visible",
+        "group relative flex gap-2 overflow-visible sm:gap-4",
         isGrouped ? "py-2 sm:py-3" : "py-3 sm:py-4",
-        isUser && "flex-row-reverse"
+        isUser && "flex-row-reverse",
       )}
     >
       {/* Timeline connector line for grouped messages */}
       {isGrouped && !isUser && (
         <div
-          className="absolute left-[15px] sm:left-[17px] w-0.5 bg-orange-500/40"
+          className="absolute left-[15px] w-0.5 bg-orange-500/40 sm:left-[17px]"
           style={
             groupPosition === "first"
               ? { top: "24px", bottom: "0" }
@@ -51,76 +49,132 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
 
       <div
         className={cn(
-          "flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center z-10 overflow-hidden",
+          "z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-9 sm:w-9",
           isUser ? "bg-primary text-primary-foreground" : "bg-orange-500/10 text-orange-500",
-          isGrouped && !isUser && "ring-2 ring-background"
+          isGrouped && !isUser && "ring-background ring-2",
         )}
       >
         {isUser && authUser?.avatar_url ? (
-          <Image src={`/api/users/avatar/${authUser.id}`} alt="" width={36} height={36} className="h-full w-full object-cover" unoptimized />
-        ) : isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4 sm:h-5 sm:w-5" />}
+          <Image
+            src={`/api/users/avatar/${authUser.id}`}
+            alt=""
+            width={36}
+            height={36}
+            className="h-full w-full object-cover"
+            unoptimized
+          />
+        ) : isUser ? (
+          <User className="h-4 w-4" />
+        ) : (
+          <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
+        )}
       </div>
 
-      <div className={cn(
-        "flex-1 space-y-2 overflow-hidden max-w-[88%] sm:max-w-[85%]",
-        isUser && "flex flex-col items-end"
-      )}>
-        {/* Attached images */}
-        {isUser && message.fileIds && message.fileIds.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {message.fileIds.map((fileId) => (
-              <a
-                key={fileId}
-                href={getFileUrl(fileId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block overflow-hidden rounded-xl border"
-              >
-                <Image
-                  src={getFileUrl(fileId)}
-                  alt="Attached file"
-                  width={320}
-                  height={256}
-                  className="h-auto w-auto max-h-64 max-w-xs object-contain"
-                  unoptimized
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </a>
-            ))}
-          </div>
+      <div
+        className={cn(
+          "max-w-[88%] flex-1 space-y-2 overflow-hidden sm:max-w-[85%]",
+          isUser && "flex flex-col items-end",
         )}
+      >
+        {/* Attachments — images render as previews, others as file chips */}
+        {isUser && (() => {
+          const attachments: AttachmentDisplay[] =
+            message.files && message.files.length > 0
+              ? message.files.map((f) => ({ kind: kindFor(f), file: f }))
+              : (message.fileIds ?? []).map((id) => ({ kind: "unknown" as const, id }));
+          if (attachments.length === 0) return null;
+          return (
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((att) => (att.kind === "image" ? (
+                <button
+                  type="button"
+                  key={att.file.id}
+                  onClick={() => openPreview(att.file)}
+                  className="hover:ring-foreground/30 block overflow-hidden rounded-xl border ring-2 ring-transparent transition-all"
+                  title={`Open ${att.file.filename}`}
+                >
+                  <Image
+                    src={getFileUrl(att.file.id)}
+                    alt={att.file.filename}
+                    width={320}
+                    height={256}
+                    className="h-auto max-h-64 w-auto max-w-xs object-contain"
+                    unoptimized
+                  />
+                </button>
+              ) : "file" in att ? (
+                <FileChip
+                  key={att.file.id}
+                  filename={att.file.filename}
+                  hint={att.file.mime_type}
+                  onClick={() => openPreview(att.file)}
+                />
+              ) : (
+                <FileChip
+                  key={att.id}
+                  filename="Attached file"
+                  href={getFileUrl(att.id)}
+                />
+              )))}
+            </div>
+          );
+        })()}
 
         {/* Thinking indicator */}
-        {!isUser && message.isStreaming && !message.content && (!message.toolCalls || message.toolCalls.length === 0) && (
-          <div className="bg-muted flex items-center gap-2 rounded-2xl rounded-tl-sm px-4 py-2.5" role="status" aria-live="polite">
-            <div className="flex gap-1" aria-hidden="true">
-              <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" />
-              <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" />
-              <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" />
+        {!isUser &&
+          message.isStreaming &&
+          !message.content &&
+          (!message.toolCalls || message.toolCalls.length === 0) && (
+            <div
+              className="bg-muted flex items-center gap-2 rounded-2xl rounded-tl-sm px-4 py-2.5"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex gap-1" aria-hidden="true">
+                <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" />
+                <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" />
+                <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" />
+              </div>
+              <span className="text-muted-foreground text-xs">Thinking...</span>
             </div>
-            <span className="text-muted-foreground text-xs">Thinking...</span>
-          </div>
+          )}
+
+        {/* Reasoning trace from extended-thinking models */}
+        {!isUser && message.thinking && (
+          <details
+            className="border-foreground/10 bg-muted/40 group rounded-2xl rounded-tl-sm border px-3 py-2 sm:px-4"
+            open={Boolean(message.isStreaming)}
+          >
+            <summary className="text-foreground/55 hover:text-foreground/80 flex cursor-pointer items-center gap-2 font-mono text-[10px] tracking-wider uppercase select-none">
+              <span className="bg-foreground/30 inline-block h-1.5 w-1.5 rounded-full" />
+              Thinking
+              {message.isStreaming && (
+                <span className="bg-foreground/40 inline-block h-1 w-1 animate-pulse rounded-full" />
+              )}
+            </summary>
+            <pre className="text-foreground/65 mt-2 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+              {message.thinking}
+            </pre>
+          </details>
         )}
 
         {/* Message bubble */}
         {message.content && (
-          <div className={cn(
-            "relative rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5",
-            isUser
-              ? "bg-primary text-primary-foreground rounded-tr-sm"
-              : "bg-muted rounded-tl-sm"
-          )}>
+          <div
+            className={cn(
+              "relative rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5",
+              isUser
+                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                : "bg-muted rounded-tl-sm",
+            )}
+          >
             {isUser ? (
-              <p className="whitespace-pre-wrap break-words text-sm">
-                {message.content}
-              </p>
+              <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
             ) : (
-              <div className="text-sm prose-sm max-w-none">
+              <div className="prose-sm max-w-none text-sm">
                 <MarkdownContent content={message.content} />
                 {message.isStreaming && (
-                  <span className="inline-block w-1.5 h-4 ml-1 bg-current animate-pulse rounded-full" />
+                  <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-current" />
                 )}
               </div>
             )}
@@ -128,7 +182,7 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
         )}
 
         {message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="space-y-2 w-full">
+          <div className="w-full space-y-2">
             {message.toolCalls.map((toolCall) => (
               <ToolCallCard key={toolCall.id} toolCall={toolCall} />
             ))}
@@ -139,17 +193,30 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
           <div className={cn("flex items-center gap-2", isUser && "flex-row-reverse")}>
             {message.timestamp && (
               <span className="text-muted-foreground text-[10px]">
-                {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {new Date(message.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </span>
             )}
             <CopyButton
               text={message.content}
               className={cn(
                 "h-6 w-6 rounded-md sm:opacity-0 sm:group-hover:opacity-100",
-                isUser ? "bg-secondary hover:bg-secondary/80" : "bg-muted hover:bg-muted/80"
+                isUser ? "bg-secondary hover:bg-secondary/80" : "bg-muted hover:bg-muted/80",
               )}
             />
-{%- if cookiecutter.use_jwt %}
+            {!isUser && onRegenerate && (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                title="Regenerate response"
+                aria-label="Regenerate response"
+                className="bg-muted hover:bg-muted/80 text-foreground/70 hover:text-foreground inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            )}
             {!isUser && (
               <RatingButtons
                 messageId={message.id}
@@ -166,10 +233,74 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
                 }}
               />
             )}
-{%- endif %}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// --- Attachment helpers ---------------------------------------------------
+
+type AttachmentDisplay =
+  | { kind: "image"; file: ChatMessageFile }
+  | { kind: "file"; file: ChatMessageFile }
+  | { kind: "unknown"; id: string };
+
+function kindFor(file: ChatMessageFile): "image" | "file" {
+  if (file.file_type === "image") return "image";
+  if (file.mime_type.startsWith("image/")) return "image";
+  return "file";
+}
+
+function FileChip({
+  filename,
+  hint,
+  onClick,
+  href,
+}: {
+  filename: string;
+  hint?: string;
+  /** When provided, clicking opens the file in the preview panel. */
+  onClick?: () => void;
+  /** Fallback for legacy attachments without full metadata — opens in new tab. */
+  href?: string;
+}) {
+  const ext = filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : null;
+  const className =
+    "border-foreground/15 bg-card hover:border-foreground/40 inline-flex max-w-xs items-center gap-2 rounded-xl border px-3 py-2 transition-colors text-left";
+  const inner = (
+    <>
+      <span className="bg-foreground/8 text-foreground/65 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+        <FileText className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="text-foreground block truncate text-sm font-medium">{filename}</span>
+        {ext && (
+          <span className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+            {ext}
+          </span>
+        )}
+      </span>
+      <Paperclip className="text-foreground/40 h-3.5 w-3.5 shrink-0" />
+    </>
+  );
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className} title={hint ?? filename}>
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <a
+      href={href ?? "#"}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      title={hint ?? filename}
+    >
+      {inner}
+    </a>
   );
 }

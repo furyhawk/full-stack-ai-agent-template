@@ -20,6 +20,9 @@ This document describes all variables available in `cookiecutter.json` for the f
 - [Development Tools](#development-tools)
 - [Deployment](#deployment)
 - [Frontend](#frontend)
+- [Email](#email)
+- [Teams & Billing](#teams--billing)
+- [Embed & White-label](#embed--white-label)
 
 ---
 
@@ -91,6 +94,13 @@ These variables are set automatically by the generator.
 | `use_jwt` | bool | `true` | JWT authentication is enabled | Always true |
 | `use_api_key` | bool | `true` | API Key authentication is enabled | Always true |
 | `use_auth` | bool | `true` | Authentication is enabled | Always true |
+| `auth_mode` | string | `"local"` | Auth architecture: `local` (app manages passwords/JWTs) or `delegated` (external IdP like Auth0, Clerk, Cognito, Keycloak) | - |
+| `use_local_auth` | bool | `true` | Local auth is active (app issues its own JWTs) | Computed from `auth_mode` |
+| `use_delegated_auth` | bool | `false` | Delegated auth is active (external IdP issues tokens) | Computed from `auth_mode` |
+| `use_shared_secret_jwt` | bool | `false` | IdP tokens validated with a shared HS256 secret | Computed from `auth_mode` + IdP config |
+| `use_jwks_idp` | bool | `false` | IdP tokens validated via JWKS endpoint (RS256/ES256) | Computed from `auth_mode` + IdP config |
+| `use_external_user_id_in_conversations` | bool | `false` | Store external IdP user ID on conversation records | Requires `use_delegated_auth` |
+| `use_all_providers` | bool | `false` | Enable all LLM providers in generated config | Computed from LLM provider selection |
 
 ---
 
@@ -102,6 +112,8 @@ These variables are set automatically by the generator.
 | `enable_oauth` | bool | `false` | OAuth is enabled | Computed from `oauth_provider` |
 | `enable_oauth_google` | bool | `false` | Google OAuth is enabled | Computed from `oauth_provider` |
 | `enable_session_management` | bool | `false` | Enable session management for OAuth | Requires OAuth |
+| `allowed_email_domains` | string | `""` | Comma-separated list of allowed email domains for OAuth sign-in (e.g. `"example.com,corp.io"`). Empty = allow all | - |
+| `enable_email_domain_allowlist` | bool | `false` | Enable email domain restriction for OAuth sign-in | Computed from `allowed_email_domains` |
 
 ---
 
@@ -183,9 +195,14 @@ These variables are set automatically by the generator.
 | `enable_file_storage` | bool | `false` | Enable file upload/storage | - |
 | `enable_cors` | bool | `true` | Enable CORS middleware | - |
 | `enable_webhooks` | bool | `false` | Enable webhook support | - |
-| `enable_conversation_persistence` | bool | `true` | Enable conversation persistence (always enabled) | Always true |
+| `enable_conversation_persistence` | bool | `true` | Enable conversation persistence (derived from `use_ai`) | Computed from `use_ai` |
 | `include_example_crud` | bool | `false` | Include example CRUD endpoints (always disabled) | Always false |
 | `enable_i18n` | bool | `true` | Enable internationalization in frontend (always enabled) | Always true |
+| `seed_admin_email` | string | `""` | Email of a user to auto-promote to app-admin on first startup (via `FIRST_ADMIN_EMAIL` env var) | - |
+| `enable_seed_admin` | bool | `false` | Enable startup auto-promotion of `seed_admin_email` to app-admin | Computed from `seed_admin_email` |
+| `embed_allowed_origins` | string | `""` | Comma-separated origins allowed to embed the app in an iframe (e.g. `"https://parent.com"`). Sets CSP `frame-ancestors` and CORS origins | - |
+| `enable_embed_mode` | bool | `false` | Enable iframe embed mode: relaxes `frame-ancestors`, gates `/login` + `/register` pages | Computed from `embed_allowed_origins` |
+| `enable_brand_from_config` | bool | `false` | Enable runtime brand color/logo override from `NEXT_PUBLIC_BRAND_COLOR` and `NEXT_PUBLIC_BRAND_LOGO_URL` env vars (white-label) | Requires frontend |
 
 ---
 
@@ -249,7 +266,8 @@ These variables are set automatically by the generator.
 
 | Variable | Type | Default | Description | Dependencies |
 |----------|------|---------|-------------|--------------|
-| `ai_framework` | enum | `"pydantic_ai"` | AI framework. Values: `pydantic_ai`, `langchain`, `langgraph`, `crewai`, `deepagents`, `pydantic_deep` | - |
+| `ai_framework` | enum | `"pydantic_ai"` | AI framework. Values: `pydantic_ai`, `langchain`, `langgraph`, `crewai`, `deepagents`, `pydantic_deep`, `none` | - |
+| `use_ai` | bool | `true` | Any AI framework is selected (false when `ai_framework=none`) | Computed from `ai_framework` |
 | `use_pydantic_ai` | bool | `true` | PydanticAI is selected | Computed from `ai_framework` |
 | `use_langchain` | bool | `false` | LangChain is selected | Computed from `ai_framework` |
 | `use_langgraph` | bool | `false` | LangGraph (ReAct agent) is selected | Computed from `ai_framework` |
@@ -263,7 +281,8 @@ These variables are set automatically by the generator.
 | `use_google` | bool | `false` | Google Gemini is selected | Computed from `llm_provider` |
 | `use_openrouter` | bool | `false` | OpenRouter is selected | Computed from `llm_provider` |
 | `enable_langsmith` | bool | `false` | Enable LangSmith observability (tracing, prompt management) | Requires LangChain, LangGraph, or DeepAgents |
-| `enable_web_search` | bool | `false` | Enable Tavily web search tool for AI agents | - |
+| `enable_web_search` | bool | `false` | Enable WebSearch capability for PydanticAI agents | PydanticAI only |
+| `enable_web_fetch` | bool | `false` | Enable WebFetch capability for PydanticAI agents | PydanticAI only |
 
 **Notes:**
 
@@ -336,6 +355,76 @@ These variables are set automatically by the generator.
 | `brand_color` | string | `"blue"` | Brand color preset (blue, green, red, violet, orange) | Requires frontend |
 | `brand_color_hue` | string | `"250"` | oklch hue value for the brand color | Computed from `brand_color` |
 | `backend_port` | int | `8000` | Port for backend server | - |
+| `enable_marketing_site` | bool | `false` | Include public marketing pages (landing, pricing, testimonials, changelog) in the Next.js frontend | Requires frontend |
+| `enable_changelog` | bool | `false` | Include a public `/changelog` page listing product updates | Requires `enable_marketing_site` |
+| `enable_comparison_pages` | bool | `false` | Include competitor comparison landing pages (`/vs/competitor-name`) | Requires `enable_marketing_site` |
+| `enable_testimonials` | bool | `false` | Include testimonial/social-proof sections on marketing pages | Requires `enable_marketing_site` |
+| `enable_status_badge` | bool | `false` | Include a live status badge on the frontend that links to a status page | Requires frontend |
+| `enable_affiliate_program` | bool | `false` | Include affiliate/referral tracking pages and hooks | Requires frontend |
+| `enable_admin_features_users` | bool | `false` | Include admin user management UI (`/admin/users`) | Requires frontend + JWT |
+| `enable_admin_features_organizations` | bool | `false` | Include admin organization browser UI (`/admin/organizations`) | Requires frontend + `enable_teams` |
+| `enable_admin_features_subscriptions` | bool | `false` | Include admin subscription management UI (`/admin/subscriptions`) | Requires frontend + `enable_billing` |
+| `enable_admin_features_stripe_events` | bool | `false` | Include admin Stripe event log UI (`/admin/stripe-events`) | Requires frontend + `enable_billing` |
+| `enable_admin_features_usage` | bool | `false` | Include admin usage & credits dashboard UI (`/admin/usage`) | Requires frontend + `enable_credits_system` |
+| `enable_admin_features_audit_log` | bool | `false` | Include admin audit log UI (`/admin/audit-log`) | Requires frontend |
+| `enable_admin_features_system_health` | bool | `false` | Include admin system health / status dashboard UI (`/admin/health`) | Requires frontend |
+| `enable_storybook` | bool | `false` | Include Storybook component playground (`frontend/.storybook/`) | Requires frontend |
+
+---
+
+## Teams & Billing
+
+| Variable | Type | Default | Description | Dependencies |
+|----------|------|---------|-------------|--------------|
+| `enable_teams` | bool | `false` | Enable multi-tenant teams: Organizations, OrganizationMembers, Invitations, role-based access (OWNER/ADMIN/MEMBER/VIEWER), Personal Org auto-create on signup | Requires JWT auth + SQL DB |
+| `tenancy` | enum | `"single"` | Tenancy mode. Values: `single` (one workspace), `multi_org` (per-org isolation), `platform` (platform-level multi-tenancy with cross-org admin) | Requires `enable_teams` for non-single |
+| `tenancy_single` | bool | `true` | Single-tenant mode | Computed from `tenancy` |
+| `tenancy_multi_org` | bool | `false` | Multi-org tenancy mode | Computed from `tenancy` |
+| `tenancy_platform` | bool | `false` | Platform tenancy mode | Computed from `tenancy` |
+| `enable_per_org_quotas` | bool | `false` | Enable per-organization resource quotas (API calls, storage, seats) | Requires `enable_teams` |
+| `enable_billing` | bool | `false` | Enable Stripe billing: Plans, Prices, Subscriptions, checkout flow, customer portal, webhook handler | Requires `enable_teams` |
+| `payment_provider` | enum | `"stripe"` | Payment provider. Values: `stripe`, `paddle`, `lemonsqueezy`, `polar` | Requires `enable_billing` |
+| `payment_provider_stripe` | bool | `true` | Stripe is selected (fully implemented) | Computed from `payment_provider` |
+| `payment_provider_paddle` | bool | `false` | Paddle is selected (flag only) | Computed from `payment_provider` |
+| `payment_provider_lemonsqueezy` | bool | `false` | LemonSqueezy is selected (flag only) | Computed from `payment_provider` |
+| `payment_provider_polar` | bool | `false` | Polar is selected (flag only) | Computed from `payment_provider` |
+| `billing_model` | enum | `"subscription"` | Billing model. Values: `subscription`, `usage`, `hybrid`, `one_time` | Requires `enable_billing` |
+| `billing_model_subscription` | bool | `true` | Subscription billing (fully implemented) | Computed from `billing_model` |
+| `billing_model_usage` | bool | `false` | Usage-based billing (flag only) | Computed from `billing_model` |
+| `billing_model_hybrid` | bool | `false` | Hybrid billing (flag only) | Computed from `billing_model` |
+| `billing_model_one_time` | bool | `false` | One-time payment billing (flag only) | Computed from `billing_model` |
+| `enable_credits_system` | bool | `false` | Enable credit-based usage metering: credit balance per org, usage events, subscription grants, top-up purchases | Requires `enable_billing` |
+| `enable_usage_anomaly_detection` | bool | `false` | Enable hourly usage spike detection (alerts when current-hour credits exceed 3× rolling 24h average) | Requires `enable_credits_system` |
+| `enable_usage_dashboard` | bool | `false` | Enable admin usage dashboard routes (`/admin/usage/*`) | Requires `enable_credits_system` |
+| `enable_slack_alerts` | bool | `false` | Send anomaly-detection alerts to a Slack webhook URL (`SLACK_ANOMALY_WEBHOOK_URL`) | Requires `enable_usage_anomaly_detection` |
+| `billing_default_currency` | string | `"usd"` | Default Stripe currency (ISO 4217 lowercase, e.g. `usd`, `eur`) | Requires `enable_billing` |
+| `billing_trial_days_default` | int | `14` | Default number of trial days for new subscriptions | Requires `enable_billing` |
+| `billing_trial_requires_card` | bool | `false` | Whether a payment method is required to start a trial | Requires `enable_billing` |
+| `billing_credits_per_usd` | int | `100` | Credit units per 1 USD for top-up purchases | Requires `enable_credits_system` |
+| `billing_credits_free_tier_grant` | int | `500` | One-time credit grant on signup (free tier) | Requires `enable_credits_system` |
+| `billing_credits_low_threshold` | int | `50` | Credit balance threshold below which a low-credits email is sent | Requires `enable_credits_system` |
+
+**Notes:**
+
+- When `enable_teams=true`, every new user gets a Personal Organization (is_personal=True) automatically on registration
+- All resources (Conversations, RAGDocuments, etc.) are scoped to an Organization via `organization_id`
+- Active organization context is passed via `X-Organization-Id` header (falls back to Personal Org if omitted)
+- Roles hierarchy: OWNER > ADMIN > MEMBER > VIEWER. VIEWERs are non-billable read-only collaborators
+- Personal Org is hard-capped at 1 member (the owner) and cannot be deleted
+
+---
+
+## Email
+
+| Variable | Type | Default | Description | Dependencies |
+|----------|------|---------|-------------|--------------|
+| `enable_email` | bool | `false` | Enable transactional email sending (welcome, invitation, password reset, billing notifications) | - |
+| `email_provider` | enum | `"log"` | Email provider. Values: `resend`, `smtp`, `log` (`log` prints emails to console — useful for development) | Requires `enable_email` |
+| `enable_newsletter_signup` | bool | `false` | Enable public `POST /newsletter/signup` endpoint that sends a welcome email to new subscribers | Requires `enable_email` |
+| `newsletter_provider` | enum | `"resend"` | Newsletter / mailing list provider. Values: `resend`, `mailchimp`, `convertkit` | Requires `enable_newsletter_signup` |
+| `newsletter_provider_resend` | bool | `true` | Resend is selected for newsletters | Computed from `newsletter_provider` |
+| `newsletter_provider_mailchimp` | bool | `false` | Mailchimp is selected (flag only) | Computed from `newsletter_provider` |
+| `newsletter_provider_convertkit` | bool | `false` | ConvertKit/Kit is selected (flag only) | Computed from `newsletter_provider` |
 
 ---
 

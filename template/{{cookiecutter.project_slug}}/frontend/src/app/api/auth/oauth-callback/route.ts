@@ -1,50 +1,50 @@
-{%- if cookiecutter.enable_oauth %}
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+
+import { backendFetch, BackendApiError } from "@/lib/server-api";
+
+interface OAuthCallbackBody {
+  access_token: string;
+  refresh_token: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { accessToken, refreshToken } = await request.json();
-
-    if (!accessToken || !refreshToken) {
-      return NextResponse.json(
-        { error: "Missing tokens" },
-        { status: 400 }
-      );
+    const body = (await request.json()) as Partial<OAuthCallbackBody>;
+    if (!body.access_token || !body.refresh_token) {
+      return NextResponse.json({ detail: "Missing tokens" }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-
-    // Set access token cookie
-    cookieStore.set("access_token", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24, // 24 hours
-      path: "/",
+    const user = await backendFetch("/api/v1/auth/me", {
+      headers: { Authorization: `Bearer ${body.access_token}` },
     });
 
-    // Set refresh token cookie
-    cookieStore.set("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
+    const response = NextResponse.json({
+      user,
+      access_token: body.access_token,
+      message: "Sign-in successful",
     });
 
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to process OAuth callback" },
-      { status: 500 }
-    );
+    const isProd = process.env.NODE_ENV === "production";
+    response.cookies.set("access_token", body.access_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 60 * 15,
+      path: "/",
+    });
+    response.cookies.set("refresh_token", body.refresh_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof BackendApiError) {
+      const detail = (error.data as { detail?: string })?.detail || "Sign-in failed";
+      return NextResponse.json({ detail }, { status: error.status });
+    }
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{%- else %}
-import { NextResponse } from "next/server";
-
-export async function POST() {
-  return NextResponse.json({ error: "OAuth not enabled" }, { status: 404 });
-}
-{%- endif %}

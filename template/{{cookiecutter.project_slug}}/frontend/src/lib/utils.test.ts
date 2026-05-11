@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_frontend %}
 import { describe, it, expect } from "vitest";
 import { cn } from "./utils";
 
@@ -38,7 +37,3 @@ describe("cn utility function", () => {
     expect(result).toContain("class2");
   });
 });
-{%- else %}
-/* Utils tests - frontend not configured */
-export {};
-{%- endif %}

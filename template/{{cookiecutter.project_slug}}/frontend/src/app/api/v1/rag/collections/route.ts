@@ -1,5 +1,4 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_frontend %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // GET /api/v1/rag/collections - List collections
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
         { detail: error.message || "Failed to fetch collections" },
-        { status: error.status }
+        { status: error.status },
       );
     }
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
@@ -44,13 +43,9 @@ export async function POST(request: NextRequest) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
         { detail: error.message || "Failed to create collection" },
-        { status: error.status }
+        { status: error.status },
       );
     }
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG API route - not configured (enable_rag is false or frontend is disabled)
-{%- endif %}

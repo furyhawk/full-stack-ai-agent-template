@@ -122,7 +122,9 @@ export interface RAGTrackedDocumentList {
   total: number;
 }
 
-export async function listTrackedDocuments(collectionName?: string): Promise<RAGTrackedDocumentList> {
+export async function listTrackedDocuments(
+  collectionName?: string,
+): Promise<RAGTrackedDocumentList> {
   const params = collectionName ? `?collection_name=${encodeURIComponent(collectionName)}` : "";
   return apiClient.get<RAGTrackedDocumentList>(`/v1/rag/documents${params}`);
 }
@@ -135,7 +137,11 @@ export async function listDocuments(collectionName: string): Promise<RAGDocument
   return apiClient.get<RAGDocumentList>(RAG_API_ROUTES.COLLECTIONS_DOCUMENTS(collectionName));
 }
 
-export async function ingestFile(collectionName: string, file: File, replace = false): Promise<RAGIngestResult> {
+export async function ingestFile(
+  collectionName: string,
+  file: File,
+  replace = false,
+): Promise<RAGIngestResult> {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -233,7 +239,11 @@ export async function listSyncLogs(collectionName?: string, limit = 20): Promise
   return apiClient.get<RAGSyncLogList>(`/v1/rag/sync/logs?${params}`);
 }
 
-export async function triggerSync(collectionName: string, mode: string, path: string): Promise<{ id: string; status: string; message: string }> {
+export async function triggerSync(
+  collectionName: string,
+  mode: string,
+  path: string,
+): Promise<{ id: string; status: string; message: string }> {
   return apiClient.post("/v1/rag/sync/local", { collection_name: collectionName, mode, path });
 }
 
@@ -250,7 +260,10 @@ export async function createSyncSource(data: SyncSourceCreate): Promise<SyncSour
   return apiClient.post<SyncSourceRead>("/v1/rag/sync/sources", data);
 }
 
-export async function updateSyncSource(sourceId: string, data: Partial<SyncSourceCreate>): Promise<SyncSourceRead> {
+export async function updateSyncSource(
+  sourceId: string,
+  data: Partial<SyncSourceCreate>,
+): Promise<SyncSourceRead> {
   return apiClient.patch<SyncSourceRead>(`/v1/rag/sync/sources/${sourceId}`, data);
 }
 
@@ -258,7 +271,9 @@ export async function deleteSyncSource(sourceId: string): Promise<void> {
   return apiClient.delete(`/v1/rag/sync/sources/${sourceId}`);
 }
 
-export async function triggerSyncSource(sourceId: string): Promise<{ id: string; status: string; message: string }> {
+export async function triggerSyncSource(
+  sourceId: string,
+): Promise<{ id: string; status: string; message: string }> {
   return apiClient.post(`/v1/rag/sync/sources/${sourceId}/trigger`);
 }
 

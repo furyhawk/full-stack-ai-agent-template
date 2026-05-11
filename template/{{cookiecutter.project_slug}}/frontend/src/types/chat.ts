@@ -3,8 +3,6 @@
  */
 
 export type MessageRole = "user" | "assistant" | "system";
-
-{%- if cookiecutter.use_jwt %}
 /** Rating values for message feedback. */
 export enum RatingValue {
   LIKE = 1,
@@ -12,7 +10,14 @@ export enum RatingValue {
 }
 
 export type UserRating = RatingValue.LIKE | RatingValue.DISLIKE | null;
-{%- endif %}
+
+export interface ChatMessageFile {
+  id: string;
+  filename: string;
+  mime_type: string;
+  /** "image" | "pdf" | "docx" | "text" — derived from MIME on upload. */
+  file_type: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -23,9 +28,10 @@ export interface ChatMessage {
   isStreaming?: boolean;
   /** Group ID for related messages (e.g., CrewAI agent chain) */
   groupId?: string;
-  /** IDs of attached files (images, documents) */
+  /** IDs of attached files — kept for sending. Use ``files`` for rendering. */
   fileIds?: string[];
-{%- if cookiecutter.use_jwt %}
+  /** Full file metadata for rendering attachments. */
+  files?: ChatMessageFile[];
   /** Conversation ID for this message */
   conversationId?: string;
   /** True if message ID is a temporary nanoid, not yet replaced by server ID */
@@ -34,7 +40,9 @@ export interface ChatMessage {
   user_rating?: UserRating;
   /** Aggregate rating counts */
   rating_count?: { likes: number; dislikes: number } | null;
-{%- endif %}
+  /** Reasoning trace from extended-thinking models. Rendered dimmed +
+   *  collapsible above the final response. */
+  thinking?: string;
 }
 
 export interface ToolCall {
@@ -53,6 +61,7 @@ export type WSEventType =
   | "model_request_start"
   | "part_start"
   | "text_delta"
+  | "thinking_delta"
   | "tool_call_delta"
   | "call_tools_start"
   | "tool_call"

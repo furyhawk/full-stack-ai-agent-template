@@ -35,6 +35,16 @@ async def get_by_oauth(db: AsyncSession, provider: str, oauth_id: str) -> User |
     )
     return result.scalar_one_or_none()
 {%- endif %}
+{%- if cookiecutter.use_delegated_auth %}
+
+
+async def get_by_external_user_id(db: AsyncSession, external_user_id: str) -> User | None:
+    """Get user by IdP-minted external ID (the JWT ``sub`` claim)."""
+    result = await db.execute(
+        select(User).where(User.external_user_id == external_user_id)
+    )
+    return result.scalar_one_or_none()
+{%- endif %}
 
 
 async def get_multi(
@@ -61,9 +71,13 @@ async def create(
     full_name: str | None = None,
     is_active: bool = True,
     role: str = "user",
+    is_app_admin: bool = False,
 {%- if cookiecutter.enable_oauth %}
     oauth_provider: str | None = None,
     oauth_id: str | None = None,
+{%- endif %}
+{%- if cookiecutter.use_delegated_auth %}
+    external_user_id: str | None = None,
 {%- endif %}
 ) -> User:
     """Create a new user.
@@ -76,9 +90,13 @@ async def create(
         full_name=full_name,
         is_active=is_active,
         role=role,
+        is_app_admin=is_app_admin,
 {%- if cookiecutter.enable_oauth %}
         oauth_provider=oauth_provider,
         oauth_id=oauth_id,
+{%- endif %}
+{%- if cookiecutter.use_delegated_auth %}
+        external_user_id=external_user_id,
 {%- endif %}
     )
     db.add(user)
@@ -147,6 +165,8 @@ async def admin_list_with_counts(
     skip: int = 0,
     limit: int = 50,
     search: str | None = None,
+    sort_by: str = "created_at",
+    sort_dir: str = "desc",
 ) -> tuple[list[tuple[User, int]], int]:
     """Admin: list users with their conversation counts.
 
@@ -155,8 +175,9 @@ async def admin_list_with_counts(
     from sqlalchemy import func
     from app.db.models.conversation import Conversation
 
+    conv_count_col = func.count(Conversation.id).label("conversation_count")
     query = (
-        select(User, func.count(Conversation.id).label("conversation_count"))
+        select(User, conv_count_col)
         .outerjoin(Conversation, Conversation.user_id == User.id)
         .group_by(User.id)
     )
@@ -167,7 +188,16 @@ async def admin_list_with_counts(
         query = query.where(condition)
         count_query = count_query.where(condition)
 
-    query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+    sort_columns = {
+        "email": User.email,
+        "full_name": User.full_name,
+        "created_at": User.created_at,
+        "conversations": conv_count_col,
+    }
+    sort_col = sort_columns.get(sort_by, User.created_at)
+    sort_col = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
+    query = query.order_by(sort_col).offset(skip).limit(limit)
+
     total = await db.scalar(count_query) or 0
     rows = (await db.execute(query)).all()
     return [(user, count) for user, count in rows], total
@@ -235,6 +265,7 @@ def create(
     full_name: str | None = None,
     is_active: bool = True,
     role: str = "user",
+    is_app_admin: bool = False,
 {%- if cookiecutter.enable_oauth %}
     oauth_provider: str | None = None,
     oauth_id: str | None = None,
@@ -250,6 +281,7 @@ def create(
         full_name=full_name,
         is_active=is_active,
         role=role,
+        is_app_admin=is_app_admin,
 {%- if cookiecutter.enable_oauth %}
         oauth_provider=oauth_provider,
         oauth_id=oauth_id,
@@ -310,6 +342,8 @@ def admin_list_with_counts(
     skip: int = 0,
     limit: int = 50,
     search: str | None = None,
+    sort_by: str = "created_at",
+    sort_dir: str = "desc",
 ) -> tuple[list[tuple[User, int]], int]:
     """Admin: list users with their conversation counts.
 
@@ -318,8 +352,9 @@ def admin_list_with_counts(
     from sqlalchemy import func
     from app.db.models.conversation import Conversation
 
+    conv_count_col = func.count(Conversation.id).label("conversation_count")
     query = (
-        select(User, func.count(Conversation.id).label("conversation_count"))
+        select(User, conv_count_col)
         .outerjoin(Conversation, Conversation.user_id == User.id)
         .group_by(User.id)
     )
@@ -330,7 +365,16 @@ def admin_list_with_counts(
         query = query.where(condition)
         count_query = count_query.where(condition)
 
-    query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+    sort_columns = {
+        "email": User.email,
+        "full_name": User.full_name,
+        "created_at": User.created_at,
+        "conversations": conv_count_col,
+    }
+    sort_col = sort_columns.get(sort_by, User.created_at)
+    sort_col = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
+    query = query.order_by(sort_col).offset(skip).limit(limit)
+
     total = db.scalar(count_query) or 0
     rows = db.execute(query).all()
     return [(user, count) for user, count in rows], total
@@ -383,6 +427,7 @@ async def create(
     full_name: str | None = None,
     is_active: bool = True,
     role: str = "user",
+    is_app_admin: bool = False,
 {%- if cookiecutter.enable_oauth %}
     oauth_provider: str | None = None,
     oauth_id: str | None = None,
@@ -398,6 +443,7 @@ async def create(
         full_name=full_name,
         is_active=is_active,
         role=role,
+        is_app_admin=is_app_admin,
 {%- if cookiecutter.enable_oauth %}
         oauth_provider=oauth_provider,
         oauth_id=oauth_id,
@@ -447,6 +493,8 @@ async def admin_list_with_counts(
     skip: int = 0,
     limit: int = 50,
     search: str | None = None,
+    sort_by: str = "created_at",
+    sort_dir: str = "desc",
 ) -> tuple[list[tuple[User, int]], int]:
     """Admin: list users with their conversation counts.
 
@@ -463,10 +511,14 @@ async def admin_list_with_counts(
             {"full_name": {"$regex": escaped, "$options": "i"}},
         ]
 
+    sort_field_map = {"email": "email", "full_name": "full_name", "created_at": "created_at"}
+    sort_field = sort_field_map.get(sort_by, "created_at")
+    sort_prefix = "-" if sort_dir == "desc" else "+"
+
     total = await User.find(query_filter).count()
     users = (
         await User.find(query_filter)
-        .sort("-created_at")
+        .sort(f"{sort_prefix}{sort_field}")
         .skip(skip)
         .limit(limit)
         .to_list()

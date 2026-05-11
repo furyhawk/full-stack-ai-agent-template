@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_database %}
 "use client";
 
 import { create } from "zustand";
@@ -45,7 +44,7 @@ export const useConversationStore = create<ConversationState>((set) => ({
   updateConversation: (id, updates) =>
     set((state) => ({
       conversations: (state.conversations || []).map((conv) =>
-        conv.id === id ? { ...conv, ...updates } : conv
+        conv.id === id ? { ...conv, ...updates } : conv,
       ),
     })),
 
@@ -71,4 +70,3 @@ export const useConversationStore = create<ConversationState>((set) => ({
 
   reset: () => set(initialState),
 }));
-{%- endif %}

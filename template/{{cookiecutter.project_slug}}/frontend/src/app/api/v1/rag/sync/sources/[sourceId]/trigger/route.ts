@@ -1,11 +1,10 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // POST /api/v1/rag/sync/sources/:sourceId/trigger - Trigger sync
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ sourceId: string }> }
+  { params }: { params: Promise<{ sourceId: string }> },
 ) {
   try {
     const { sourceId } = await params;
@@ -25,7 +24,3 @@ export async function POST(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// Sync source trigger API route - not configured (enable_rag or use_jwt is false)
-{%- endif %}

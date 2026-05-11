@@ -3,7 +3,7 @@
 """Session database model for tracking user sessions using SQLModel."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -36,11 +36,11 @@ class Session(SQLModel, table=True):
     user_agent: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     last_used_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     expires_at: datetime = Field(
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 """Session database model for tracking user sessions."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -91,10 +91,10 @@ class Session(Base):
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     last_used_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -109,7 +109,7 @@ class Session(Base):
 """Session database model for tracking user sessions using SQLModel."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 from sqlmodel import Field, Relationship, SQLModel
@@ -141,11 +141,11 @@ class Session(SQLModel, table=True):
     user_agent: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime, nullable=False),
     )
     last_used_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime, nullable=False),
     )
     expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
@@ -167,7 +167,7 @@ if TYPE_CHECKING:
 """Session database model for tracking user sessions."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -193,10 +193,10 @@ class Session(Base):
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
     last_used_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

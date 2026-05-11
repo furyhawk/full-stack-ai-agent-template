@@ -1,12 +1,10 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ name: string }> }
+  { params }: { params: Promise<{ name: string }> },
 ) {
   try {
     const { name } = await params;
@@ -37,7 +35,3 @@ export async function POST(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG route - not configured
-{%- endif %}

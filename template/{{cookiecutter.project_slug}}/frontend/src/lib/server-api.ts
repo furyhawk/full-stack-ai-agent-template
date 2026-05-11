@@ -10,7 +10,7 @@ export class BackendApiError extends Error {
   constructor(
     public status: number,
     public statusText: string,
-    public data?: unknown
+    public data?: unknown,
   ) {
     super(`Backend API error: ${status} ${statusText}`);
     this.name = "BackendApiError";
@@ -27,10 +27,7 @@ interface RequestOptions extends RequestInit {
  * Make a request to the FastAPI backend.
  * This should only be called from Next.js API routes or Server Components.
  */
-export async function backendFetch<T>(
-  endpoint: string,
-  options: RequestOptions = {}
-): Promise<T> {
+export async function backendFetch<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, body, raw, ...fetchOptions } = options;
 
   let url = `${BACKEND_URL}${endpoint}`;
@@ -83,9 +80,7 @@ export async function backendFetch<T>(
 /**
  * Forward authorization header from the incoming request to the backend.
  */
-export function getAuthHeaders(
-  authHeader: string | null
-): Record<string, string> {
+export function getAuthHeaders(authHeader: string | null): Record<string, string> {
   if (!authHeader) {
     return {};
   }

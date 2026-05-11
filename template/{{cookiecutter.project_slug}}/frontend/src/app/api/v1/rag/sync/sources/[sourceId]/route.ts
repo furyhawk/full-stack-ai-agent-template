@@ -1,11 +1,10 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // GET /api/v1/rag/sync/sources/:sourceId - Get sync source
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ sourceId: string }> }
+  { params }: { params: Promise<{ sourceId: string }> },
 ) {
   try {
     const { sourceId } = await params;
@@ -26,7 +25,7 @@ export async function GET(
 // PATCH /api/v1/rag/sync/sources/:sourceId - Update sync source
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ sourceId: string }> }
+  { params }: { params: Promise<{ sourceId: string }> },
 ) {
   try {
     const { sourceId } = await params;
@@ -52,7 +51,7 @@ export async function PATCH(
 // DELETE /api/v1/rag/sync/sources/:sourceId - Delete sync source
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ sourceId: string }> }
+  { params }: { params: Promise<{ sourceId: string }> },
 ) {
   try {
     const { sourceId } = await params;
@@ -72,7 +71,3 @@ export async function DELETE(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// Sync source API route - not configured (enable_rag or use_jwt is false)
-{%- endif %}

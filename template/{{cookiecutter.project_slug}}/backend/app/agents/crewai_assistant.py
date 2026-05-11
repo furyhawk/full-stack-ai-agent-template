@@ -7,6 +7,7 @@ Uses CrewAI's event system for real-time streaming to WebSocket.
 """
 
 import asyncio
+import contextvars
 import logging
 import os
 from queue import Empty, Queue
@@ -115,9 +116,19 @@ class CrewEventQueueListener:
 
         def on_crew_completed(source, event: CrewKickoffCompletedEvent):
             output = getattr(event, "output", None)
+            metrics = getattr(source, "usage_metrics", None)
+            usage_payload = None
+            if metrics is not None:
+                usage_payload = {
+                    "prompt_tokens": int(getattr(metrics, "prompt_tokens", 0) or 0),
+                    "completion_tokens": int(getattr(metrics, "completion_tokens", 0) or 0),
+                    "cached_prompt_tokens": int(getattr(metrics, "cached_prompt_tokens", 0) or 0),
+                    "total_tokens": int(getattr(metrics, "total_tokens", 0) or 0),
+                }
             self._event_queue.put({
                 "type": "crew_complete",
                 "result": str(output.raw if hasattr(output, "raw") else output) if output else "",
+                "usage": usage_payload,
             })
 
         def on_crew_failed(source, event: CrewKickoffFailedEvent):
@@ -316,21 +327,38 @@ class CrewAIAssistant:
 
     def _get_llm(self):
         """Get LLM instance based on settings."""
-{%- if cookiecutter.use_openai %}
+{%- if cookiecutter.use_all_providers %}
+        lowered = self.model_name.lower()
+        if lowered.startswith(("claude-", "claude/")):
+            return ChatAnthropic(
+                model=self.model_name,
+                temperature=self.temperature,
+                api_key=settings.ANTHROPIC_API_KEY,
+            )
+        if lowered.startswith("gemini"):
+            return ChatGoogleGenerativeAI(
+                model=self.model_name,
+                temperature=self.temperature,
+                google_api_key=settings.GOOGLE_API_KEY,
+            )
         return ChatOpenAI(
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.OPENAI_API_KEY,
         )
-{%- endif %}
-{%- if cookiecutter.use_anthropic %}
+{%- elif cookiecutter.use_openai %}
+        return ChatOpenAI(
+            model=self.model_name,
+            temperature=self.temperature,
+            api_key=settings.OPENAI_API_KEY,
+        )
+{%- elif cookiecutter.use_anthropic %}
         return ChatAnthropic(
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.ANTHROPIC_API_KEY,
         )
-{%- endif %}
-{%- if cookiecutter.use_google %}
+{%- elif cookiecutter.use_google %}
         return ChatGoogleGenerativeAI(
             model=self.model_name,
             temperature=self.temperature,
@@ -540,8 +568,9 @@ class CrewAIAssistant:
             finally:
                 event_queue.put(None)  # Signal completion
 
-        # Start crew in background thread
-        thread = Thread(target=run_with_events, daemon=True)
+        # Start crew in background thread, propagating ContextVars (e.g. _active_kb_collections)
+        _ctx = contextvars.copy_context()
+        thread = Thread(target=lambda: _ctx.run(run_with_events), daemon=True)
         thread.start()
 
         # Yield events as they arrive

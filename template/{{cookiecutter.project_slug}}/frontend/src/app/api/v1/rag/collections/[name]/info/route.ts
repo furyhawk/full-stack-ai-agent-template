@@ -1,5 +1,4 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_frontend %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 interface RouteParams {
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
         { detail: error.message || "Failed to fetch collection info" },
-        { status: error.status }
+        { status: error.status },
       );
     }
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
@@ -48,13 +47,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
         { detail: error.message || "Failed to delete collection" },
-        { status: error.status }
+        { status: error.status },
       );
     }
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG collection info route - not configured (enable_rag is false or frontend is disabled)
-{%- endif %}

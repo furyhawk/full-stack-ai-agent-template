@@ -1,5 +1,4 @@
-{%- if cookiecutter.use_database %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 interface RouteParams {
@@ -27,13 +26,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
         { detail: error.message || "Failed to fetch messages" },
-        { status: error.status }
+        { status: error.status },
       );
     }
-    return NextResponse.json(
-      { detail: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
-}{% endraw %}
-{%- endif %}
+}

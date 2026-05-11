@@ -1,4 +1,4 @@
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 import type { LoginResponse } from "@/types";
 
@@ -53,13 +53,9 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     if (error instanceof BackendApiError) {
-      const detail =
-        (error.data as { detail?: string })?.detail || "Login failed";
+      const detail = (error.data as { detail?: string })?.detail || "Login failed";
       return NextResponse.json({ detail }, { status: error.status });
     }
-    return NextResponse.json(
-      { detail: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
-}{% endraw %}
+}

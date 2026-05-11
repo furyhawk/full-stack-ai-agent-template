@@ -8,9 +8,7 @@ import { ROUTES } from "@/lib/constants";
 const ROUTE_LABELS: Record<string, string> = {
   [ROUTES.DASHBOARD]: "Dashboard",
   [ROUTES.CHAT]: "Chat",
-{%- if cookiecutter.enable_rag %}
   [ROUTES.RAG]: "Knowledge Base",
-{%- endif %}
   [ROUTES.PROFILE]: "Profile",
   "/settings": "Settings",
 };
@@ -40,7 +38,10 @@ export function Breadcrumb() {
           {crumb.isLast ? (
             <span className="text-foreground font-medium">{crumb.label}</span>
           ) : (
-            <Link href={crumb.path} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              href={crumb.path}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               {crumb.label}
             </Link>
           )}

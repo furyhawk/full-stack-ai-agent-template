@@ -1,12 +1,7 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ name: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   try {
     const { name } = await params;
     const headers: Record<string, string> = {};
@@ -24,7 +19,3 @@ export async function GET(
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// RAG route - not configured
-{%- endif %}

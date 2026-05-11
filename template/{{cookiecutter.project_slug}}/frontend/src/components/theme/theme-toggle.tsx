@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_frontend %}
 "use client";
 
 import { useEffect, useState } from "react";
@@ -32,12 +31,7 @@ export function ThemeToggle({ variant = "icon", className }: ThemeToggleProps) {
   // Render placeholder during SSR to prevent hydration mismatch
   if (!mounted) {
     return (
-      <Button
-        variant="ghost"
-        size="icon"
-        className={className}
-        aria-label="Toggle theme"
-      >
+      <Button variant="ghost" size="icon" className={className} aria-label="Toggle theme">
         <Sun className="h-5 w-5" />
       </Button>
     );
@@ -53,14 +47,8 @@ export function ThemeToggle({ variant = "icon", className }: ThemeToggleProps) {
         aria-label={`Switch theme (current: ${theme})`}
         title={`Theme: ${theme}`}
       >
-        {resolvedTheme === "dark" ? (
-          <Moon className="h-5 w-5" />
-        ) : (
-          <Sun className="h-5 w-5" />
-        )}
-        {theme === "system" && (
-          <span className="sr-only">(following system)</span>
-        )}
+        {resolvedTheme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        {theme === "system" && <span className="sr-only">(following system)</span>}
       </Button>
     );
   }
@@ -97,9 +85,3 @@ export function ThemeToggle({ variant = "icon", className }: ThemeToggleProps) {
     </div>
   );
 }
-{%- else %}
-/* Theme toggle - frontend not configured */
-export function ThemeToggle() {
-  return null;
-}
-{%- endif %}

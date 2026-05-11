@@ -5,16 +5,15 @@
 export interface User {
   id: string;
   email: string;
-  name?: string;
+  full_name?: string | null;
   is_active: boolean;
   role?: string;
   created_at: string;
-{%- if cookiecutter.enable_oauth %}
-  oauth_provider?: string | null;
-{%- endif %}
   avatar_url?: string | null;
+  /** ISO timestamp when the user finished the onboarding wizard. `null` means
+   *  the wizard hasn't been completed yet — middleware/banner uses this. */
+  onboarding_completed_at?: string | null;
 }
-{%- if cookiecutter.enable_session_management %}
 
 export interface Session {
   id: string;
@@ -30,7 +29,6 @@ export interface SessionListResponse {
   sessions: Session[];
   total: number;
 }
-{%- endif %}
 
 export interface LoginRequest {
   email: string;
@@ -47,13 +45,13 @@ export interface LoginResponse {
 export interface RegisterRequest {
   email: string;
   password: string;
-  name?: string;
+  full_name?: string;
 }
 
 export interface RegisterResponse {
   id: string;
   email: string;
-  name?: string;
+  full_name?: string | null;
 }
 
 export interface RefreshTokenRequest {

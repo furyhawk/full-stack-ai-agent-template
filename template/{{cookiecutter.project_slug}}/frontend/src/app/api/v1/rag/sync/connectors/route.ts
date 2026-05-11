@@ -1,5 +1,4 @@
-{%- if cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{% raw %}import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 // GET /api/v1/rag/sync/connectors - List available connectors
@@ -18,7 +17,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
-{% endraw %}
-{%- else %}
-// Connectors API route - not configured (enable_rag or use_jwt is false)
-{%- endif %}

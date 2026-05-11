@@ -66,6 +66,6 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         // Note: accessToken is intentionally NOT persisted - kept in-memory only
       }),
-    }
-  )
+    },
+  ),
 );

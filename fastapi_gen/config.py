@@ -68,9 +68,26 @@ class OAuthProvider(StrEnum):
     GOOGLE = "google"
 
 
+class AuthMode(StrEnum):
+    """High-level authentication strategy.
+
+    - ``local``: backend issues + validates its own JWTs via email/password +
+      optional OAuth. Owns user storage including hashed passwords.
+    - ``delegated``: backend trusts JWTs issued by an external IdP (Auth0,
+      Clerk, Cognito, Keycloak, ...). Validates them against a public JWKS URL.
+      No registration UI, no password storage, no email-based recovery flows.
+      First request from an unknown user auto-provisions a row keyed by
+      ``external_user_id`` (the IdP ``sub`` claim).
+    """
+
+    LOCAL = "local"
+    DELEGATED = "delegated"
+
+
 class AIFrameworkType(StrEnum):
     """Supported AI agent frameworks."""
 
+    NONE = "none"  # plain SaaS — no AI/chat/agents generated
     PYDANTIC_AI = "pydantic_ai"
     LANGCHAIN = "langchain"
     LANGGRAPH = "langgraph"
@@ -80,12 +97,18 @@ class AIFrameworkType(StrEnum):
 
 
 class LLMProviderType(StrEnum):
-    """Supported LLM providers."""
+    """Supported LLM providers.
+
+    `ALL` installs SDKs for every provider and lets users pick the model at
+    runtime via the chat model picker — useful when you want to compare
+    providers or pass model selection through to end users.
+    """
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     OPENROUTER = "openrouter"
+    ALL = "all"
 
 
 class RateLimitStorageType(StrEnum):
@@ -173,6 +196,48 @@ class VectorStoreType(StrEnum):
     PGVECTOR = "pgvector"
 
 
+class EmailProviderType(StrEnum):
+    """Supported transactional email providers."""
+
+    RESEND = "resend"
+    SMTP = "smtp"
+    LOG = "log"  # Prints to console — useful for development
+
+
+class NewsletterProviderType(StrEnum):
+    """Dedicated newsletter/audience providers (separate from transactional email)."""
+
+    RESEND = "resend"  # Resend Audiences API
+    MAILCHIMP = "mailchimp"
+    CONVERTKIT = "convertkit"
+
+
+class TenancyMode(StrEnum):
+    """Tenancy architecture for multi-tenancy scenarios."""
+
+    SINGLE = "single"  # Single workspace / single tenant
+    MULTI_ORG = "multi_org"  # Multi-tenant organisations (requires --teams)
+    PLATFORM = "platform"  # Each org owns multiple sub-projects
+
+
+class PaymentProviderType(StrEnum):
+    """Supported payment processors (Stripe is the only fully implemented one)."""
+
+    STRIPE = "stripe"
+    PADDLE = "paddle"
+    LEMONSQUEEZY = "lemonsqueezy"
+    POLAR = "polar"
+
+
+class BillingModelType(StrEnum):
+    """High-level billing model for the generated project."""
+
+    SUBSCRIPTION = "subscription"  # Recurring plans (current default)
+    USAGE = "usage"  # Pure pay-as-you-go credits
+    HYBRID = "hybrid"  # Subscription base + overage credits
+    ONE_TIME = "one_time"  # Single purchase / lifetime deal
+
+
 class RAGFeatures(BaseModel):
     """RAG features."""
 
@@ -215,6 +280,21 @@ class ProjectConfig(BaseModel):
 
     # Authentication (always JWT + API Key)
     oauth_provider: OAuthProvider = OAuthProvider.NONE
+    auth_mode: AuthMode = AuthMode.LOCAL
+    # Comma-separated email domains allowed to register via OAuth (e.g. "example.com,acme.com").
+    # Empty string = allow all domains.
+    allowed_email_domains: str = ""
+    # Email address to auto-promote to app-admin on first seed/startup.
+    seed_admin_email: str = ""
+    # When auth_mode=delegated: use a shared HMAC secret instead of fetching
+    # public keys from a JWKS URL. Simpler integration when client backend
+    # signs short-lived tokens for our backend with a known secret. Default
+    # (False) uses RSA/ES via JWKS — the IdP-friendly path.
+    delegated_auth_use_shared_secret: bool = False
+    # When auth_mode=delegated: denormalize the IdP `sub` claim onto
+    # Conversation rows so client APIs can fetch conversations by THEIR
+    # user identifier without leaking internal UUIDs.
+    enable_external_user_id_in_conversations: bool = False
     enable_session_management: bool = False
 
     # Observability
@@ -243,16 +323,23 @@ class ProjectConfig(BaseModel):
     enable_webhooks: bool = False
     enable_langsmith: bool = False
     enable_web_search: bool = False
+    enable_web_fetch: bool = False
     use_telegram: bool = False
     use_slack: bool = False
     enable_cors: bool = True
+    # Comma-separated embed origins for iframe CORS + CSP frame-ancestors.
+    # Empty string keeps the default "frame-ancestors 'none'".
+    embed_allowed_origins: str = ""
+    # Load brand colour/logo from BRAND_COLOR / BRAND_LOGO_URL env vars at runtime
+    # instead of baking them in at generation time.
+    enable_brand_from_config: bool = False
 
     # Dev tools
     enable_pytest: bool = True
     enable_precommit: bool = True
     enable_makefile: bool = True
     enable_docker: bool = True
-    reverse_proxy: ReverseProxyType = ReverseProxyType.TRAEFIK_INCLUDED
+    reverse_proxy: ReverseProxyType = ReverseProxyType.NGINX_EXTERNAL
     ci_type: CIType = CIType.GITHUB
     enable_kubernetes: bool = False
     generate_env: bool = True
@@ -268,11 +355,62 @@ class ProjectConfig(BaseModel):
     # Backend
     backend_port: int = 8000
 
+    # Teams & Billing
+    enable_teams: bool = False
+    enable_billing: bool = False
+    enable_credits_system: bool = False
+    enable_usage_anomaly_detection: bool = False
+    enable_usage_dashboard: bool = False
+    enable_slack_alerts: bool = False
+    billing_default_currency: str = "usd"
+    billing_trial_days_default: int = 14
+    billing_trial_requires_card: bool = True
+    billing_credits_per_usd: int = 1000
+    billing_credits_low_threshold: int = 100
+    billing_credits_free_tier_grant: int = 500
+    enable_per_org_quotas: bool = False
+    payment_provider: PaymentProviderType = PaymentProviderType.STRIPE
+    billing_model: BillingModelType = BillingModelType.SUBSCRIPTION
+    # Tenancy architecture (single = default one-workspace app)
+    tenancy: TenancyMode = TenancyMode.SINGLE
+
+    # Email
+    enable_email: bool = False
+    email_provider: EmailProviderType = EmailProviderType.LOG
+    enable_newsletter_signup: bool = False
+    newsletter_provider: NewsletterProviderType = NewsletterProviderType.RESEND
+
+    # Admin features (visible in frontend admin panel)
+    enable_admin_features_users: bool = True
+    enable_admin_features_organizations: bool = True
+    enable_admin_features_subscriptions: bool = True
+    enable_admin_features_usage: bool = True
+    enable_admin_features_stripe_events: bool = True
+    enable_admin_features_audit_log: bool = True
+    enable_admin_features_system_health: bool = True
+
+    # Marketing / Frontend pages
+    enable_marketing_site: bool = False
+    enable_i18n: bool = True
+    include_example_crud: bool = False
+    enable_changelog: bool = False
+    enable_testimonials: bool = False
+    enable_comparison_pages: bool = False
+    enable_affiliate_program: bool = False
+    enable_status_badge: bool = False
+    enable_storybook: bool = False
+
     @computed_field
     @property
     def project_slug(self) -> str:
         """Return project slug (underscores instead of hyphens)."""
         return self.project_name.replace("-", "_")
+
+    @computed_field
+    @property
+    def use_ai(self) -> bool:
+        """True when an AI framework is selected (i.e. ai_framework != none)."""
+        return self.ai_framework != AIFrameworkType.NONE
 
     @computed_field
     @property
@@ -309,9 +447,14 @@ class ProjectConfig(BaseModel):
             raise ValueError("SQLModel requires PostgreSQL or SQLite database")
         if self.enable_caching and not self.enable_redis:
             raise ValueError("Caching requires Redis to be enabled")
-        if self.llm_provider == LLMProviderType.OPENROUTER and self.ai_framework not in (
-            AIFrameworkType.PYDANTIC_AI,
-            AIFrameworkType.PYDANTIC_DEEP,
+        if (
+            self.ai_framework != AIFrameworkType.NONE
+            and self.llm_provider == LLMProviderType.OPENROUTER
+            and self.ai_framework
+            not in (
+                AIFrameworkType.PYDANTIC_AI,
+                AIFrameworkType.PYDANTIC_DEEP,
+            )
         ):
             raise ValueError(
                 f"OpenRouter is only supported with PydanticAI or PydanticDeep, "
@@ -353,6 +496,28 @@ class ProjectConfig(BaseModel):
                 "Disable Logfire (enable_logfire=False) when using CrewAI."
             )
 
+        # --no-ai: RAG and websockets require an AI framework
+        if not self.use_ai and self.rag_features.enable_rag:
+            raise ValueError(
+                "--rag requires an AI framework. "
+                "Quick fix: set --ai-framework pydantic_ai (or any other), or drop --rag."
+            )
+        if not self.use_ai and self.enable_langsmith:
+            raise ValueError("--langsmith requires an AI framework. Quick fix: drop --langsmith.")
+
+        # Tenancy: multi_org / platform imply teams
+        if self.tenancy != TenancyMode.SINGLE and not self.enable_teams:
+            raise ValueError(
+                f"--tenancy={self.tenancy.value} requires --teams "
+                "(multi-org and platform tenancy are built on the organisations feature)."
+            )
+
+        # per_org_quotas requires teams
+        if self.enable_per_org_quotas and not self.enable_teams:
+            raise ValueError(
+                "--per-org-quotas requires --teams (quotas are scoped to organisations)."
+            )
+
         # Admin panel requires SQLAlchemy (SQLAdmin doesn't fully support SQLModel)
         if self.enable_admin_panel and self.orm_type == OrmType.SQLMODEL:
             raise ValueError(
@@ -385,6 +550,36 @@ class ProjectConfig(BaseModel):
                     "Logfire Celery instrumentation requires Celery as background task system"
                 )
 
+        # Teams & Billing dependency chain
+        if self.enable_billing and not self.enable_teams:
+            raise ValueError("Billing requires Teams to be enabled (enable_teams=true)")
+        if self.enable_credits_system and not self.enable_billing:
+            raise ValueError("Credits system requires Billing to be enabled (enable_billing=true)")
+        if self.enable_usage_anomaly_detection and not self.enable_credits_system:
+            raise ValueError(
+                "Usage anomaly detection requires Credits system to be enabled (enable_credits_system=true)"
+            )
+        if self.enable_usage_dashboard and not self.enable_credits_system:
+            raise ValueError(
+                "Usage dashboard requires Credits system to be enabled (enable_credits_system=true)"
+            )
+        if self.enable_slack_alerts and not self.enable_usage_anomaly_detection:
+            raise ValueError(
+                "Slack alerts require Usage anomaly detection to be enabled (enable_usage_anomaly_detection=true)"
+            )
+
+        # Email dependency chain
+        if self.enable_newsletter_signup and not self.enable_email:
+            raise ValueError("Newsletter signup requires Email to be enabled (enable_email=true)")
+
+        # Teams requires SQL database with JWT
+        if self.enable_teams and self.database not in (
+            DatabaseType.POSTGRESQL,
+            DatabaseType.SQLITE,
+            DatabaseType.MONGODB,
+        ):
+            raise ValueError("Teams requires a database")
+
         # RAG-oriented checks
 
         if (
@@ -394,6 +589,90 @@ class ProjectConfig(BaseModel):
         ):
             raise ValueError(
                 f"RAG with {self.rag_features.vector_store.value} requires Docker to be enabled."
+            )
+
+        # RAG sub-features require RAG itself
+        if self.rag_features.enable_google_drive_ingestion and not self.rag_features.enable_rag:
+            raise ValueError(
+                "Google Drive ingestion requires RAG to be enabled. "
+                "Quick fix: add --rag, or remove --gdrive-rag."
+            )
+        if self.rag_features.enable_s3_ingestion and not self.rag_features.enable_rag:
+            raise ValueError(
+                "S3/MinIO ingestion requires RAG to be enabled. "
+                "Quick fix: add --rag, or remove --s3-rag."
+            )
+        if (
+            self.rag_features.reranker_type != RerankerType.NONE
+            and not self.rag_features.enable_rag
+        ):
+            raise ValueError(
+                "Reranker requires RAG to be enabled. Quick fix: add --rag, or set --reranker none."
+            )
+        if self.rag_features.enable_image_description and not self.rag_features.enable_rag:
+            raise ValueError(
+                "RAG image description requires RAG to be enabled. Quick fix: add --rag."
+            )
+
+        # Frontend-dependent surfaces
+        if self.enable_marketing_site and self.frontend == FrontendType.NONE:
+            raise ValueError(
+                "Marketing site requires a frontend (landing/blog/legal pages need a UI). "
+                "Quick fix: add --frontend nextjs, or drop --marketing-site."
+            )
+        if self.oauth_provider != OAuthProvider.NONE and self.frontend == FrontendType.NONE:
+            raise ValueError(
+                "OAuth requires a frontend for the callback page. "
+                "Quick fix: add --frontend nextjs, or set --oauth-provider none."
+            )
+        if self.enable_brand_from_config and self.frontend == FrontendType.NONE:
+            raise ValueError(
+                "--brand-from-config requires a frontend (the BrandOverride component lives in Next.js). "
+                "Quick fix: add --frontend nextjs, or drop --brand-from-config."
+            )
+
+        # Kubernetes implies Docker
+        if self.enable_kubernetes and not self.enable_docker:
+            raise ValueError(
+                "Kubernetes manifests reference the Docker image — Docker must be enabled. "
+                "Quick fix: drop --no-docker, or remove --kubernetes."
+            )
+
+        # Delegated auth supersedes local-auth options. Loud-fail any combo
+        # that's a footgun rather than silently dropping user choices.
+        if self.auth_mode == AuthMode.DELEGATED:
+            if self.oauth_provider != OAuthProvider.NONE:
+                raise ValueError(
+                    "--auth-mode=delegated handles OAuth via the external IdP. "
+                    "Quick fix: drop --oauth-google (your IdP will handle social login)."
+                )
+            if self.enable_session_management:
+                raise ValueError(
+                    "--auth-mode=delegated invalidates by IdP token expiry; the local "
+                    "session table is unused. Quick fix: drop --session-management."
+                )
+
+        # Example CRUD scaffold needs the SQL stack — Items belong to a User
+        if self.include_example_crud and self.database not in (
+            DatabaseType.POSTGRESQL,
+            DatabaseType.SQLITE,
+        ):
+            raise ValueError(
+                "--example-resource scaffold supports PostgreSQL/SQLite only today. "
+                "Quick fix: switch to --database postgresql or drop --example-resource."
+            )
+
+        # Sub-flags that only make sense in delegated mode
+        if self.delegated_auth_use_shared_secret and self.auth_mode != AuthMode.DELEGATED:
+            raise ValueError(
+                "--shared-secret-jwt only applies when --auth-mode=delegated. "
+                "Quick fix: add --auth-mode delegated, or drop --shared-secret-jwt."
+            )
+        if self.enable_external_user_id_in_conversations and self.auth_mode != AuthMode.DELEGATED:
+            raise ValueError(
+                "--external-user-id is meaningful only with --auth-mode=delegated "
+                "(it denormalizes the IdP `sub` claim onto conversations). "
+                "Quick fix: add --auth-mode delegated, or drop --external-user-id."
             )
 
         return self
@@ -430,10 +709,29 @@ class ProjectConfig(BaseModel):
             "use_jwt": True,
             "use_api_key": True,
             "use_auth": True,
-            # OAuth
+            # OAuth + Auth restrictions
             "oauth_provider": self.oauth_provider.value,
             "enable_oauth": self.oauth_provider != OAuthProvider.NONE,
             "enable_oauth_google": self.oauth_provider == OAuthProvider.GOOGLE,
+            "allowed_email_domains": self.allowed_email_domains,
+            "enable_email_domain_allowlist": bool(self.allowed_email_domains.strip()),
+            # Admin seeding
+            "seed_admin_email": self.seed_admin_email,
+            "enable_seed_admin": bool(self.seed_admin_email.strip()),
+            # Auth mode (local password+OAuth vs delegated/IdP)
+            "auth_mode": self.auth_mode.value,
+            "use_local_auth": self.auth_mode == AuthMode.LOCAL,
+            "use_delegated_auth": self.auth_mode == AuthMode.DELEGATED,
+            "use_shared_secret_jwt": (
+                self.auth_mode == AuthMode.DELEGATED and self.delegated_auth_use_shared_secret
+            ),
+            "use_jwks_idp": (
+                self.auth_mode == AuthMode.DELEGATED and not self.delegated_auth_use_shared_secret
+            ),
+            "use_external_user_id_in_conversations": (
+                self.auth_mode == AuthMode.DELEGATED
+                and self.enable_external_user_id_in_conversations
+            ),
             # Session Management
             "enable_session_management": self.enable_session_management,
             # Logfire
@@ -479,14 +777,20 @@ class ProjectConfig(BaseModel):
             "use_pydantic_deep": self.ai_framework == AIFrameworkType.PYDANTIC_DEEP,
             "sandbox_backend": self.sandbox_backend,
             "llm_provider": self.llm_provider.value,
-            "use_openai": self.llm_provider == LLMProviderType.OPENAI,
-            "use_anthropic": self.llm_provider == LLMProviderType.ANTHROPIC,
-            "use_google": self.llm_provider == LLMProviderType.GOOGLE,
-            "use_openrouter": self.llm_provider == LLMProviderType.OPENROUTER,
+            # ALL turns on every provider so users can pick the model at runtime.
+            "use_openai": self.llm_provider in (LLMProviderType.OPENAI, LLMProviderType.ALL),
+            "use_anthropic": self.llm_provider in (LLMProviderType.ANTHROPIC, LLMProviderType.ALL),
+            "use_google": self.llm_provider in (LLMProviderType.GOOGLE, LLMProviderType.ALL),
+            "use_openrouter": self.llm_provider
+            in (LLMProviderType.OPENROUTER, LLMProviderType.ALL),
+            "use_all_providers": self.llm_provider == LLMProviderType.ALL,
             # Legacy fixed values (always enabled, not user-configurable)
-            "enable_conversation_persistence": True,
+            # AI
+            "use_ai": self.use_ai,
+            "enable_conversation_persistence": self.use_ai,
             "enable_langsmith": self.enable_langsmith,
             "enable_web_search": self.enable_web_search,
+            "enable_web_fetch": self.enable_web_fetch,
             "enable_webhooks": self.enable_webhooks,
             # Legacy fixed values (WebSocket always uses JWT)
             "websocket_auth": "jwt",
@@ -494,10 +798,14 @@ class ProjectConfig(BaseModel):
             "websocket_auth_api_key": False,
             "websocket_auth_none": False,
             "enable_cors": self.enable_cors,
-            # Frontend features (always enabled)
-            "enable_i18n": True,
-            # Example CRUD (always disabled)
-            "include_example_crud": False,
+            # Embed / brand
+            "embed_allowed_origins": self.embed_allowed_origins,
+            "enable_embed_mode": bool(self.embed_allowed_origins.strip()),
+            "enable_brand_from_config": self.enable_brand_from_config,
+            # Frontend features
+            "enable_i18n": self.enable_i18n,
+            # Example CRUD scaffold (Items resource — pattern reference for new domains)
+            "include_example_crud": self.include_example_crud,
             # Dev tools
             "enable_pytest": self.enable_pytest,
             "enable_precommit": self.enable_precommit,
@@ -603,4 +911,60 @@ class ProjectConfig(BaseModel):
             # Messaging channels
             "use_telegram": self.use_telegram,
             "use_slack": self.use_slack,
+            # Teams & Billing
+            "enable_teams": self.enable_teams,
+            "enable_billing": self.enable_billing,
+            "enable_credits_system": self.enable_credits_system,
+            "enable_usage_anomaly_detection": self.enable_usage_anomaly_detection,
+            "enable_usage_dashboard": self.enable_usage_dashboard,
+            "enable_slack_alerts": self.enable_slack_alerts,
+            "billing_default_currency": self.billing_default_currency,
+            "billing_trial_days_default": self.billing_trial_days_default,
+            "billing_trial_requires_card": self.billing_trial_requires_card,
+            "billing_credits_per_usd": self.billing_credits_per_usd,
+            "billing_credits_low_threshold": self.billing_credits_low_threshold,
+            "billing_credits_free_tier_grant": self.billing_credits_free_tier_grant,
+            "enable_per_org_quotas": self.enable_per_org_quotas,
+            "payment_provider": self.payment_provider.value,
+            "payment_provider_stripe": self.payment_provider == PaymentProviderType.STRIPE,
+            "payment_provider_paddle": self.payment_provider == PaymentProviderType.PADDLE,
+            "payment_provider_lemonsqueezy": self.payment_provider
+            == PaymentProviderType.LEMONSQUEEZY,
+            "payment_provider_polar": self.payment_provider == PaymentProviderType.POLAR,
+            "billing_model": self.billing_model.value,
+            "billing_model_subscription": self.billing_model == BillingModelType.SUBSCRIPTION,
+            "billing_model_usage": self.billing_model == BillingModelType.USAGE,
+            "billing_model_hybrid": self.billing_model == BillingModelType.HYBRID,
+            "billing_model_one_time": self.billing_model == BillingModelType.ONE_TIME,
+            # Tenancy
+            "tenancy": self.tenancy.value,
+            "tenancy_single": self.tenancy == TenancyMode.SINGLE,
+            "tenancy_multi_org": self.tenancy == TenancyMode.MULTI_ORG,
+            "tenancy_platform": self.tenancy == TenancyMode.PLATFORM,
+            # Email
+            "enable_email": self.enable_email,
+            "email_provider": self.email_provider.value,
+            "enable_newsletter_signup": self.enable_newsletter_signup,
+            "newsletter_provider": self.newsletter_provider.value,
+            "newsletter_provider_resend": self.newsletter_provider == NewsletterProviderType.RESEND,
+            "newsletter_provider_mailchimp": self.newsletter_provider
+            == NewsletterProviderType.MAILCHIMP,
+            "newsletter_provider_convertkit": self.newsletter_provider
+            == NewsletterProviderType.CONVERTKIT,
+            # Admin features
+            "enable_admin_features_users": self.enable_admin_features_users,
+            "enable_admin_features_organizations": self.enable_admin_features_organizations,
+            "enable_admin_features_subscriptions": self.enable_admin_features_subscriptions,
+            "enable_admin_features_usage": self.enable_admin_features_usage,
+            "enable_admin_features_stripe_events": self.enable_admin_features_stripe_events,
+            "enable_admin_features_audit_log": self.enable_admin_features_audit_log,
+            "enable_admin_features_system_health": self.enable_admin_features_system_health,
+            # Marketing / Frontend pages
+            "enable_marketing_site": self.enable_marketing_site,
+            "enable_changelog": self.enable_changelog,
+            "enable_testimonials": self.enable_testimonials,
+            "enable_comparison_pages": self.enable_comparison_pages,
+            "enable_affiliate_program": self.enable_affiliate_program,
+            "enable_status_badge": self.enable_status_badge,
+            "enable_storybook": self.enable_storybook,
         }

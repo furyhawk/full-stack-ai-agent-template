@@ -8,7 +8,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public message: string,
-    public data?: unknown
+    public data?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -21,10 +21,7 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
 }
 
 class ApiClient {
-  private async request<T>(
-    endpoint: string,
-    options: RequestOptions = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, body, ...fetchOptions } = options;
 
     let url = `/api${endpoint}`;
@@ -53,7 +50,7 @@ class ApiClient {
       throw new ApiError(
         response.status,
         errorData?.detail || errorData?.message || "Request failed",
-        errorData
+        errorData,
       );
     }
 

@@ -21,9 +21,7 @@ export function ToolApprovalDialog({
 }: ToolApprovalDialogProps) {
   // Store edited args for each action
   const [editedArgs, setEditedArgs] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      actionRequests.map((a) => [a.id, JSON.stringify(a.args, null, 2)])
-    )
+    Object.fromEntries(actionRequests.map((a) => [a.id, JSON.stringify(a.args, null, 2)])),
   );
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -35,9 +33,7 @@ export function ToolApprovalDialog({
   const handleCancel = () => {
     // Reset to original args
     setEditedArgs(
-      Object.fromEntries(
-        actionRequests.map((a) => [a.id, JSON.stringify(a.args, null, 2)])
-      )
+      Object.fromEntries(actionRequests.map((a) => [a.id, JSON.stringify(a.args, null, 2)])),
     );
     setHasChanges(false);
   };
@@ -76,7 +72,7 @@ export function ToolApprovalDialog({
   };
 
   return (
-    <div className="rounded-lg border border-yellow-500/50 bg-yellow-50/5 p-3 space-y-3">
+    <div className="space-y-3 rounded-lg border border-yellow-500/50 bg-yellow-50/5 p-3">
       <div className="flex items-center gap-2 text-sm text-yellow-600">
         <AlertTriangle className="h-4 w-4" />
         <span className="font-medium">Tool approval required</span>
@@ -85,13 +81,13 @@ export function ToolApprovalDialog({
       {actionRequests.map((action) => (
         <div key={action.id} className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+            <Wrench className="text-muted-foreground h-3.5 w-3.5" />
             <code className="text-xs font-semibold">{action.tool_name}</code>
           </div>
           <textarea
             className={cn(
-              "w-full p-2 text-xs font-mono bg-background border rounded resize-none",
-              "min-h-[80px] max-h-[200px]"
+              "bg-background w-full resize-none rounded border p-2 font-mono text-xs",
+              "max-h-[200px] min-h-[80px]",
             )}
             value={editedArgs[action.id]}
             onChange={(e) => handleArgsChange(action.id, e.target.value)}
@@ -101,7 +97,7 @@ export function ToolApprovalDialog({
         </div>
       ))}
 
-      <div className="flex justify-end gap-2 pt-1 border-t">
+      <div className="flex justify-end gap-2 border-t pt-1">
         {hasChanges && (
           <>
             <Button
@@ -124,12 +120,7 @@ export function ToolApprovalDialog({
             </Button>
           </>
         )}
-        <Button
-          size="sm"
-          className="h-7 text-xs"
-          onClick={handleSubmit}
-          disabled={disabled}
-        >
+        <Button size="sm" className="h-7 text-xs" onClick={handleSubmit} disabled={disabled}>
           Submit ({actionRequests.length})
         </Button>
       </div>
