@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 import { UsageGauge } from "@/components/billing/usage-gauge";
+import { PageHero } from "@/components/dashboard/page-hero";
 import { LoadingState } from "@/components/states";
 import { Button } from "@/components/ui";
 import {
@@ -123,32 +124,33 @@ export default function BillingHubPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-10">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Billing
-          </p>
-          <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+      <PageHero
+        eyebrow="Billing"
+        title={
+          <>
             {activeOrg?.name ?? "Your workspace"}
-          </h1>
-          <p className="text-foreground/65 mt-1 text-sm">Plan, usage, invoices, payment methods.</p>
-        </div>
-        <Button
-          onClick={() => openPortal()}
-          disabled={portalLoading}
-          variant="outline"
-          className="rounded-full"
-        >
-          {portalLoading ? (
-            "Opening…"
-          ) : (
-            <>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Manage in Stripe
-            </>
-          )}
-        </Button>
-      </header>
+            <em className="text-foreground/30">.</em>
+          </>
+        }
+        description="Plan, usage, invoices, payment methods — all in one place."
+        actions={
+          <Button
+            onClick={() => openPortal()}
+            disabled={portalLoading}
+            variant="outline"
+            className="rounded-full"
+          >
+            {portalLoading ? (
+              "Opening…"
+            ) : (
+              <>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Manage in Stripe
+              </>
+            )}
+          </Button>
+        }
+      />
 
       {/* Current plan card */}
       <section className="border-foreground/10 bg-card relative overflow-hidden rounded-3xl border p-6 sm:p-8">
@@ -371,16 +373,16 @@ function SubLink({
   return (
     <Link
       href={href}
-      className="lift border-foreground/10 hover:border-foreground/30 bg-card group flex items-center gap-3 rounded-2xl border p-4 transition-colors"
+      className="lift border-foreground/10 hover:border-brand/40 bg-card group flex items-center gap-3 rounded-2xl border p-4 transition-all"
     >
-      <span className="bg-foreground/8 text-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
+      <span className="bg-brand/15 text-foreground group-hover:bg-brand group-hover:text-brand-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors">
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-foreground text-sm font-semibold">{title}</p>
         <p className="text-foreground/55 truncate text-xs">{description}</p>
       </div>
-      <ArrowRight className="text-foreground/30 group-hover:text-foreground h-4 w-4 transition-colors" />
+      <ArrowUpRight className="text-foreground/30 group-hover:text-foreground h-4 w-4 transition-all group-hover:rotate-45" />
     </Link>
   );
 }

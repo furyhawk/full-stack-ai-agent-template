@@ -23,6 +23,7 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/hooks";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores";
 import type { Session, SessionListResponse, User } from "@/types";
 
@@ -168,23 +169,24 @@ export default function ProfileSettingsPage() {
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             disabled={avatarUploading}
-            className="bg-foreground/8 group relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full"
+            className="bg-brand/15 ring-brand/20 hover:ring-brand/60 group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 transition-all"
+            style={{ boxShadow: "0 0 32px oklch(from var(--color-brand) l c h / 0.25)" }}
           >
             {user.avatar_url ? (
               <Image
                 src={`/api/users/avatar/${user.id}`}
                 alt=""
-                width={80}
-                height={80}
+                width={96}
+                height={96}
                 className="h-full w-full object-cover"
                 unoptimized
               />
             ) : (
-              <span className="text-foreground font-mono text-lg font-semibold">
+              <span className="text-foreground font-mono text-xl font-semibold">
                 {(user.full_name || user.email).slice(0, 2).toUpperCase()}
               </span>
             )}
-            <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
               <Camera className="h-5 w-5 text-white" />
             </span>
           </button>
@@ -239,7 +241,7 @@ export default function ProfileSettingsPage() {
               id="profile-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Maya Chen"
+              placeholder="How should we call you?"
               className="h-10 rounded-xl"
             />
           </div>
@@ -305,19 +307,42 @@ export default function ProfileSettingsPage() {
               {sessions.map((session) => (
                 <li
                   key={session.id}
-                  className="border-foreground/10 bg-background flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                  className={cn(
+                    "relative flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-all",
+                    session.is_current
+                      ? "border-brand/30 bg-brand/[0.06]"
+                      : "border-foreground/10 bg-background hover:border-foreground/25",
+                  )}
                 >
+                  {session.is_current && (
+                    <span
+                      aria-hidden
+                      className="bg-brand absolute top-1/2 left-0 h-6 w-0.5 -translate-y-1/2 rounded-r-full"
+                      style={{ boxShadow: "0 0 8px var(--color-brand)" }}
+                    />
+                  )}
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="bg-foreground/8 text-foreground/70 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
+                    <span
+                      className={cn(
+                        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                        session.is_current
+                          ? "bg-brand text-brand-foreground"
+                          : "bg-foreground/8 text-foreground/70",
+                      )}
+                    >
                       <DeviceIcon type={session.device_type} />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-foreground flex items-center gap-2 text-sm font-medium">
                         <span className="truncate">{session.device_name || "Unknown device"}</span>
                         {session.is_current && (
-                          <Badge variant="secondary" className="shrink-0 text-[10px]">
+                          <span className="bg-brand/15 text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase">
+                            <span
+                              aria-hidden
+                              className="bg-brand h-1 w-1 animate-pulse rounded-full"
+                            />
                             Current
-                          </Badge>
+                          </span>
                         )}
                       </p>
                       <p className="text-foreground/55 truncate text-xs">
@@ -330,7 +355,7 @@ export default function ProfileSettingsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive hover:text-destructive h-8 shrink-0"
+                      className="text-foreground/55 hover:bg-destructive/10 hover:text-destructive h-8 shrink-0"
                       onClick={() => handleRevokeSession(session.id)}
                       title="Revoke session"
                     >

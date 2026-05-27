@@ -71,14 +71,16 @@ export function ResetPasswordForm({ token }: Props) {
   };
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
       <div className="space-y-2">
         <span className="eyebrow text-foreground/55">{t("eyebrow")}</span>
-        <h1 className="text-display-md text-foreground">{t("heading")}</h1>
+        <h1 className="text-display-md text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+          {t("heading")}
+        </h1>
         <p className="text-foreground/65 text-sm">{t("intro")}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
           <Label
             htmlFor="new-pw"
@@ -94,7 +96,7 @@ export function ResetPasswordForm({ token }: Props) {
             required
             autoComplete="new-password"
             disabled={submitting}
-            className="h-11 rounded-xl"
+            className="h-12 rounded-xl"
           />
           {password && (
             <div className="space-y-1.5 pt-1">
@@ -140,7 +142,7 @@ export function ResetPasswordForm({ token }: Props) {
             required
             autoComplete="new-password"
             disabled={submitting}
-            className={`h-11 rounded-xl ${confirm && !matches ? "border-destructive" : ""}`}
+            className={`h-12 rounded-xl ${confirm && !matches ? "border-destructive" : ""}`}
           />
           {confirm && !matches && (
             <p className="text-destructive inline-flex items-center gap-1 text-xs">
@@ -165,7 +167,7 @@ export function ResetPasswordForm({ token }: Props) {
         <Button
           type="submit"
           disabled={submitting}
-          className="bg-foreground text-background hover:bg-foreground/90 h-11 w-full rounded-full"
+          className="bg-foreground text-background hover:bg-foreground/90 h-12 w-full rounded-full text-base font-medium"
         >
           {submitting ? (
             t("submitting")

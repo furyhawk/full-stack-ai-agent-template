@@ -42,10 +42,12 @@ export function LoginForm() {
   };
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
       <div className="space-y-2">
-        <span className="eyebrow text-foreground/55">Welcome back</span>
-        <h1 className="text-display-md text-foreground">{t("login")}</h1>
+        <span className="eyebrow text-foreground/55">{t("welcomeBack")}</span>
+        <h1 className="text-display-md text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+          Sign in to <em>your workspace.</em>
+        </h1>
         <p className="text-foreground/65 text-sm">
           {t("noAccount")}{" "}
           <Link
@@ -57,10 +59,7 @@ export function LoginForm() {
         </p>
       </div>
 
-      <OAuthButtons />
-      <OAuthDividerIfProviders />
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
           <Label
             htmlFor="email"
@@ -71,14 +70,14 @@ export function LoginForm() {
           <Input
             id="email"
             type="email"
-            placeholder="you@example.com"
+            placeholder={t("emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => setEmailTouched(true)}
             required
             disabled={isLoading}
             autoComplete="email"
-            className={`h-11 rounded-xl ${emailTouched && email && !emailValid ? "border-destructive" : ""}`}
+            className={`h-12 rounded-xl ${emailTouched && email && !emailValid ? "border-destructive" : ""}`}
           />
           {emailTouched && email && !emailValid && (
             <p className="text-destructive text-xs">{t("emailRequired")}</p>
@@ -97,18 +96,19 @@ export function LoginForm() {
               href="/forgot-password"
               className="text-foreground/55 hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
             >
-              Forgot?
+              {t("forgotShort")}
             </Link>
           </div>
           <Input
             id="password"
             type="password"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading}
             autoComplete="current-password"
-            className="h-11 rounded-xl"
+            className="h-12 rounded-xl"
           />
         </div>
 
@@ -121,7 +121,7 @@ export function LoginForm() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="bg-foreground text-background hover:bg-foreground/90 h-11 w-full rounded-full"
+          className="bg-foreground text-background hover:bg-foreground/90 h-12 w-full rounded-full text-base font-medium"
         >
           {isLoading ? (
             t("loggingIn")
@@ -133,11 +133,18 @@ export function LoginForm() {
           )}
         </Button>
       </form>
+
+      <OAuthBlock label={t("orSignInWith")} />
     </div>
   );
 }
 
-function OAuthDividerIfProviders() {
+function OAuthBlock({ label }: { label: string }) {
   if (!process.env.NEXT_PUBLIC_OAUTH_PROVIDERS) return null;
-  return <OAuthDivider />;
+  return (
+    <div className="space-y-5">
+      <OAuthDivider label={label} />
+      <OAuthButtons />
+    </div>
+  );
 }

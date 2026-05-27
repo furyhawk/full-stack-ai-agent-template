@@ -81,10 +81,12 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
       <div className="space-y-2">
-        <span className="eyebrow text-foreground/55">Get started</span>
-        <h1 className="text-display-md text-foreground">{t("createAccount")}</h1>
+        <span className="eyebrow text-foreground/55">{t("getStarted")}</span>
+        <h1 className="text-display-md text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+          Create your <em>workspace.</em>
+        </h1>
         <p className="text-foreground/65 text-sm">
           {t("hasAccount")}{" "}
           <Link
@@ -96,10 +98,7 @@ export function RegisterForm() {
         </p>
       </div>
 
-      <OAuthButtons variant="signup" />
-      <OAuthDividerIfProviders />
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
           <Label
             htmlFor="name"
@@ -110,12 +109,12 @@ export function RegisterForm() {
           <Input
             id="name"
             type="text"
-            placeholder="Maya Chen"
+            placeholder={t("namePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isLoading}
             autoComplete="name"
-            className="h-11 rounded-xl"
+            className="h-12 rounded-xl"
           />
         </div>
 
@@ -129,14 +128,14 @@ export function RegisterForm() {
           <Input
             id="email"
             type="email"
-            placeholder="you@example.com"
+            placeholder={t("emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => setEmailTouched(true)}
             required
             disabled={isLoading}
             autoComplete="email"
-            className={`h-11 rounded-xl ${emailTouched && email && !emailValid ? "border-destructive" : ""}`}
+            className={`h-12 rounded-xl ${emailTouched && email && !emailValid ? "border-destructive" : ""}`}
           />
           {emailTouched && email && !emailValid && (
             <p className="text-destructive text-xs">{t("emailRequired")}</p>
@@ -153,12 +152,13 @@ export function RegisterForm() {
           <Input
             id="password"
             type="password"
+            placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading}
             autoComplete="new-password"
-            className={`h-11 rounded-xl ${password && !passwordLongEnough ? "border-destructive" : ""}`}
+            className={`h-12 rounded-xl ${password && !passwordLongEnough ? "border-destructive" : ""}`}
           />
           {password && (
             <div className="space-y-1.5 pt-1">
@@ -204,12 +204,13 @@ export function RegisterForm() {
           <Input
             id="confirmPassword"
             type="password"
+            placeholder="Repeat the password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             disabled={isLoading}
             autoComplete="new-password"
-            className={`h-11 rounded-xl ${confirmPassword && !passwordsMatch ? "border-destructive" : ""}`}
+            className={`h-12 rounded-xl ${confirmPassword && !passwordsMatch ? "border-destructive" : ""}`}
           />
           {confirmPassword && !passwordsMatch && (
             <p className="text-destructive inline-flex items-center gap-1 text-xs">
@@ -228,7 +229,7 @@ export function RegisterForm() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="bg-foreground text-background hover:bg-foreground/90 h-11 w-full rounded-full"
+          className="bg-foreground text-background hover:bg-foreground/90 h-12 w-full rounded-full text-base font-medium"
         >
           {isLoading ? (
             t("creatingAccount")
@@ -258,11 +259,18 @@ export function RegisterForm() {
           .
         </p>
       </form>
+
+      <OAuthBlock label={t("orSignUpWith")} />
     </div>
   );
 }
 
-function OAuthDividerIfProviders() {
+function OAuthBlock({ label }: { label: string }) {
   if (!process.env.NEXT_PUBLIC_OAUTH_PROVIDERS) return null;
-  return <OAuthDivider />;
+  return (
+    <div className="space-y-5">
+      <OAuthDivider label={label} />
+      <OAuthButtons variant="signup" />
+    </div>
+  );
 }

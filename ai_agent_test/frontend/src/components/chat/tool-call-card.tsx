@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Card, CardContent, Button } from "@/components/ui";
 import type { ToolCall } from "@/types";
 import {
@@ -488,10 +488,19 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
       ? parseWebSearch(toolCall.result)
       : null;
   const isWebSearch = webResults !== null;
-  const chartSpec =
-    toolCall.name === "create_chart_tool" && toolCall.status === "completed"
-      ? parseChartResult(toolCall.result)
-      : null;
+  // Memoize the parsed chart spec — `parseChartResult` does `JSON.parse` for
+  // string results, returning a NEW object each call. Without this memo, every
+  // streaming delta (text/thinking) re-renders ToolCallCard → new spec ref →
+  // ChartMessage re-renders → Recharts re-layouts → ResponsiveContainer
+  // briefly reports -1 dimensions → `RenderedTicksReporter` setState → React
+  // detects too-many updates and bails with "Maximum update depth exceeded".
+  const chartSpec = useMemo(
+    () =>
+      toolCall.name === "create_chart_tool" && toolCall.status === "completed"
+        ? parseChartResult(toolCall.result)
+        : null,
+    [toolCall.name, toolCall.status, toolCall.result],
+  );
   const isChart = chartSpec !== null;
   // A chart that finishes after this card mounted (live streaming) won't
   // have triggered the initial-state default — expand it on transition.

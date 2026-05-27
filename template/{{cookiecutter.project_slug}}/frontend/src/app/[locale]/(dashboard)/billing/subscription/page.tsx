@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { SubscriptionPanel } from "@/components/billing";
+import { PageHero } from "@/components/dashboard/page-hero";
 import { LoadingState } from "@/components/states";
 import { useBilling, usePlans } from "@/hooks";
 import { cn } from "@/lib/utils";
@@ -31,18 +32,15 @@ export default function SubscriptionPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8">
-      <header>
-        <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-          Billing · Subscription
-        </p>
-        <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-          Manage your plan
-        </h1>
-        <p className="text-foreground/65 mt-1 max-w-xl text-sm">
-          Upgrade, downgrade, or pick a different billing interval. Changes take effect on the
-          next billing cycle.
-        </p>
-      </header>
+      <PageHero
+        eyebrow="Billing · Subscription"
+        title={
+          <>
+            Manage your <em>plan.</em>
+          </>
+        }
+        description="Upgrade, downgrade, or pick a different billing interval. Changes take effect on the next billing cycle."
+      />
 
       <SubscriptionPanel />
 

@@ -522,8 +522,19 @@ export default function RAGPage() {
                       setSearchResults([]);
                       setTab("documents");
                     }}
-                    className={`group flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition-colors ${selected === col.name ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
+                    className={`group relative flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-sm transition-all ${
+                      selected === col.name
+                        ? "border-brand/30 bg-brand/[0.08] text-foreground"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground border-transparent"
+                    }`}
                   >
+                    {selected === col.name && (
+                      <span
+                        aria-hidden
+                        className="bg-brand absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-r-full"
+                        style={{ boxShadow: "0 0 8px var(--color-brand)" }}
+                      />
+                    )}
                     <div className="min-w-0">
                       <p className="truncate font-medium">{col.name}</p>
                       <p className="text-[10px] opacity-60">

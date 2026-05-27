@@ -86,16 +86,16 @@ export default function AdminRatingsPage() {
       : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-10">
+    <div className="space-y-6">
       {/* Header */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Response Ratings
+            Response ratings
           </p>
-          <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-            Message quality
-          </h1>
+          <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+            Message <em>quality.</em>
+          </h2>
           <p className="text-foreground/65 mt-1 text-sm">
             User feedback on AI responses — last 30 days.
           </p>

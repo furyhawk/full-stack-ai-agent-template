@@ -9,4 +9,4 @@ export { MarkdownContent } from "./markdown-content";
 export { FilePreviewPanel } from "./file-preview-panel";
 export { PendingMessages } from "./pending-messages";
 export { ConversationSidebar } from "./conversation-sidebar";
-export { KBSelector } from "./kb-selector";
+export { ChatControls } from "./chat-controls";

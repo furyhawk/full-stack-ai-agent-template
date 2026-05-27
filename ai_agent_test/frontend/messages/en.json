@@ -50,6 +50,13 @@
     "creatingAccount": "Creating account...",
     "nameOptional": "Name (optional)",
     "createAccount": "Create Account",
+    "welcomeBack": "Welcome back",
+    "getStarted": "Let's set you up",
+    "forgotShort": "Forgot?",
+    "namePlaceholder": "How should we call you?",
+    "emailPlaceholder": "name@company.com",
+    "orSignInWith": "or sign in with",
+    "orSignUpWith": "or sign up with",
     "resetPassword": {
       "eyebrow": "Reset password",
       "heading": "Set a new password",
@@ -326,7 +333,11 @@
       "community": "Community",
       "security": "Security",
       "getStarted": "Get started",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "platform": "Platform",
+      "solutions": "Solutions",
+      "customers": "Customers",
+      "resources": "Resources"
     },
     "footer": {
       "tagline": "The AI assistant that knows your work.",
@@ -785,22 +796,28 @@
         "title": "Built-in features that ship today",
         "subtitle": "The boring infrastructure parts you'd otherwise spend a quarter wiring up."
       },
-      "code": {
-        "eyebrow": "Developer-first",
-        "title": "Type-safe APIs you'd actually want to call"
-      },
-      "data": {
+"data": {
         "eyebrow": "How retrieval works",
         "title": "Your sources, ranked + cited"
       },
       "testimonials": {
-        "eyebrow": "What customers say",
-        "title": "Loved by teams shipping AI"
+        "eyebrow": "Loved by teams",
+        "titlePre": "Teams that ship faster",
+        "titleEm": "with us."
       },
       "pricing": {
         "eyebrow": "Pricing",
-        "title": "Pricing that scales with you",
-        "subtitle": "Start free. Upgrade when your team starts asking better questions."
+        "titlePre": "Pay only for what",
+        "titleEm": "your team needs.",
+        "subtitle": "Drag the slider — your plan, your price, in real time.",
+        "teaser": {
+          "seats": "Team size",
+          "seatsUnit": "users",
+          "perMonth": "/mo",
+          "seeFull": "See full comparison →",
+          "custom": "Let's talk",
+          "billedMonthly": "billed monthly · cancel anytime"
+        }
       },
       "faq": {
         "eyebrow": "FAQ",
@@ -833,11 +850,13 @@
         ]
       },
       "finalCta": {
-        "titlePre": "Bring your team",
-        "titleEm": "up to speed.",
-        "description": "Start a free trial in seconds — no credit card, no setup call.",
-        "primary": "Get started",
-        "secondary": "Book a demo"
+        "statValue": "12,840",
+        "statLabel": "Questions answered this week",
+        "titlePre": "Your team's next answer is",
+        "titleEm": "one ask away.",
+        "description": "Free 14-day trial. No credit card. Cancel anytime.",
+        "primary": "Start free",
+        "secondary": "See pricing"
       }
     },
     "pricing": {

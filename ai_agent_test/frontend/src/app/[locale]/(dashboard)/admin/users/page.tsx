@@ -115,9 +115,14 @@ export default function AdminUsersPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="flex h-full flex-col">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Users</h1>
+        <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
+          Users
+        </p>
+        <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+          Everyone in <em>your workspace.</em>
+        </h2>
         <p className="text-muted-foreground">
           Inspect, suspend, or impersonate any user in the workspace.
         </p>

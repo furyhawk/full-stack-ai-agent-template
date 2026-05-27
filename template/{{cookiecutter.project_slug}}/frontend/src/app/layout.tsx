@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist_Mono, Instrument_Serif, Inter } from "next/font/google";
+import { Bricolage_Grotesque, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { defaultLocale } from "@/i18n";
 import { SITE } from "@/lib/seo";
@@ -15,14 +15,6 @@ const body = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const accent = Instrument_Serif({
-  subsets: ["latin"],
-  variable: "--font-accent",
-  weight: ["400"],
-  style: ["italic", "normal"],
   display: "swap",
 });
 
@@ -97,7 +89,7 @@ export default function RootLayout({
     <html
       lang={defaultLocale}
       suppressHydrationWarning
-      className={`${display.variable} ${body.variable} ${accent.variable} ${mono.variable}`}
+      className={`${display.variable} ${body.variable} ${mono.variable}`}
     >
       <body className="font-body">{children}</body>
     </html>

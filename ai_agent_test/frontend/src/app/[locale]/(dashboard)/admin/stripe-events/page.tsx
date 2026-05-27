@@ -235,15 +235,20 @@ export default function StripeEventsPage() {
     );
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="flex h-full flex-col">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Stripe events</h1>
-          <p className="text-muted-foreground">
-            Webhook event log. Replay failed events to debug billing flows.
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
+            Stripe events
+          </p>
+          <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+            Webhook <em>event log.</em>
+          </h2>
+          <p className="text-foreground/65 mt-1 text-sm">
+            Replay failed events to debug billing flows.
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={load}>
+        <Button size="sm" variant="outline" onClick={load} className="rounded-full">
           <RefreshCw className="mr-2 h-3.5 w-3.5" />
           Refresh
         </Button>

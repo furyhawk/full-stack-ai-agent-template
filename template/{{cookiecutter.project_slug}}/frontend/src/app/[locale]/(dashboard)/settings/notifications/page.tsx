@@ -112,47 +112,42 @@ export default function NotificationsSettingsPage() {
         description="Pick which events we send by email versus only show in-app."
         action={
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleReset}
-              className="rounded-full"
-            >
+            <Button variant="ghost" size="sm" onClick={handleReset} className="rounded-full">
               Reset to defaults
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!dirty}
-              size="sm"
-              className="rounded-full"
-            >
+            <Button onClick={handleSave} disabled={!dirty} size="sm" className="rounded-full">
               Save changes
             </Button>
           </div>
         }
       >
-        <div className="border-foreground/10 bg-background overflow-hidden rounded-xl border">
-          <div className="border-foreground/10 grid grid-cols-[1fr_70px_70px] items-center gap-2 border-b px-5 py-3 sm:grid-cols-[1.5fr_90px_90px]">
-            <span className="font-mono text-foreground/55 text-[11px] uppercase tracking-wider">
+        <div className="border-foreground/10 bg-background overflow-hidden rounded-2xl border">
+          <div className="border-foreground/10 bg-foreground/[0.02] grid grid-cols-[1fr_70px_70px] items-center gap-2 border-b px-5 py-3 sm:grid-cols-[1.5fr_90px_90px]">
+            <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
               Category
             </span>
-            <span className="text-center font-mono text-foreground/55 text-[11px] uppercase tracking-wider">
+            <span className="text-foreground/55 text-center font-mono text-[11px] tracking-wider uppercase">
               Email
             </span>
-            <span className="text-center font-mono text-foreground/55 text-[11px] uppercase tracking-wider">
+            <span className="text-foreground/55 text-center font-mono text-[11px] tracking-wider uppercase">
               In-app
             </span>
           </div>
           <ul className="divide-foreground/10 divide-y">
             {CATEGORIES.map((c) => {
               const p = prefs[c.key] ?? c.defaults;
+              const enabled = p.email || p.inApp;
               return (
                 <li
                   key={c.key}
-                  className="grid grid-cols-[1fr_70px_70px] items-center gap-2 px-5 py-4 sm:grid-cols-[1.5fr_90px_90px]"
+                  className="hover:bg-foreground/[0.015] grid grid-cols-[1fr_70px_70px] items-center gap-2 px-5 py-4 transition-colors sm:grid-cols-[1.5fr_90px_90px]"
                 >
                   <div className="flex min-w-0 items-start gap-3">
-                    <span className="bg-foreground/8 text-foreground/70 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
+                    <span
+                      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                        enabled ? "bg-brand/15 text-foreground" : "bg-foreground/8 text-foreground/40"
+                      }`}
+                    >
                       <c.icon className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
@@ -189,14 +184,19 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
       role="switch"
       aria-checked={checked}
       onClick={onChange}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-        checked ? "bg-brand" : "bg-foreground/15"
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all ${
+        checked ? "bg-brand" : "bg-foreground/15 hover:bg-foreground/20"
       }`}
+      style={
+        checked
+          ? { boxShadow: "0 0 12px oklch(from var(--color-brand) l c h / 0.35)" }
+          : undefined
+      }
     >
       <span
         aria-hidden
-        className={`inline-block h-4 w-4 transform rounded-full bg-card shadow transition-transform ${
-          checked ? "translate-x-[1.125rem]" : "translate-x-0.5"
+        className={`bg-card inline-block h-5 w-5 transform rounded-full shadow-md transition-transform ${
+          checked ? "translate-x-[1.375rem]" : "translate-x-0.5"
         }`}
       />
     </button>

@@ -4,7 +4,6 @@ import { getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n";
 import { pageMetadata } from "@/lib/seo";
 
-import { CodePreview } from "@/components/marketing/code-preview";
 import { DataFlowDiagram } from "@/components/marketing/data-flow-diagram";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
 import { FeatureMockup } from "@/components/marketing/feature-mockup";
@@ -16,7 +15,6 @@ import {
   buildMarketingNavLinks,
 } from "@/components/marketing/footer-config";
 import { Hero } from "@/components/marketing/hero";
-import { Highlight } from "@/components/marketing/highlight";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { LogosStrip } from "@/components/marketing/logos-strip";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
@@ -58,55 +56,6 @@ const MARQUEE_ITEMS = [
   "Resolve",
   "Forecast",
   "Iterate",
-];
-
-const CODE_TABS = [
-  {
-    label: "REST",
-    filename: "POST /api/v1/chat",
-    language: "http",
-    code: `# Send a message — stream the answer back
-$ curl -N "https://api.your-app.com/v1/chat" \\
-    -H "Authorization: Bearer $API_KEY" \\
-    -H "Content-Type: application/json" \\
-    -d '{"message": "Summarize this quarter feedback"}'
-
-# data: {"delta": "Across 137 sessions..."}
-# data: {"delta": " top friction points..."}
-# data: [DONE]`,
-  },
-  {
-    label: "Python",
-    filename: "client.py",
-    language: "python",
-    code: `from your_app import Client
-
-client = Client(api_key="...")
-
-answer = client.chat(
-    message="Summarize this quarter feedback",
-    stream=True,
-)
-for chunk in answer:
-    print(chunk.delta, end="")`,
-  },
-  {
-    label: "Webhook",
-    filename: "Receive events on your endpoint",
-    language: "http",
-    code: `# Subscribe in dashboard, then receive:
-POST https://your-server.com/hooks
-Content-Type: application/json
-
-{
-  "event": "conversation.completed",
-  "data": {
-    "id": "conv_a1b2c3",
-    "summary": "User reported login bug",
-    "tags": ["bug", "auth"]
-  }
-}`,
-  },
 ];
 
 const TESTIMONIALS = [
@@ -220,13 +169,12 @@ export default async function HomePage() {
           eyebrow={t("hero.eyebrow")}
           title={
             <>
-              {t("hero.titlePre")} <Highlight>{t("hero.titleHighlight")}</Highlight>{" "}
+              {t("hero.titlePre")} <em>{t("hero.titleHighlight")}</em>{" "}
               <em>{t("hero.titleEm")}</em>
             </>
           }
           description={t("hero.description")}
           primaryCta={{ label: t("hero.ctaPrimary"), href: ROUTES.REGISTER }}
-          secondaryCta={{ label: t("hero.ctaSecondary"), href: "/contact" }}
           stats={heroStats}
           theme="dark"
         />
@@ -257,7 +205,38 @@ export default async function HomePage() {
         </Section>
 
         {/* Features — alternating */}
-        <Section theme="light" id="features">
+        <Section theme="dark" id="features">
+          <Reveal>
+            <FeatureSection
+              eyebrow="Connected knowledge"
+              title={
+                <>
+                  All your data, <em>one assistant.</em>
+                </>
+              }
+              description="Sync from Google Drive, Notion, Slack, S3 and more. Files stay where they are — we keep them indexed and ready to answer questions in real time."
+              bullets={[
+                {
+                  title: "Always up to date",
+                  body: "Documents re-index automatically when they change at the source.",
+                },
+                {
+                  title: "Granular permissions",
+                  body: "Each user only sees what they're allowed to see. Nothing leaks.",
+                },
+                {
+                  title: "Built-in search",
+                  body: "Find anything across every connected source from a single search box.",
+                },
+              ]}
+              visual={<FeatureMockup kind="rag" />}
+              cta={{ label: "See connected sources", href: ROUTES.RAG }}
+              visualSide="left"
+            />
+          </Reveal>
+        </Section>
+
+        <Section theme="light">
           <Reveal>
             <FeatureSection
               eyebrow="AI Chat"
@@ -291,58 +270,6 @@ export default async function HomePage() {
         <Section theme="dark">
           <Reveal>
             <FeatureSection
-              eyebrow="Connected knowledge"
-              title={
-                <>
-                  All your data, <em>one assistant.</em>
-                </>
-              }
-              description="Sync from Google Drive, Notion, Slack, S3 and more. Files stay where they are — we keep them indexed and ready to answer questions in real time."
-              bullets={[
-                {
-                  title: "Always up to date",
-                  body: "Documents re-index automatically when they change at the source.",
-                },
-                {
-                  title: "Granular permissions",
-                  body: "Each user only sees what they're allowed to see. Nothing leaks.",
-                },
-                {
-                  title: "Built-in search",
-                  body: "Find anything across every connected source from a single search box.",
-                },
-              ]}
-              visual={<FeatureMockup kind="rag" />}
-              cta={{ label: "See connected sources", href: ROUTES.RAG }}
-              visualSide="left"
-            />
-          </Reveal>
-        </Section>
-
-        {/* Data flow diagram (light) — sits between Connected Knowledge and Insights
-          to visually anchor the "your data → assistant" pipeline. */}
-        <Section theme="light" className="relative overflow-hidden">
-          <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10" />
-          <div className="mb-14 max-w-2xl">
-            <div className="mb-5">
-              <span className="eyebrow-badge">How it connects</span>
-            </div>
-            <h2 className="text-display-lg text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
-              Your data flows in. <em>Answers come back.</em>
-            </h2>
-            <p className="text-foreground/70 mt-5 max-w-xl text-lg leading-relaxed">
-              Source documents, conversations, and cloud files are continuously indexed. Every
-              answer is grounded in your own work — with citations back to the source.
-            </p>
-          </div>
-          <Reveal>
-            <DataFlowDiagram />
-          </Reveal>
-        </Section>
-
-        <Section theme="light">
-          <Reveal>
-            <FeatureSection
               eyebrow="Insights"
               title={
                 <>
@@ -366,40 +293,37 @@ export default async function HomePage() {
               ]}
               visual={<FeatureMockup kind="billing" />}
               cta={{ label: "Explore the dashboard", href: ROUTES.DASHBOARD }}
-              visualSide="right"
+              visualSide="left"
             />
           </Reveal>
         </Section>
 
-        {/* Code preview (dark) — for the developer audience */}
-        <Section theme="dark">
-          <div className="mb-14 grid gap-8 md:grid-cols-2 md:items-end">
-            <div>
-              <div className="mb-5">
-                <span className="eyebrow-badge">Built for developers too</span>
-              </div>
-              <h2 className="text-display-lg text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
-                An API for <em>everything.</em>
-              </h2>
+        {/* Data flow diagram — anchors the "your data → assistant" pipeline after the feature trio. */}
+        <Section theme="light" className="relative overflow-hidden">
+          <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10" />
+          <div className="mb-14 max-w-2xl">
+            <div className="mb-5">
+              <span className="eyebrow-badge">How it connects</span>
             </div>
-            <p className="text-foreground/70 max-w-md text-base leading-relaxed md:justify-self-end">
-              Embed the assistant in your own product, automate workflows, or pipe events to your
-              data warehouse. The dashboard is just one way to use it.
+            <h2 className="text-display-lg text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+              Your data flows in. <em>Answers come back.</em>
+            </h2>
+            <p className="text-foreground/70 mt-5 max-w-xl text-lg leading-relaxed">
+              Source documents, conversations, and cloud files are continuously indexed. Every
+              answer is grounded in your own work — with citations back to the source.
             </p>
           </div>
           <Reveal>
-            <div className="mx-auto max-w-3xl">
-              <CodePreview tabs={CODE_TABS} />
-            </div>
+            <DataFlowDiagram />
           </Reveal>
         </Section>
 
         {/* Testimonials (light) — grid of 3 */}
         <Section theme="light">
           <div className="mb-14 text-center">
-            <p className="eyebrow text-foreground/55 mb-4">Loved by teams</p>
+            <p className="eyebrow text-foreground/55 mb-4">{t("testimonials.eyebrow")}</p>
             <h2 className="text-display-lg text-foreground [&_em]:font-accent mx-auto max-w-2xl [&_em]:font-normal [&_em]:italic">
-              From the people who <em>use it daily.</em>
+              {t("testimonials.titlePre")} <em>{t("testimonials.titleEm")}</em>
             </h2>
           </div>
           <Reveal>
@@ -409,13 +333,16 @@ export default async function HomePage() {
 
         {/* Pricing (dark) */}
         <Section theme="dark" id="pricing">
-          <div className="mb-16 text-center">
+          <div className="mb-14 max-w-2xl">
             <div className="mb-5">
-              <span className="eyebrow-badge">Pricing</span>
+              <span className="eyebrow-badge">{t("pricing.eyebrow")}</span>
             </div>
-            <h2 className="text-display-lg text-foreground [&_em]:font-accent mx-auto max-w-2xl [&_em]:font-normal [&_em]:italic">
-              Pricing that <em>scales with you.</em>
+            <h2 className="text-display-lg text-foreground [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+              {t("pricing.titlePre")} <em>{t("pricing.titleEm")}</em>
             </h2>
+            <p className="text-foreground/70 mt-5 max-w-xl text-lg leading-relaxed">
+              {t("pricing.subtitle")}
+            </p>
           </div>
           <Reveal>
             <PricingTeaser plans={PLANS} fullPricingHref={ROUTES.PRICING} />
@@ -439,6 +366,7 @@ export default async function HomePage() {
         <Section theme="light" padding="pb-24 md:pb-32">
           <Reveal>
             <FinalCta
+              stat={{ value: t("finalCta.statValue"), label: t("finalCta.statLabel") }}
               title={
                 <>
                   {t("finalCta.titlePre")} <em>{t("finalCta.titleEm")}</em>
@@ -446,7 +374,7 @@ export default async function HomePage() {
               }
               description={t("finalCta.description")}
               primary={{ label: t("finalCta.primary"), href: ROUTES.REGISTER }}
-              secondary={{ label: t("finalCta.secondary"), href: "/contact" }}
+              secondary={{ label: t("finalCta.secondary"), href: ROUTES.PRICING }}
             />
           </Reveal>
         </Section>

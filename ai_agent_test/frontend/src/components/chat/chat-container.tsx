@@ -1,22 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useChat } from "@/hooks";
+import { ChatControls } from "./chat-controls";
 import { ChatEmptyState } from "./chat-empty-state";
 import { ChatInput } from "./chat-input";
-import { ChatSettings } from "./chat-settings";
 import { FilePreviewPanel } from "./file-preview-panel";
-import { KBSelector } from "./kb-selector";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
-import { ChevronDown, Check } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui";
 import type { PendingApproval, Decision } from "@/types";
 import { useConversationStore, useChatStore } from "@/stores";
 import { useConversations } from "@/hooks";
@@ -247,57 +239,6 @@ function AuthenticatedChatContainer() {
   );
 }
 
-function ModelSelector({ onChange }: { onChange: (model: string | null) => void }) {
-  const [availableModels, setAvailableModels] = useState<{ value: string; label: string }[]>([
-    { value: "", label: "Default" },
-  ]);
-  const [selected, setSelected] = useState<{ value: string; label: string }>(
-    availableModels[0] ?? { value: "", label: "Default" },
-  );
-
-  useEffect(() => {
-    fetch("/api/v1/agent/models", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.models) {
-          const models = [
-            { value: "", label: `Default (${data.default})` },
-            ...data.models.map((m: string) => ({ value: m, label: m })),
-          ];
-          setAvailableModels(models);
-          setSelected(models[0]);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="text-foreground/55 hover:bg-foreground/5 hover:text-foreground inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[11px] tracking-wider uppercase transition-colors">
-          {selected.label}
-          <ChevronDown className="h-3 w-3" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        {availableModels.map((m) => (
-          <DropdownMenuItem
-            key={m.value}
-            onClick={() => {
-              setSelected(m);
-              onChange(m.value || null);
-            }}
-            className="flex items-center justify-between text-xs"
-          >
-            {m.label}
-            {selected.value === m.value && <Check className="h-3.5 w-3.5" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 interface ChatUIProps {
   messages: import("@/types").ChatMessage[];
   isConnected: boolean;
@@ -401,14 +342,11 @@ function ChatUI({
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <KBSelector />
-                {onModelChange && <ModelSelector onChange={onModelChange} />}
-                {onTemperatureChange && onThinkingEffortChange && (
-                  <ChatSettings
-                    onTemperatureChange={onTemperatureChange}
-                    onThinkingEffortChange={onThinkingEffortChange}
-                  />
-                )}
+                <ChatControls
+                  onModelChange={onModelChange}
+                  onTemperatureChange={onTemperatureChange}
+                  onThinkingEffortChange={onThinkingEffortChange}
+                />
               </div>
             </div>
           </div>

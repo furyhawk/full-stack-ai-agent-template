@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/comp
 const navigation = [
   { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { name: "Chat", href: ROUTES.CHAT, icon: MessageSquare },
-  { name: "Knowledge Bases", href: ROUTES.KB, icon: Database },
+  { name: "RAG", href: ROUTES.KB, icon: Database },
   { name: "Organizations", href: ROUTES.ORGS, icon: Building2 },
   { name: "Billing", href: ROUTES.BILLING, icon: CreditCard },
   { name: "Profile", href: ROUTES.PROFILE, icon: UserCircle },

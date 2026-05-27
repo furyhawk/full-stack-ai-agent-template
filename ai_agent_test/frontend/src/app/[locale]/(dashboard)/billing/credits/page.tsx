@@ -15,6 +15,7 @@ import {
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 
+import { PageHero } from "@/components/dashboard/page-hero";
 import { LoadingState } from "@/components/states";
 import { Button } from "@/components/ui";
 import { useBilling, useCredits } from "@/hooks";
@@ -95,32 +96,29 @@ export default function CreditsPage() {
         </Link>
       </div>
 
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Credits
-          </p>
-          <h1 className="font-display text-foreground mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-            Balance &amp; usage
-          </h1>
-          <p className="text-foreground/65 mt-1 text-sm">
-            Credits power AI completions, embeddings, and tool calls.
-          </p>
-        </div>
-        <Button
-          onClick={() =>
-            startCheckout({
-              success_url: window.location.href + "?topup=1",
-              cancel_url: window.location.href,
-            })
-          }
-          disabled={checkoutLoading}
-          className="rounded-full"
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          {checkoutLoading ? "Opening checkout…" : "Buy credits"}
-        </Button>
-      </header>
+      <PageHero
+        eyebrow="Credits"
+        title={
+          <>
+            Balance &amp; <em>usage.</em>
+          </>
+        }
+        description="Credits power AI completions, embeddings, and tool calls."
+        actions={
+          <Button
+            onClick={() =>
+              startCheckout({
+                success_url: window.location.href + "?topup=1",
+                cancel_url: window.location.href,
+              })
+            }
+            disabled={checkoutLoading}
+            className="rounded-full"
+          >
+            {checkoutLoading ? "Opening…" : "Top up"}
+          </Button>
+        }
+      />
 
       {/* Balance card with sparkline */}
       <section

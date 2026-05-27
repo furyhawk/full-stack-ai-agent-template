@@ -121,10 +121,15 @@ export default function AdminConversationsPage() {
   );
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="flex h-full flex-col">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("conversationsTitle")}</h1>
-        <p className="text-muted-foreground">{t("conversationsDesc")}</p>
+        <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
+          Conversations
+        </p>
+        <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight">
+          {t("conversationsTitle")}
+        </h2>
+        <p className="text-foreground/65 mt-1 text-sm">{t("conversationsDesc")}</p>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

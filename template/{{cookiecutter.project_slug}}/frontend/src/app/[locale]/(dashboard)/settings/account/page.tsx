@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock } from "lucide-react";
+import { AlertTriangle, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { SettingsSection } from "@/components/settings/settings-section";
@@ -192,6 +192,19 @@ export default function AccountSettingsPage() {
         description="Permanently remove your account, conversations, and uploaded data. This can't be undone."
         danger
       >
+        <div className="border-destructive/20 bg-destructive/[0.04] flex items-start gap-3 rounded-xl border p-4">
+          <span className="bg-destructive/15 text-destructive flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+            <AlertTriangle className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground text-sm font-semibold">This is irreversible</p>
+            <p className="text-foreground/65 mt-0.5 text-xs leading-relaxed">
+              All conversations, knowledge base contents, API keys, and personal data will be
+              permanently deleted. Active subscriptions will be canceled.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" className="rounded-full">
@@ -218,6 +231,7 @@ export default function AccountSettingsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </div>
       </SettingsSection>
     </div>
   );

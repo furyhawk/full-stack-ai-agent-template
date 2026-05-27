@@ -50,6 +50,13 @@
     "creatingAccount": "Tworzę konto...",
     "nameOptional": "Imię (opcjonalnie)",
     "createAccount": "Utwórz konto",
+    "welcomeBack": "Witaj z powrotem",
+    "getStarted": "Zaczynamy",
+    "forgotShort": "Zapomniałeś?",
+    "namePlaceholder": "Jak Cię nazywać?",
+    "emailPlaceholder": "imie@firma.com",
+    "orSignInWith": "lub zaloguj przez",
+    "orSignUpWith": "lub załóż konto przez",
     "resetPassword": {
       "eyebrow": "Reset hasła",
       "heading": "Ustaw nowe hasło",
@@ -326,7 +333,11 @@
       "community": "Społeczność",
       "security": "Bezpieczeństwo",
       "getStarted": "Zacznij teraz",
-      "signIn": "Zaloguj się"
+      "signIn": "Zaloguj się",
+      "platform": "Platforma",
+      "solutions": "Rozwiązania",
+      "customers": "Klienci",
+      "resources": "Materiały"
     },
     "footer": {
       "tagline": "Asystent AI, który zna Twoją pracę.",
@@ -785,22 +796,28 @@
         "title": "Wbudowane funkcje, które shipują dziś",
         "subtitle": "Te nudne kawałki infrastruktury, na które inaczej zszedłby Ci kwartał."
       },
-      "code": {
-        "eyebrow": "Developer-first",
-        "title": "Type-safe API, które chcesz wołać"
-      },
-      "data": {
+"data": {
         "eyebrow": "Jak działa retrieval",
         "title": "Twoje źródła, rankowane + cytowane"
       },
       "testimonials": {
-        "eyebrow": "Co mówią klienci",
-        "title": "Pokochały nas zespoły shipujące AI"
+        "eyebrow": "Pokochane przez zespoły",
+        "titlePre": "Zespoły, które dowożą szybciej",
+        "titleEm": "z nami."
       },
       "pricing": {
         "eyebrow": "Cennik",
-        "title": "Cennik, który skaluje się z Tobą",
-        "subtitle": "Zacznij za darmo. Upgraduj gdy zespół zacznie zadawać lepsze pytania."
+        "titlePre": "Płać tylko za to,",
+        "titleEm": "czego potrzebujesz.",
+        "subtitle": "Przesuń suwak — Twój plan i cena, na żywo.",
+        "teaser": {
+          "seats": "Wielkość zespołu",
+          "seatsUnit": "użytkowników",
+          "perMonth": "/mc",
+          "seeFull": "Pełne porównanie →",
+          "custom": "Porozmawiajmy",
+          "billedMonthly": "rozliczenie miesięczne · anuluj kiedy chcesz"
+        }
       },
       "faq": {
         "eyebrow": "FAQ",
@@ -833,11 +850,13 @@
         ]
       },
       "finalCta": {
-        "titlePre": "Podciągnij swój zespół",
-        "titleEm": "do tempa.",
-        "description": "Zacznij darmowy trial w sekundę — bez karty, bez setup call.",
-        "primary": "Zacznij teraz",
-        "secondary": "Umów demo"
+        "statValue": "12 840",
+        "statLabel": "Pytań odpowiedzianych w tym tygodniu",
+        "titlePre": "Kolejna odpowiedź dla Twojego zespołu —",
+        "titleEm": "jedno pytanie stąd.",
+        "description": "Darmowy 14-dniowy trial. Bez karty. Anuluj kiedy chcesz.",
+        "primary": "Zacznij za darmo",
+        "secondary": "Zobacz cennik"
       }
     },
     "pricing": {

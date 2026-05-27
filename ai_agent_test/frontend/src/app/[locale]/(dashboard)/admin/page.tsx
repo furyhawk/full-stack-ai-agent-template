@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
-  ArrowRight,
+  ArrowUpRight,
   CreditCard,
   MessageSquare,
   RefreshCw,
@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/states";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 interface AdminStats {
   total_users?: number;
@@ -119,12 +120,14 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-foreground text-xl font-semibold tracking-tight">
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             Overview
+          </p>
+          <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+            The view from <em>above.</em>
           </h2>
-          <p className="text-foreground/55 text-xs">Workspace-wide metrics and recent activity.</p>
         </div>
         <Button
           size="sm"
@@ -135,7 +138,7 @@ export default function AdminOverviewPage() {
           }}
           className="rounded-full"
         >
-          <RefreshCw className="mr-2 h-3.5 w-3.5" />
+          <RefreshCw className={cn("mr-2 h-3.5 w-3.5", statsLoading && "animate-spin")} />
           Refresh
         </Button>
       </div>
@@ -203,6 +206,12 @@ export default function AdminOverviewPage() {
           title="System health"
           description="Per-service status & uptime"
         />
+        <QuickLink
+          href="/admin/ratings"
+          icon={Star}
+          title="Response ratings"
+          description="Quality signals from users"
+        />
       </section>
 
       {/* Recent activity */}
@@ -267,16 +276,16 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="lift border-foreground/10 hover:border-foreground/30 bg-card group flex items-center gap-3 rounded-xl border p-4 transition-colors"
+      className="lift border-foreground/10 hover:border-brand/40 bg-card group flex items-center gap-3 rounded-2xl border p-4 transition-all"
     >
-      <span className="bg-foreground/8 text-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
+      <span className="bg-brand/15 text-foreground group-hover:bg-brand group-hover:text-brand-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors">
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-foreground text-sm font-semibold">{title}</p>
         <p className="text-foreground/55 truncate text-xs">{description}</p>
       </div>
-      <ArrowRight className="text-foreground/30 group-hover:text-foreground h-4 w-4 transition-colors" />
+      <ArrowUpRight className="text-foreground/30 group-hover:text-foreground h-4 w-4 transition-all group-hover:rotate-45" />
     </Link>
   );
 }
