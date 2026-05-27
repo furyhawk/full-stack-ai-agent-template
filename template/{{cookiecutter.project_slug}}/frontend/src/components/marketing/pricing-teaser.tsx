@@ -27,7 +27,7 @@ interface PricingTeaserProps {
  *  Returns -1 when there's no number (e.g. "Custom" tier). */
 function parsePerSeat(priceStr: string): number {
   const m = priceStr.replace(/\s/g, "").match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : -1;
+  return m?.[1] ? parseInt(m[1], 10) : -1;
 }
 
 /** Currency wrapping a parsed number — preserves the original prefix/suffix
@@ -55,6 +55,9 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
 
   const activeIndex = pinnedTier ?? inferTierIndex(seats, plans.length);
   const activePlan = plans[activeIndex];
+  // Empty plans list — nothing to render. (TS also needs this guard for
+  // `noUncheckedIndexedAccess` to narrow `activePlan` below.)
+  if (!activePlan) return null;
   const perSeat = parsePerSeat(activePlan.price);
   const isCustom = perSeat < 0;
   const total = isCustom ? null : perSeat * seats;
