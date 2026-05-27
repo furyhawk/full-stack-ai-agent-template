@@ -1,5 +1,5 @@
 <p align="center">
-  <video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new2/chat_demo_light_v2.mp4" controls width="100%"></video>
+  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/chat_demo.gif" alt="Live chat — web search, tool calls, and chart generation" width="100%">
 </p>
 
 <h1 align="center">Full-Stack AI Agent Template</h1>
@@ -254,7 +254,7 @@ Use `make help` to see all available Makefile shortcuts.
 **File upload & RAG ingestion:**
 
 <p align="center">
-  <video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new2/rag_demo_dark.mp4" controls width="100%"></video>
+  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/rag_demo.gif" alt="File upload &amp; RAG ingestion" width="100%">
 </p>
 
 ---

@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`temperature` forwarded to reasoning models (gpt-5.5, o1)** — those models reject the parameter entirely, so `AssistantAgent` no longer falls back to `settings.AI_TEMPERATURE`; it stays `None` and is only forwarded to `ModelSettings` when the caller explicitly sets it
 - **`reranker.py` Cohere init imported the SDK only to discard it** — replaced the `from cohere import AsyncClient` probe with `importlib.util.find_spec("cohere")` so we check availability without polluting imports
 - **Auth components barrel exported password forms in OAuth-only builds** — `components/auth/index.ts` now gates the local-auth form exports behind `use_local_auth`, so OAuth-only projects don't ship dead code that references missing endpoints
+- **README demo videos invisible on GitHub** — `<video>` tags from `raw.githubusercontent.com` don't render in the GitHub README viewer (only `<img>` autoplays from raw URLs). Converted both chat and RAG demo `.mp4`s to optimized `.gif`s (960px, 10fps, palette-quantized — 5.8 MB and 3.0 MB respectively, ~80% smaller than source) and switched the README to `<img>` tags. Removed the unused `.mp4` sources
+- **Renovate scanned the generated `ai_agent_test/` snapshot** — opened useless PRs against the snapshot's `package.json` / `docker-compose.yml` instead of the actual `template/` source, so every accepted bump would silently revert on the next regeneration. Added `ignorePaths: ["ai_agent_test/**", "**/node_modules/**"]` so future bumps target the template files
 
 ### Dependencies
 
@@ -36,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `milvusdb/milvus` Docker tag → **v2.6.17** in generated `docker-compose.{dev,prod,}.yml` (#77)
 - `qdrant/qdrant` Docker tag → **v1.18.1** in generated `docker-compose.{dev,prod,}.yml` (#78)
 - `quay.io/coreos/etcd` Docker tag → **v3.6.11** (Milvus dependency) in generated `docker-compose.{dev,prod,}.yml` (#80)
+- `prettier-plugin-tailwindcss` → **^0.8.0** in template frontend `package.json` (#81 bumped only the snapshot; the template source is the durable fix)
 
 ## [0.2.9] - 2026-05-17
 
