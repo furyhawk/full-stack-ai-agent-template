@@ -240,27 +240,25 @@ Use `make help` to see all available Makefile shortcuts.
 
 ## 🎬 Demo
 
-> The videos below are best viewed on GitHub. On other viewers, see the [Screenshots](#-screenshots) gallery.
-
 **AI chat** — streaming responses with tool calls, reasoning view, and ask-user pauses:
 
-<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/chat_demo.mp4" controls muted width="100%"></video>
+![AI chat demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_demo.gif)
 
 **Plan & tasks** — sticky plan/task checklist updating live as the agent works through steps:
 
-<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/chat_demo_with_tasks.mp4" controls muted width="100%"></video>
+![Chat with tasks demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_demo_with_tasks.gif)
 
 **File upload & RAG ingestion** — drop a document, watch it get parsed, chunked, embedded, and answered against:
 
-<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/rag_demo.mp4" controls muted width="100%"></video>
+![RAG demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/rag_demo.gif)
 
 **Generated marketing site** — the public landing page that ships with `enable_marketing_site`:
 
-<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/landing.mp4" controls muted width="100%"></video>
+![Landing demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing.gif)
 
 **CLI generator** — configure and scaffold a project in seconds:
 
-<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/cli_generator_demo_2.mp4" controls muted width="100%"></video>
+![CLI generator demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/cli_generator_demo_2.gif)
 
 ---
 
