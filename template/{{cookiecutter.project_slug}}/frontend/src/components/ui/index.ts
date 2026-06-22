@@ -1,4 +1,8 @@
 export { Button, buttonVariants } from "./button";
+export { IconButton } from "./icon-button";
+export { FormField } from "./form-field";
+export { ConfirmDialog } from "./confirm-dialog";
+export { SectionHeading } from "./section-heading";
 export { Input } from "./input";
 export { Label } from "./label";
 export { Textarea } from "./textarea";
@@ -15,6 +19,7 @@ export {
   DialogDescription,
   DialogClose,
 } from "./dialog";
+export { Alert, AlertTitle, AlertDescription } from "./alert";
 export {
   AlertDialog,
   AlertDialogTrigger,
@@ -43,7 +48,6 @@ export {
 } from "./select";
 export { Switch } from "./switch";
 export { Progress } from "./progress";
-export { ScrollArea, ScrollBar } from "./scroll-area";
 export {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -73,7 +77,8 @@ export {
 } from "./table";
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./accordion";
 export { Checkbox } from "./checkbox";
-export { RadioGroup, RadioGroupItem } from "./radio-group";
 export { Spinner } from "./spinner";
 export { QuestionPrompt } from "./question-prompt";
 export type { QuestionPromptProps } from "./question-prompt";
+
+export { DataTable, type Column } from "./data-table";

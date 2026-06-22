@@ -36,7 +36,6 @@ export function AnimatedNumber({ value, durationMs = 900, className }: AnimatedN
   useEffect(() => {
     if (!played) return;
 
-    // Find each integer in the string and animate independently
     const segments = value.split(/(\d+)/);
     const targets = segments.map((s) => (/^\d+$/.test(s) ? parseInt(s, 10) : null));
 

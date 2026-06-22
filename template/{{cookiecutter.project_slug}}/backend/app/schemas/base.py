@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict
 
 
@@ -29,8 +30,6 @@ class BaseSchema(BaseModel):
 
     def serializable_dict(self, **kwargs: Any) -> dict[str, Any]:
         """Return a dict with only JSON-serializable fields."""
-        from fastapi.encoders import jsonable_encoder
-
         result: dict[str, Any] = jsonable_encoder(self.model_dump(**kwargs))
         return result
 
@@ -56,3 +55,21 @@ class ErrorResponse(BaseModel):
     error: str
     detail: str | None = None
     code: str | None = None
+
+
+class AgentModelsResponse(BaseModel):
+    default: str
+    models: list[str]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    max_upload_size_mb: int | None = None
+
+
+class HealthDetailResponse(BaseModel):
+    status: str
+    timestamp: str
+    service: str
+    checks: dict[str, Any] | None = None
+    details: dict[str, Any] | None = None

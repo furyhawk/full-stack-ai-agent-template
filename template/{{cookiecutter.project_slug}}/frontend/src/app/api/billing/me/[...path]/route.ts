@@ -44,13 +44,11 @@ async function proxy(request: NextRequest, context: RouteContext, method: string
   }
 }
 
-export const GET = (request: NextRequest, context: RouteContext) =>
-  proxy(request, context, "GET");
+export const GET = (request: NextRequest, context: RouteContext) => proxy(request, context, "GET");
 export const POST = (request: NextRequest, context: RouteContext) =>
   proxy(request, context, "POST");
 export const PATCH = (request: NextRequest, context: RouteContext) =>
   proxy(request, context, "PATCH");
-export const PUT = (request: NextRequest, context: RouteContext) =>
-  proxy(request, context, "PUT");
+export const PUT = (request: NextRequest, context: RouteContext) => proxy(request, context, "PUT");
 export const DELETE = (request: NextRequest, context: RouteContext) =>
   proxy(request, context, "DELETE");

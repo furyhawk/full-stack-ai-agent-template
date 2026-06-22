@@ -13,10 +13,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   const { id, sourceId } = await params;
   try {
-    const data = await backendFetch(
-      `/api/v1/kb/${id}/sync-sources/${sourceId}/trigger`,
-      { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const data = await backendFetch(`/api/v1/kb/${id}/sync-sources/${sourceId}/trigger`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof BackendApiError) {

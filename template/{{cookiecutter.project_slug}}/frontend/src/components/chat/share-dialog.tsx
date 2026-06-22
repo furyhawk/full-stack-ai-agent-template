@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "next-intl";
 import { useConversationShares } from "@/hooks";
 import type { ConversationShare } from "@/types";
+import { getErrorMessage } from "@/lib/utils";
 
 interface ShareDialogProps {
   conversationId: string;
@@ -37,7 +39,7 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
   const [email, setEmail] = useState("");
   const [permission, setPermission] = useState<"view" | "edit">("view");
   const [shareLink, setShareLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copy, copied } = useCopyToClipboard();
   const [isSharing, setIsSharing] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
       setEmail("");
       toast.success(t("conversationShared"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("failedToShare"));
+      toast.error(getErrorMessage(err, t("failedToShare")));
     } finally {
       setIsSharing(false);
     }
@@ -78,7 +80,7 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
         toast.success(t("linkGenerated"));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("failedToGenerateLink"));
+      toast.error(getErrorMessage(err, t("failedToGenerateLink")));
     } finally {
       setIsGeneratingLink(false);
     }
@@ -86,14 +88,8 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
 
   const handleCopyLink = async () => {
     if (shareLink) {
-      try {
-        await navigator.clipboard.writeText(shareLink);
-        toast.success(t("copyLink"));
-      } catch {
-        // Fallback for non-secure contexts
-      }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await copy(shareLink);
+      toast.success(t("copyLink"));
     }
   };
 
@@ -103,7 +99,7 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
       await revokeShare(conversationId, share.id);
       toast.success(t("accessRevoked"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("failedToRevoke"));
+      toast.error(getErrorMessage(err, t("failedToRevoke")));
     } finally {
       setRevokingId(null);
     }
@@ -118,7 +114,6 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Share with user */}
           <div className="flex gap-2">
             <Input
               placeholder={t("userIdOrEmail")}
@@ -149,7 +144,6 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
             </Button>
           </div>
 
-          {/* Generate link */}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -181,7 +175,6 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
             </p>
           )}
 
-          {/* Current shares */}
           {shares.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">{t("sharedWith")}</p>
@@ -203,6 +196,7 @@ export function ShareDialog({ conversationId, open, onOpenChange }: ShareDialogP
                     onClick={() => handleRevoke(share)}
                     disabled={revokingId === share.id}
                     className="h-8 w-8"
+                    aria-label={t("revokeAccess")}
                   >
                     {revokingId === share.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

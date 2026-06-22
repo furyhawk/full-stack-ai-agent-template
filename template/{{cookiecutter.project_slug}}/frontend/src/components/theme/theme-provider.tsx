@@ -14,9 +14,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const root = document.documentElement;
     const resolvedTheme = getResolvedTheme(theme);
 
-    // Remove both classes first
     root.classList.remove("light", "dark");
-    // Add the current theme class
     root.classList.add(resolvedTheme);
 
     // Update color-scheme for native elements

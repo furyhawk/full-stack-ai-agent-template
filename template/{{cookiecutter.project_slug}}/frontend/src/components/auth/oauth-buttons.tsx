@@ -60,6 +60,16 @@ export function OAuthButtons({ next, variant = "signin" }: OAuthButtonsProps) {
   );
 }
 
+export function OAuthBlock({ label, variant }: { label: string; variant?: "signin" | "signup" }) {
+  if (!process.env.NEXT_PUBLIC_OAUTH_PROVIDERS) return null;
+  return (
+    <div className="space-y-5">
+      <OAuthDivider label={label} />
+      <OAuthButtons variant={variant} />
+    </div>
+  );
+}
+
 export function OAuthDivider({ label = "or" }: { label?: string }) {
   return (
     <div className="flex items-center gap-3">

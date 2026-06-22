@@ -77,18 +77,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """Add security headers to the response."""
         response = await call_next(request)
 
-        # Skip for docs/openapi endpoints which need different CSP
         if request.url.path in self.exclude_paths:
             return response
 
-        # Build CSP header
         csp_value = "; ".join(
             f"{directive} {value}" for directive, value in self.csp_directives.items()
         )
 
-        # Add security headers — respect any already set by the route, so an
-        # endpoint can opt into less restrictive framing (e.g. user-content
-        # files served inline for the chat preview panel).
+        # Respect any already-set headers so an endpoint can opt into less
+        # restrictive framing (e.g. user-content files in the chat preview panel).
         response.headers.setdefault("Content-Security-Policy", csp_value)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")

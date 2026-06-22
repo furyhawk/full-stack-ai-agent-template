@@ -6,6 +6,7 @@ import { ArrowRight, FileText, FolderOpen, HardDrive, Upload } from "lucide-reac
 import { toast } from "sonner";
 
 import { BrandIcon } from "@/components/marketing/brand-icon";
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 import { OnboardingShell } from "./onboarding-shell";
@@ -80,23 +81,19 @@ export function StepData() {
       </div>
 
       {filename && (
-        <div className="border-foreground/10 bg-foreground/[0.03] mt-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm">
-          <FileText className="text-foreground/55 h-4 w-4" />
+        <div className="border-border bg-muted mt-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm">
+          <FileText className="text-muted-foreground h-4 w-4" />
           <span className="text-foreground flex-1 truncate font-mono text-xs">{filename}</span>
-          <span className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+          <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
             {uploading ? "Queueing…" : "Ready"}
           </span>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleNext}
-        className="bg-foreground text-background hover:bg-foreground/90 mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium transition-colors"
-      >
+      <Button size="lg" className="mt-8" onClick={handleNext}>
         Continue
         <ArrowRight className="h-4 w-4" />
-      </button>
+      </Button>
     </OnboardingShell>
   );
 }
@@ -123,24 +120,22 @@ function ChoiceCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "lift flex w-full items-center gap-4 rounded-2xl border p-5 text-left transition-colors",
-        selected
-          ? "border-brand bg-brand/[0.06]"
-          : "border-foreground/10 bg-card hover:border-foreground/30",
+        "bg-card flex w-full items-center gap-4 rounded-xl border p-5 text-left transition-colors",
+        selected ? "border-foreground" : "border-border hover:border-foreground/30",
       )}
     >
       <div
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
-          accent || selected ? "bg-brand text-brand-foreground" : "bg-foreground/8 text-foreground",
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
+          accent || selected ? "bg-foreground text-background" : "bg-muted text-foreground",
         )}
       >
         {Icon && <Icon className="h-5 w-5" />}
         {brandIcon && <BrandIcon name={brandIcon} className="h-5 w-5" aria-hidden />}
       </div>
       <div className="flex-1">
-        <p className="text-foreground font-display text-base font-semibold">{title}</p>
-        <p className="text-foreground/65 mt-0.5 text-sm">{description}</p>
+        <p className="text-foreground text-base font-semibold">{title}</p>
+        <p className="text-muted-foreground mt-0.5 text-sm">{description}</p>
       </div>
     </button>
   );

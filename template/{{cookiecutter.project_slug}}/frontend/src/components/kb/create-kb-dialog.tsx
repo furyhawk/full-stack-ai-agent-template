@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,8 +62,7 @@ export function CreateKBDialog({ open, onOpenChange, onCreated }: CreateKBDialog
           <DialogTitle>Create knowledge base</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="kb-name">Name</Label>
+          <FormField label="Name" htmlFor="kb-name">
             <Input
               id="kb-name"
               value={name}
@@ -70,9 +70,8 @@ export function CreateKBDialog({ open, onOpenChange, onCreated }: CreateKBDialog
               placeholder="Product docs"
               autoFocus
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="kb-description">Description (optional)</Label>
+          </FormField>
+          <FormField label="Description (optional)" htmlFor="kb-description">
             <Textarea
               id="kb-description"
               value={description}
@@ -80,8 +79,8 @@ export function CreateKBDialog({ open, onOpenChange, onCreated }: CreateKBDialog
               placeholder="What documents will this KB contain?"
               rows={2}
             />
-          </div>
-          <div className="space-y-2">
+          </FormField>
+          <div className="space-y-1.5">
             <Label htmlFor="kb-scope">Scope</Label>
             <Select value={scope} onValueChange={(v) => setScope(v as KBScope)}>
               <SelectTrigger id="kb-scope">

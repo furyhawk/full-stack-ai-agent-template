@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// GET /api/v1/rag/sync/sources/:sourceId - Get sync source
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> },
@@ -22,7 +21,6 @@ export async function GET(
   }
 }
 
-// PATCH /api/v1/rag/sync/sources/:sourceId - Update sync source
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> },
@@ -48,7 +46,6 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/v1/rag/sync/sources/:sourceId - Delete sync source
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> },

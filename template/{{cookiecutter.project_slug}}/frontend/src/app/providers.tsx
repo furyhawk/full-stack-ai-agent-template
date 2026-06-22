@@ -16,8 +16,17 @@ export function Providers({ children }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            // Data is considered fresh for 5 min → no refetch on remount/navigation.
+            staleTime: 5 * 60 * 1000,
+            // Keep cached data 30 min after last use for instant back-navigation.
+            gcTime: 30 * 60 * 1000,
+            // Don't hammer the API when the tab regains focus.
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: "always",
             retry: 1,
+          },
+          mutations: {
+            retry: 0,
           },
         },
       }),

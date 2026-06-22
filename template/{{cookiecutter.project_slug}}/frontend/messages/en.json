@@ -16,7 +16,12 @@
     "close": "Close",
     "confirm": "Confirm",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "done": "Done",
+    "retry": "Retry",
+    "skipToContent": "Skip to content",
+    "live": "Live",
+    "offline": "Offline"
   },
   "navigation": {
     "home": "Home",
@@ -24,6 +29,52 @@
     "profile": "Profile",
     "settings": "Settings",
     "logout": "Logout"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "Chat",
+    "knowledge": "Knowledge",
+    "knowledgeBases": "Knowledge bases",
+    "knowledgeBasesDesc": "Documents & collections",
+    "rag": "RAG",
+    "ragSearch": "RAG search",
+    "ragSearchDesc": "Query & ingest",
+    "team": "Team",
+    "organizations": "Organizations",
+    "organizationsDesc": "Workspaces & members",
+    "billing": "Billing",
+    "admin": "Admin",
+    "profile": "Profile",
+    "settings": "Settings",
+    "overview": "Overview",
+    "users": "Users",
+    "conversations": "Conversations",
+    "ratings": "Ratings",
+    "stripeEvents": "Stripe events",
+    "systemHealth": "System health",
+    "system": "System",
+    "account": "Account",
+    "notifications": "Notifications",
+    "appearance": "Appearance",
+    "slashCommands": "Slash commands",
+    "search": "Search",
+    "home": "Home",
+    "kb": "KB",
+    "usage": "Usage",
+    "credits": "Credits",
+    "invoices": "Invoices",
+    "paymentMethods": "Payment methods",
+    "subscription": "Subscription",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Log out",
+    "toggleMenu": "Toggle menu",
+    "navigate": "Navigate",
+    "apiDocs": "API documentation",
+    "responseRatings": "Response ratings",
+    "allConversations": "All conversations",
+    "settingsSection": "Settings",
+    "billingSection": "Billing"
   },
   "auth": {
     "login": "Login",
@@ -136,6 +187,7 @@
     "conversationShared": "Conversation shared",
     "linkGenerated": "Share link generated",
     "accessRevoked": "Access revoked",
+    "revokeAccess": "Revoke access",
     "copyLink": "Link copied to clipboard",
     "failedToShare": "Failed to share conversation",
     "failedToGenerateLink": "Failed to generate link",
@@ -338,6 +390,62 @@
       "solutions": "Solutions",
       "customers": "Customers",
       "resources": "Resources"
+    },
+    "menu": {
+      "product": "Product",
+      "solutions": "Solutions",
+      "resources": "Resources",
+      "seePricing": "See pricing",
+      "talkToSales": "Talk to sales",
+      "items": {
+        "overview": {
+          "label": "Overview",
+          "desc": "The whole platform at a glance"
+        },
+        "howItWorks": {
+          "label": "How it works",
+          "desc": "From sign-up to first answer in minutes"
+        },
+        "insights": {
+          "label": "Insights",
+          "desc": "Track usage, answer quality and ROI"
+        },
+        "changelog": {
+          "label": "Changelog",
+          "desc": "New features, shipped every week"
+        },
+        "support": {
+          "label": "Customer support",
+          "desc": "Resolve tickets faster with grounded answers"
+        },
+        "sales": {
+          "label": "Sales teams",
+          "desc": "Surface the right deck, doc and number instantly"
+        },
+        "knowledge": {
+          "label": "Internal knowledge",
+          "desc": "One place to ask across every tool"
+        },
+        "research": {
+          "label": "Research & analysis",
+          "desc": "Summarize, compare and decide with citations"
+        },
+        "help": {
+          "desc": "Guides, tutorials and answers"
+        },
+        "api": {
+          "desc": "Build on our REST API"
+        },
+        "security": {
+          "desc": "How we keep your data safe"
+        },
+        "community": {
+          "desc": "Join the conversation"
+        },
+        "blog": {
+          "desc": "Product news and playbooks"
+        }
+      }
     },
     "footer": {
       "tagline": "The AI assistant that knows your work.",
@@ -782,7 +890,9 @@
         "ctaSecondary": "Book a demo",
         "stat_teams": "Teams using",
         "stat_speed": "Faster answers",
-        "stat_uptime": "Always on"
+        "stat_uptime": "Always on",
+        "ratingLabel": "rated 4.9/5 by 1,200+ teams",
+        "trustNote": "No credit card required · Cancel anytime"
       },
       "social": {
         "title": "Trusted by teams across industries"
@@ -796,7 +906,7 @@
         "title": "Built-in features that ship today",
         "subtitle": "The boring infrastructure parts you'd otherwise spend a quarter wiring up."
       },
-"data": {
+      "data": {
         "eyebrow": "How retrieval works",
         "title": "Your sources, ranked + cited"
       },
@@ -816,7 +926,8 @@
           "perMonth": "/mo",
           "seeFull": "See full comparison →",
           "custom": "Let's talk",
-          "billedMonthly": "billed monthly · cancel anytime"
+          "billedMonthly": "billed monthly · cancel anytime",
+          "perSeatUnit": "/ user / month"
         }
       },
       "faq": {

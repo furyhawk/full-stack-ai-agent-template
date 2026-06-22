@@ -16,10 +16,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const qs = request.nextUrl.searchParams.toString();
   try {
-    const data = await backendFetch(
-      `/api/v1/kb/${id}/documents${qs ? `?${qs}` : ""}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const data = await backendFetch(`/api/v1/kb/${id}/documents${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof BackendApiError) {
@@ -41,14 +40,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const qs = request.nextUrl.searchParams.toString();
   const formData = await request.formData();
-  const upstream = await fetch(
-    `${BACKEND_URL}/api/v1/kb/${id}/documents${qs ? `?${qs}` : ""}`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: formData,
-    },
-  );
+  const upstream = await fetch(`${BACKEND_URL}/api/v1/kb/${id}/documents${qs ? `?${qs}` : ""}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData,
+  });
   const text = await upstream.text();
   return new NextResponse(text || null, {
     status: upstream.status,

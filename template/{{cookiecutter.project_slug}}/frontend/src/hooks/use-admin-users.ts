@@ -38,11 +38,21 @@ export function useAdminUsers() {
       skip = 0,
       limit = 50,
       search,
-    }: { skip?: number; limit?: number; search?: string } = {}) => {
+      sortBy,
+      sortDir,
+    }: {
+      skip?: number;
+      limit?: number;
+      search?: string;
+      sortBy?: string;
+      sortDir?: "asc" | "desc";
+    } = {}) => {
       setIsLoading(true);
       try {
         const params = new URLSearchParams({ skip: String(skip), limit: String(limit) });
         if (search) params.set("search", search);
+        if (sortBy) params.set("sort_by", sortBy);
+        if (sortDir) params.set("sort_dir", sortDir);
         const data = await apiClient.get<AdminUserList>(`/admin/users?${params}`);
         setUsers(data.items);
         setTotal(data.total);

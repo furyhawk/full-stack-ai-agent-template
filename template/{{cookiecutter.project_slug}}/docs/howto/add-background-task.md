@@ -42,6 +42,19 @@ async def send_notification(ctx, user_id: str, message: str) -> dict:
     print(f"Sending to {user_id}: {message}")
     return {"status": "sent", "user_id": user_id}
 ```
+{%- elif cookiecutter.use_prefect %}
+```python
+# app/worker/tasks/notifications.py
+from prefect import flow
+
+
+@flow(name="send-notification", log_prints=True)
+async def send_notification_flow(user_id: str, message: str) -> dict:
+    """Send a notification to a user."""
+    # Your async logic here
+    print(f"Sending to {user_id}: {message}")
+    return {"status": "sent", "user_id": user_id}
+```
 {%- endif %}
 
 ### 2. Call it from your API
@@ -69,6 +82,13 @@ await send_notification.kiq("user_123", "Your order is ready!")
 await request.state.arq_pool.enqueue_job(
     "send_notification", "user_123", "Your order is ready!"
 )
+{%- elif cookiecutter.use_prefect %}
+import asyncio
+
+from app.worker.tasks.notifications import send_notification_flow
+
+# Fire and forget — runs the flow in the background (tracked in the Prefect UI)
+asyncio.create_task(send_notification_flow("user_123", "Your order is ready!"))
 {%- endif %}
 ```
 
@@ -99,6 +119,19 @@ cron_jobs = [
     cron(send_notification, hour=9, minute=0),
 ]
 ```
+{%- elif cookiecutter.use_prefect %}
+In `app/worker/prefect_app.py`, register a scheduled deployment in `main()`:
+```python
+from prefect.client.schemas.schedules import CronSchedule
+
+from app.worker.tasks.notifications import send_notification_flow
+
+deployments.append(await send_notification_flow.ato_deployment(
+    name="daily-digest",
+    parameters={"user_id": "broadcast", "message": "Daily digest"},
+    schedules=[CronSchedule(cron="0 9 * * *")],  # Daily at 9 AM
+))
+```
 {%- endif %}
 
 ### 4. Run the worker
@@ -114,5 +147,10 @@ make taskiq-scheduler # Start scheduler (for cron jobs)
 {%- elif cookiecutter.use_arq %}
 # ARQ worker is started via Docker or manually:
 uv run arq app.worker.arq_app.WorkerSettings
+{%- elif cookiecutter.use_prefect %}
+# The prefect-server + prefect-runner containers start with `make dev`.
+# To run the runner directly (registers deployments + polls for work):
+uv run --directory backend python -m app.worker.prefect_app
+# Prefect UI: http://localhost:4200
 {%- endif %}
 ```

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// GET /api/v1/rag/collections - List collections
 export async function GET(request: NextRequest) {
   try {
     const headers: Record<string, string> = {};
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/v1/rag/collections - Create collection
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

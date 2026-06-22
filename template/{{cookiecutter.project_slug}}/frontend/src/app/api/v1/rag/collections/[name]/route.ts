@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// POST /api/v1/rag/collections/{name} - Create collection
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ name: string }> },
@@ -27,7 +26,6 @@ export async function POST(
   }
 }
 
-// DELETE /api/v1/rag/collections/{name} - Delete collection
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ name: string }> },

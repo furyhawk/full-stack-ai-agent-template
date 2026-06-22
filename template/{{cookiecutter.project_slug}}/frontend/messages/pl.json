@@ -16,7 +16,12 @@
     "close": "Zamknij",
     "confirm": "Potwierdź",
     "yes": "Tak",
-    "no": "Nie"
+    "no": "Nie",
+    "done": "Gotowe",
+    "retry": "Ponów",
+    "skipToContent": "Przejdź do treści",
+    "live": "Na żywo",
+    "offline": "Offline"
   },
   "navigation": {
     "home": "Strona główna",
@@ -24,6 +29,52 @@
     "profile": "Profil",
     "settings": "Ustawienia",
     "logout": "Wyloguj"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "chat": "Czat",
+    "knowledge": "Wiedza",
+    "knowledgeBases": "Bazy wiedzy",
+    "knowledgeBasesDesc": "Dokumenty i kolekcje",
+    "rag": "RAG",
+    "ragSearch": "Wyszukiwanie RAG",
+    "ragSearchDesc": "Zapytania i import",
+    "team": "Zespół",
+    "organizations": "Organizacje",
+    "organizationsDesc": "Przestrzenie i członkowie",
+    "billing": "Płatności",
+    "admin": "Administracja",
+    "profile": "Profil",
+    "settings": "Ustawienia",
+    "overview": "Przegląd",
+    "users": "Użytkownicy",
+    "conversations": "Rozmowy",
+    "ratings": "Oceny",
+    "stripeEvents": "Zdarzenia Stripe",
+    "systemHealth": "Stan systemu",
+    "system": "System",
+    "account": "Konto",
+    "notifications": "Powiadomienia",
+    "appearance": "Wygląd",
+    "slashCommands": "Polecenia ukośnika",
+    "search": "Szukaj",
+    "home": "Strona główna",
+    "kb": "BW",
+    "usage": "Zużycie",
+    "credits": "Kredyty",
+    "invoices": "Faktury",
+    "paymentMethods": "Metody płatności",
+    "subscription": "Subskrypcja",
+    "login": "Zaloguj",
+    "register": "Zarejestruj",
+    "logout": "Wyloguj",
+    "toggleMenu": "Przełącz menu",
+    "navigate": "Nawigacja",
+    "apiDocs": "Dokumentacja API",
+    "responseRatings": "Oceny odpowiedzi",
+    "allConversations": "Wszystkie rozmowy",
+    "settingsSection": "Ustawienia",
+    "billingSection": "Płatności"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -136,6 +187,7 @@
     "conversationShared": "Konwersacja udostępniona",
     "linkGenerated": "Link do udostępnienia wygenerowany",
     "accessRevoked": "Dostęp cofnięty",
+    "revokeAccess": "Cofnij dostęp",
     "copyLink": "Link skopiowany do schowka",
     "failedToShare": "Nie udało się udostępnić konwersacji",
     "failedToGenerateLink": "Nie udało się wygenerować linku",
@@ -338,6 +390,62 @@
       "solutions": "Rozwiązania",
       "customers": "Klienci",
       "resources": "Materiały"
+    },
+    "menu": {
+      "product": "Produkt",
+      "solutions": "Rozwiązania",
+      "resources": "Zasoby",
+      "seePricing": "Zobacz cennik",
+      "talkToSales": "Porozmawiaj z nami",
+      "items": {
+        "overview": {
+          "label": "Przegląd",
+          "desc": "Cała platforma w jednym miejscu"
+        },
+        "howItWorks": {
+          "label": "Jak to działa",
+          "desc": "Od rejestracji do pierwszej odpowiedzi w kilka minut"
+        },
+        "insights": {
+          "label": "Analityka",
+          "desc": "Śledź użycie, jakość odpowiedzi i ROI"
+        },
+        "changelog": {
+          "label": "Changelog",
+          "desc": "Nowe funkcje co tydzień"
+        },
+        "support": {
+          "label": "Obsługa klienta",
+          "desc": "Szybciej rozwiązuj zgłoszenia dzięki trafnym odpowiedziom"
+        },
+        "sales": {
+          "label": "Zespoły sprzedaży",
+          "desc": "Natychmiast znajdź właściwą prezentację, dokument i liczbę"
+        },
+        "knowledge": {
+          "label": "Wiedza wewnętrzna",
+          "desc": "Jedno miejsce do pytań o wszystkie narzędzia"
+        },
+        "research": {
+          "label": "Badania i analiza",
+          "desc": "Podsumowuj, porównuj i decyduj z cytowaniami"
+        },
+        "help": {
+          "desc": "Poradniki, tutoriale i odpowiedzi"
+        },
+        "api": {
+          "desc": "Buduj na naszym API REST"
+        },
+        "security": {
+          "desc": "Jak chronimy Twoje dane"
+        },
+        "community": {
+          "desc": "Dołącz do rozmowy"
+        },
+        "blog": {
+          "desc": "Nowości produktowe i poradniki"
+        }
+      }
     },
     "footer": {
       "tagline": "Asystent AI, który zna Twoją pracę.",
@@ -782,7 +890,9 @@
         "ctaSecondary": "Umów demo",
         "stat_teams": "Zespołów używa",
         "stat_speed": "Szybsze odpowiedzi",
-        "stat_uptime": "Zawsze online"
+        "stat_uptime": "Zawsze online",
+        "ratingLabel": "ocena 4,9/5 od ponad 1200 zespołów",
+        "trustNote": "Bez karty kredytowej · Anuluj w każdej chwili"
       },
       "social": {
         "title": "Zaufały nam zespoły z różnych branż"
@@ -796,7 +906,7 @@
         "title": "Wbudowane funkcje, które shipują dziś",
         "subtitle": "Te nudne kawałki infrastruktury, na które inaczej zszedłby Ci kwartał."
       },
-"data": {
+      "data": {
         "eyebrow": "Jak działa retrieval",
         "title": "Twoje źródła, rankowane + cytowane"
       },
@@ -816,7 +926,8 @@
           "perMonth": "/mc",
           "seeFull": "Pełne porównanie →",
           "custom": "Porozmawiajmy",
-          "billedMonthly": "rozliczenie miesięczne · anuluj kiedy chcesz"
+          "billedMonthly": "rozliczenie miesięczne · anuluj kiedy chcesz",
+          "perSeatUnit": "/ użytkownik / mies."
         }
       },
       "faq": {

@@ -1,4 +1,5 @@
 export { useAuth } from "./use-auth";
+export { useCopyToClipboard } from "./use-copy-to-clipboard";
 export { useAdminUsers } from "./use-admin-users";
 export { useWebSocket } from "./use-websocket";
 export { useChat } from "./use-chat";
@@ -20,4 +21,7 @@ export { useBilling, useSubscription, useCredits, usePlans, useInvoices } from "
 {%- endif %}
 {%- if cookiecutter.use_auth and cookiecutter.use_ai %}
 export { useSlashCommands, isBuiltinEnabled, BUILTIN_COMMAND_LIST } from "./use-slash-commands";
+{%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
+export { useOrgIntegrations } from "./use-org-integrations";
 {%- endif %}

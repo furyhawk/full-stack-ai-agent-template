@@ -1,5 +1,7 @@
 import { MessageSquare } from "lucide-react";
 
+import { formatDateTime } from "@/lib/utils";
+
 interface SharedConversationPageProps {
   params: Promise<{ token: string; locale: string }>;
 }
@@ -57,7 +59,7 @@ export default async function SharedConversationPage({ params }: SharedConversat
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              <p className="mt-1 text-xs opacity-60">{new Date(msg.created_at).toLocaleString()}</p>
+              <p className="mt-1 text-xs opacity-60">{formatDateTime(msg.created_at)}</p>
             </div>
           </div>
         ))}

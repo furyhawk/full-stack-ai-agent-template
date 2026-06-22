@@ -10,17 +10,7 @@ import { toast } from "sonner";
 import { Button, Input, Label } from "@/components/ui";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
-
-function strengthScore(pw: string): number {
-  if (!pw) return 0;
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
-  if (/\d/.test(pw)) score++;
-  if (/[^a-zA-Z0-9]/.test(pw)) score++;
-  return score;
-}
+import { getPasswordStrength } from "@/lib/utils";
 
 interface Props {
   token: string;
@@ -34,7 +24,7 @@ export function ResetPasswordForm({ token }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const score = useMemo(() => strengthScore(password), [password]);
+  const { score } = useMemo(() => getPasswordStrength(password), [password]);
   const strengthLabel = useMemo(() => {
     if (!password) return "";
     if (score <= 1) return t("strengthWeak");

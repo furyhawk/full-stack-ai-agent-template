@@ -5,12 +5,13 @@ import Link from "next/link";
 import { ArrowUpRight, Clock, Sparkles, XCircle } from "lucide-react";
 
 import { apiClient } from "@/lib/api-client";
+import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { SubscriptionRead } from "@/types";
 
 const TONE: Record<string, string> = {
   trialing: "bg-foreground/[0.04] text-foreground/80 border-foreground/15",
-  active: "bg-brand/15 text-foreground border-foreground/15",
+  active: "bg-muted text-foreground border-foreground/15",
   past_due: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
   canceled: "bg-destructive/10 text-destructive border-destructive/30",
   unpaid: "bg-destructive/10 text-destructive border-destructive/30",
@@ -50,16 +51,14 @@ export function SubscriptionChip() {
   }, []);
 
   if (loading) {
-    return (
-      <span className="bg-foreground/8 inline-block h-5 w-24 animate-pulse rounded-full" />
-    );
+    return <span className="bg-foreground/8 inline-block h-5 w-24 animate-pulse rounded-full" />;
   }
 
   // No subscription = free tier
   if (!sub) {
     return (
       <Link
-        href="/pricing"
+        href={ROUTES.PRICING}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
           TONE.free,
@@ -77,7 +76,6 @@ export function SubscriptionChip() {
   const trialDays = daysUntil(sub.trial_end);
   const renewDays = daysUntil(sub.current_period_end);
 
-  // Choose label + icon based on status
   let label: string;
   let icon = <Clock className="h-3 w-3" />;
 
@@ -99,7 +97,7 @@ export function SubscriptionChip() {
 
   return (
     <Link
-      href="/billing/subscription"
+      href={ROUTES.BILLING_SUBSCRIPTION}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[11px] tracking-wider uppercase transition-colors hover:opacity-80",
         TONE[status] ?? TONE.free,

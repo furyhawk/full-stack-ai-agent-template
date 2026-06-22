@@ -51,7 +51,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entries.push(...entryFor(path, changeFrequency, priority, now));
   }
 
-  // Blog posts — one entry per post (per locale).
   const posts = await getAllBlogPosts();
   for (const post of posts) {
     const lastModified = new Date(post.date);

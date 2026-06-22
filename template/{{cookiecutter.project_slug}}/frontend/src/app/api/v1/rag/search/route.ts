@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// POST /api/v1/rag/search - Search documents
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

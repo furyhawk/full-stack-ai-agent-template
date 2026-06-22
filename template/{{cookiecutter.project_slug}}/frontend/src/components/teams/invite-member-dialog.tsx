@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,8 +54,7 @@ export function InviteMemberDialog({ open, onOpenChange, orgId }: InviteMemberDi
           <DialogTitle>Invite member</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="invite-email">Email address</Label>
+          <FormField label="Email address" htmlFor="invite-email">
             <Input
               id="invite-email"
               type="email"
@@ -63,8 +63,8 @@ export function InviteMemberDialog({ open, onOpenChange, orgId }: InviteMemberDi
               placeholder="colleague@example.com"
               autoFocus
             />
-          </div>
-          <div className="space-y-2">
+          </FormField>
+          <div className="space-y-1.5">
             <Label htmlFor="invite-role">Role</Label>
             <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
               <SelectTrigger id="invite-role">

@@ -1,16 +1,19 @@
-{%- if cookiecutter.use_postgresql %}
 """Async PostgreSQL database session."""
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    echo=settings.DB_ECHO,
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_timeout=settings.DB_POOL_TIMEOUT,
@@ -23,18 +26,31 @@ async_session_maker = async_sessionmaker(
 )
 
 
+@asynccontextmanager
+async def _managed_session(
+    factory: async_sessionmaker[AsyncSession],
+) -> AsyncGenerator[AsyncSession, None]:
+    """Shared session lifecycle: commit on success, rollback on error."""
+    async with factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            logger.exception("DB session error, rolling back")
+            try:
+                await session.rollback()
+            except Exception:
+                logger.exception("DB session rollback failed")
+            raise
+
+
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Get async database session for FastAPI dependency injection.
 
     Use this with FastAPI Depends().
     """
-    async with async_session_maker() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    async with _managed_session(async_session_maker) as session:
+        yield session
 
 
 @asynccontextmanager
@@ -43,13 +59,8 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
 
     Use this with 'async with' for manual session management (e.g., WebSockets).
     """
-    async with async_session_maker() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    async with _managed_session(async_session_maker) as session:
+        yield session
 
 
 @asynccontextmanager
@@ -60,8 +71,6 @@ async def get_worker_db_context() -> AsyncGenerator[AsyncSession, None]:
     cross-fork / cross-event-loop connection issues.  The engine is disposed
     automatically when the context manager exits.
     """
-    from sqlalchemy.pool import NullPool
-
     worker_engine = create_async_engine(
         settings.DATABASE_URL,
         echo=False,
@@ -77,7 +86,11 @@ async def get_worker_db_context() -> AsyncGenerator[AsyncSession, None]:
             yield session
             await session.commit()
         except Exception:
-            await session.rollback()
+            logger.exception("DB session error, rolling back")
+            try:
+                await session.rollback()
+            except Exception:
+                logger.exception("DB session rollback failed")
             raise
         finally:
             await worker_engine.dispose()
@@ -86,81 +99,3 @@ async def get_worker_db_context() -> AsyncGenerator[AsyncSession, None]:
 async def close_db() -> None:
     """Close database connections."""
     await engine.dispose()
-
-
-{%- elif cookiecutter.use_mongodb %}
-"""Async MongoDB database session."""
-
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-
-from app.core.config import settings
-
-client: AsyncIOMotorClient | None = None
-
-
-async def get_db_session() -> AsyncIOMotorDatabase:
-    """Get MongoDB database instance."""
-    global client
-    if client is None:
-        client = AsyncIOMotorClient(settings.MONGO_URL)
-    return client[settings.MONGO_DB]
-
-
-async def close_db() -> None:
-    """Close MongoDB connection."""
-    global client
-    if client is not None:
-        client.close()
-        client = None
-
-
-{%- elif cookiecutter.use_sqlite %}
-"""Sync SQLite database session."""
-
-from collections.abc import Generator
-from pathlib import Path
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.core.config import settings
-
-# Ensure the data directory exists for SQLite
-db_path = Path(settings.SQLITE_PATH)
-db_path.parent.mkdir(parents=True, exist_ok=True)
-
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=settings.DEBUG,
-)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def get_db_session() -> Generator[Session, None, None]:
-    """Get sync database session."""
-    db = SessionLocal()
-    try:
-        yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-
-def close_db() -> None:
-    """Close database connection."""
-    engine.dispose()
-
-
-{%- else %}
-"""No database configured."""
-
-
-async def get_db_session():
-    """No-op when database is disabled."""
-    yield None
-{%- endif %}

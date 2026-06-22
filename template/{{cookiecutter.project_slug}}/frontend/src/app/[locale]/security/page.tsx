@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Database,
-  Eye,
-  KeyRound,
-  Lock,
-  ShieldCheck,
-  UserCheck,
-} from "lucide-react";
+import { ArrowUpRight, Database, Eye, KeyRound, Lock, ShieldCheck, UserCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { MarketingPageLayout } from "@/components/marketing/marketing-page-layout";
 import type { Locale } from "@/i18n";
 import { CONTACT_INFO } from "@/lib/contact-info";
+import { ROUTES } from "@/lib/constants";
 import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
@@ -25,7 +18,8 @@ export async function generateMetadata({
   const { locale } = await params;
   return pageMetadata({
     title: "Security",
-    description: "How we protect your data: encryption, access control, infrastructure, and policies.",
+    description:
+      "How we protect your data: encryption, access control, infrastructure, and policies.",
     path: "/security",
     locale,
   });
@@ -80,11 +74,11 @@ export default async function SecurityPage() {
         <h2 className="font-display text-foreground text-2xl font-bold tracking-tight">
           {t("checklistTitle")}
         </h2>
-        <ul className="border-foreground/10 mt-5 divide-y divide-foreground/10 rounded-2xl border">
+        <ul className="border-foreground/10 divide-foreground/10 mt-5 divide-y rounded-2xl border">
           {checklist.map((c) => (
             <li
               key={c}
-              className="flex items-start gap-3 px-5 py-4 text-sm leading-relaxed text-foreground/85"
+              className="text-foreground/85 flex items-start gap-3 px-5 py-4 text-sm leading-relaxed"
             >
               <span aria-hidden className="bg-brand mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" />
               {c}
@@ -109,7 +103,7 @@ export default async function SecurityPage() {
           </a>
         </p>
         <Link
-          href="/contact"
+          href={ROUTES.CONTACT}
           className="text-foreground hover:text-foreground/80 mt-6 inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
         >
           {t("vulnContactCta")}

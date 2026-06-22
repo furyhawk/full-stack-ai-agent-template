@@ -11,13 +11,7 @@
 | Component | Technology |
 |-----------|-----------|
 | **Backend** | FastAPI + Pydantic v2 |
-{%- if cookiecutter.use_postgresql %}
 | **Database** | PostgreSQL (async via asyncpg) |
-{%- elif cookiecutter.use_mongodb %}
-| **Database** | MongoDB (async via Motor) |
-{%- elif cookiecutter.use_sqlite %}
-| **Database** | SQLite |
-{%- endif %}
 | **Auth** | JWT + refresh tokens{% if cookiecutter.use_api_key %} + API keys{% endif %}{% if cookiecutter.enable_oauth %} + OAuth{% endif %} |
 {%- if cookiecutter.enable_redis %}
 | **Cache** | Redis |
@@ -73,10 +67,8 @@ make dev
 
 1. Build the backend Docker image (cached after first run)
 2. Start services via `docker-compose.dev.yml` (with hot-reload bind mounts)
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 3. Poll Postgres until it accepts connections (`pg_isready` — no fixed sleeps)
 4. Apply pending Alembic migrations (no-op if already at head)
-{%- endif %}
 
 It does **not** re-seed the admin user — that lives in `make seed` and is run once. This way `make dev` stays cheap to re-run after every code/config change.
 
@@ -196,8 +188,15 @@ The generated project ships a Click CLI exposed as `{{ cookiecutter.project_slug
 {%- if cookiecutter.background_tasks == "celery" %}
 {{ cookiecutter.project_slug }} celery worker                # start worker
 {{ cookiecutter.project_slug }} celery beat                  # start scheduler
+{%- elif cookiecutter.background_tasks == "taskiq" %}
+{{ cookiecutter.project_slug }} taskiq worker                # start worker
+{{ cookiecutter.project_slug }} taskiq scheduler             # start scheduler
 {%- endif %}
 ```
+{%- if cookiecutter.background_tasks == "prefect" %}
+
+Background work runs on **Prefect** — the `prefect-server` (UI at <http://localhost:4200>) and `prefect-runner` containers start with `make dev`. Flows live in `app/worker/tasks/` and are registered in `app/worker/prefect_app.py`.
+{%- endif %}
 
 Run `make help` for a categorized list, or `{{ cookiecutter.project_slug }} --help` for full CLI docs.
 
@@ -208,13 +207,11 @@ Run `make help` for a categorized list, or `{{ cookiecutter.project_slug }} --he
 All backend config lives in `backend/.env` (committed for dev defaults). Key variables:
 
 ```bash
-{%- if cookiecutter.use_postgresql %}
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB={{ cookiecutter.project_slug }}
-{%- endif %}
 {%- if cookiecutter.use_openai %}
 
 # OpenAI — required for chat + embeddings
@@ -262,12 +259,10 @@ For production, **never** commit secrets — `backend/.env` is gitignored. Fill 
 | `make test` | Run pytest |
 | `make lint` | Run ruff check + format check + ty |
 | `make format` | Auto-format with ruff |
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 | `make db-migrate` | Generate a new migration from model changes (interactive) |
 | `make db-upgrade` | Apply pending migrations |
 | `make db-downgrade` | Roll back one migration |
 | `make db-current` | Show current head |
-{%- endif %}
 {%- if cookiecutter.use_jwt %}
 | `make create-admin` | Interactive admin creation |
 | `make user-list` | List all users |
@@ -276,6 +271,11 @@ For production, **never** commit secrets — `backend/.env` is gitignored. Fill 
 | `make celery-worker` | Run Celery worker locally |
 | `make celery-beat` | Run Celery beat |
 | `make celery-flower` | Open Flower UI at <http://localhost:5555> |
+{%- elif cookiecutter.background_tasks == "taskiq" %}
+| `make taskiq-worker` | Run Taskiq worker locally |
+| `make taskiq-scheduler` | Run Taskiq scheduler |
+{%- elif cookiecutter.background_tasks == "prefect" %}
+| `make dev` | Starts the Prefect server + runner (UI at <http://localhost:4200>) |
 {%- endif %}
 
 ---

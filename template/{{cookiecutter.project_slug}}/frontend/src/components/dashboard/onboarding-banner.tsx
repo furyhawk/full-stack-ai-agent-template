@@ -6,6 +6,7 @@ import { ArrowRight, Sparkles, X } from "lucide-react";
 
 import { isOnboardingCompleted } from "@/components/onboarding/onboarding-state";
 import { useAuth } from "@/hooks";
+import { ROUTES } from "@/lib/constants";
 
 const DISMISS_KEY = "onboarding.banner_dismissed";
 
@@ -22,22 +23,20 @@ export function OnboardingBanner() {
   if (!show) return null;
 
   return (
-    <div className="border-brand/30 bg-brand/[0.08] flex items-start gap-4 rounded-2xl border p-5">
-      <div className="bg-brand text-brand-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+    <div className="border-border bg-card flex items-center gap-4 rounded-xl border p-4">
+      <div className="bg-muted text-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
         <Sparkles className="h-4 w-4" />
       </div>
-      <div className="flex-1">
-        <p className="text-foreground font-display text-base font-semibold">
-          Finish setting up your workspace
-        </p>
-        <p className="text-foreground/65 mt-0.5 text-sm">
+      <div className="min-w-0 flex-1">
+        <p className="text-foreground text-sm font-semibold">Finish setting up your workspace</p>
+        <p className="text-muted-foreground mt-0.5 text-sm">
           Pick an agent, connect data, and invite your team — under 2 minutes.
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         <Link
-          href="/onboarding/welcome"
-          className="bg-foreground text-background hover:bg-foreground/90 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+          href={ROUTES.ONBOARDING}
+          className="bg-foreground text-background hover:bg-foreground/90 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
         >
           Continue
           <ArrowRight className="h-3.5 w-3.5" />
@@ -48,7 +47,7 @@ export function OnboardingBanner() {
             window.localStorage.setItem(DISMISS_KEY, "1");
             setShow(false);
           }}
-          className="text-foreground/45 hover:text-foreground hover:bg-foreground/5 inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
           aria-label="Dismiss"
         >
           <X className="h-4 w-4" />

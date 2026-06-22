@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// POST /api/v1/rag/sync/sources/:sourceId/trigger - Trigger sync
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> },

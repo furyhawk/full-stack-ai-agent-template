@@ -37,9 +37,13 @@ function Callout({
 function Anchor(props: ComponentProps<"a">) {
   const { href = "" } = props;
   const isExternal = /^https?:\/\//.test(href);
+  // Anchor content (children) is supplied by MDX via the spread props, so the
+  // static rule can't see it here.
   if (isExternal) {
+    // eslint-disable-next-line jsx-a11y/anchor-has-content
     return <a {...props} target="_blank" rel="noopener noreferrer" />;
   }
+  // eslint-disable-next-line jsx-a11y/anchor-has-content
   return <a {...props} />;
 }
 

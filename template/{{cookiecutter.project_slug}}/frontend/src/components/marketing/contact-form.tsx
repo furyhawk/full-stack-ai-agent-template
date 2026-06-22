@@ -8,6 +8,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { Input, Label } from "@/components/ui";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { CONTACT_INFO } from "@/lib/contact-info";
+import { ROUTES } from "@/lib/constants";
 
 const TOPIC_KEYS = ["support", "sales", "partnerships", "press"] as const;
 type TopicKey = (typeof TOPIC_KEYS)[number];
@@ -94,7 +95,10 @@ export function ContactForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="cf-name" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+          <Label
+            htmlFor="cf-name"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
             {t("name")}
           </Label>
           <Input
@@ -107,7 +111,10 @@ export function ContactForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="cf-email" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+          <Label
+            htmlFor="cf-email"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
             {t("email")}
           </Label>
           <Input
@@ -123,7 +130,7 @@ export function ContactForm() {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+        <Label className="text-foreground/80 text-xs font-medium tracking-wider uppercase">
           {t("topic")}
         </Label>
         <div className="flex flex-wrap gap-2">
@@ -132,7 +139,7 @@ export function ContactForm() {
               key={tk}
               type="button"
               onClick={() => setTopic(tk)}
-              className={`border-foreground/15 inline-flex rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors ${
+              className={`border-foreground/15 inline-flex rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors ${
                 topic === tk
                   ? "bg-foreground text-background border-foreground"
                   : "text-foreground/65 hover:text-foreground hover:border-foreground/40"
@@ -145,7 +152,10 @@ export function ContactForm() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cf-message" className="text-foreground/80 text-xs font-medium uppercase tracking-wider">
+        <Label
+          htmlFor="cf-message"
+          className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+        >
           {t("message")}
         </Label>
         <textarea
@@ -155,7 +165,7 @@ export function ContactForm() {
           placeholder={t("messagePlaceholder")}
           required
           rows={5}
-          className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring scrollbar-thin block w-full rounded-xl border px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+          className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring block w-full scrollbar-thin rounded-xl border px-3 py-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-none"
         />
       </div>
 
@@ -177,7 +187,7 @@ export function ContactForm() {
       <p className="text-foreground/50 text-xs">
         {t("policyHint")}{" "}
         <Link
-          href="/legal/privacy"
+          href={ROUTES.LEGAL_PRIVACY}
           className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline"
         >
           {t("policy")}

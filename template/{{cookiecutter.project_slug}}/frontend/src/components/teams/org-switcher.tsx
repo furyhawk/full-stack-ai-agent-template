@@ -26,7 +26,12 @@ export function OrgSwitcher() {
 
   if (!displayOrg) {
     return (
-      <Button variant="outline" size="sm" onClick={() => router.push("/orgs")}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 rounded-lg"
+        onClick={() => router.push("/orgs")}
+      >
         <Building2 className="mr-2 h-4 w-4" />
         Select org
       </Button>
@@ -36,7 +41,7 @@ export function OrgSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 px-2">
+        <Button variant="ghost" size="sm" className="hover:bg-accent h-9 gap-2 rounded-lg px-2">
           <Avatar className="h-5 w-5">
             {displayOrg.avatar_url && <AvatarImage src={`/api/orgs/${displayOrg.id}/avatar`} />}
             <AvatarFallback className="text-[10px]">

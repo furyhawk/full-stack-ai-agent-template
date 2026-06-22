@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch } from "@/lib/server-api";
+import { isAppAdmin } from "@/lib/utils";
 
-/**
- * Verify the request comes from an authenticated admin user.
- *
- * Calls the backend /api/v1/auth/me endpoint to validate the token
- * and check the user's role. Returns an error response if the user
- * is not authenticated or not an admin.
- */
 export async function requireAdmin(
   request: NextRequest,
 ): Promise<{ error: NextResponse } | { accessToken: string }> {
@@ -24,7 +18,7 @@ export async function requireAdmin(
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (user.role !== "admin") {
+    if (!isAppAdmin(user)) {
       return {
         error: NextResponse.json({ detail: "Forbidden" }, { status: 403 }),
       };

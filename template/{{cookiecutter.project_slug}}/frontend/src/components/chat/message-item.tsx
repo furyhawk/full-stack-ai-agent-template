@@ -7,14 +7,106 @@ import { MarkdownContent } from "./markdown-content";
 import { CopyButton } from "./copy-button";
 import { RatingButtons } from "./rating-buttons";
 import { useChatStore, useFilePreviewStore } from "@/stores";
-import { Bot, FileText, Paperclip, RefreshCw, User } from "lucide-react";
+import { useSourcesPanelStore } from "@/stores/sources-panel-store";
+import { Bot, FileText, Globe, Paperclip, RefreshCw, User } from "lucide-react";
 import Image from "next/image";
 import { useAuthStore } from "@/stores";
 import { getFileUrl } from "@/lib/file-api";
+import { extractSources } from "@/lib/chat-sources";
+import type { SourceItem } from "@/lib/chat-sources";
 {%- if cookiecutter.enable_deep_research %}
 import type { MessagePart } from "@/types";
 import { RESEARCH_TOOL_NAMES } from "./research-panel";
 {%- endif %}
+
+function ThinkingBlock({ text, open, isStreaming }: { text: string; open: boolean; isStreaming: boolean }) {
+  return (
+    <details
+      className="border-foreground/10 bg-muted/40 group rounded-2xl rounded-tl-sm border px-3 py-2 sm:px-4"
+      open={open}
+    >
+      <summary className="text-foreground/55 hover:text-foreground/80 flex cursor-pointer items-center gap-2 font-mono text-[10px] tracking-wider uppercase select-none">
+        <span className="bg-foreground/30 inline-block h-1.5 w-1.5 rounded-full" />
+        Thinking
+        {isStreaming && (
+          <span className="bg-foreground/40 inline-block h-1 w-1 animate-pulse rounded-full" />
+        )}
+      </summary>
+      <pre className="text-foreground/65 mt-2 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+        {text}
+      </pre>
+    </details>
+  );
+}
+
+function TextBubble({
+  text,
+  showCursor,
+  isUser,
+  onCiteClick,
+}: {
+  text: string;
+  showCursor: boolean;
+  isUser: boolean;
+  onCiteClick?: (index: number) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5",
+        isUser
+          ? "bg-foreground text-background rounded-tr-sm"
+          : "bg-muted rounded-tl-sm",
+      )}
+    >
+      {isUser ? (
+        <p className="text-sm break-words whitespace-pre-wrap">{text}</p>
+      ) : (
+        <div className="prose-sm max-w-none text-sm">
+          <MarkdownContent content={text} onCiteClick={onCiteClick} />
+          {showCursor && (
+            <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-current" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SourcesButton({
+  sources,
+  onClick,
+}: {
+  sources: SourceItem[];
+  onClick: () => void;
+}) {
+  const ragCount = sources.filter((s) => s.type === "rag").length;
+  const webCount = sources.filter((s) => s.type === "web").length;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="border-foreground/15 bg-background hover:border-foreground/30 hover:bg-foreground/5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors"
+    >
+      <span className="flex -space-x-1">
+        {ragCount > 0 && (
+          <span className="bg-muted border-background inline-flex h-4 w-4 items-center justify-center rounded-full border">
+            <FileText className="text-foreground/60 h-2.5 w-2.5" />
+          </span>
+        )}
+        {webCount > 0 && (
+          <span className="bg-muted border-background inline-flex h-4 w-4 items-center justify-center rounded-full border">
+            <Globe className="text-foreground/60 h-2.5 w-2.5" />
+          </span>
+        )}
+      </span>
+      <span className="text-foreground/60 text-[11px] font-medium">
+        {sources.length} source{sources.length !== 1 ? "s" : ""}
+      </span>
+    </button>
+  );
+}
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -26,8 +118,15 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
   const isUser = message.role === "user";
   const updateMessage = useChatStore((state) => state.updateMessage);
   const openPreview = useFilePreviewStore((s) => s.open);
-  const { user: authUser } = useAuthStore();
+  const openSources = useSourcesPanelStore((s) => s.open);
+  const { user: authUser, avatarVersion } = useAuthStore();
   const isGrouped = groupPosition && groupPosition !== "single";
+
+  const sources = !isUser ? extractSources(message) : [];
+  const hasSources = sources.length > 0 && !message.isStreaming;
+  const onCiteClick = hasSources
+    ? (index: number) => openSources(sources, index)
+    : undefined;
 {%- if cookiecutter.enable_deep_research %}
 
   if (!isUser) {
@@ -60,11 +159,9 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
         isGrouped ? "py-2 sm:py-3" : "py-3 sm:py-4",
         isUser && "flex-row-reverse",
       )}
-    >
-      {/* Timeline connector line for grouped messages */}
-      {isGrouped && !isUser && (
+    >      {isGrouped && !isUser && (
         <div
-          className="absolute left-[15px] w-0.5 bg-orange-500/40 sm:left-[17px]"
+          className="absolute left-[15px] w-0.5 bg-border sm:left-[17px]"
           style={
             groupPosition === "first"
               ? { top: "24px", bottom: "0" }
@@ -78,13 +175,13 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
       <div
         className={cn(
           "z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-9 sm:w-9",
-          isUser ? "bg-primary text-primary-foreground" : "bg-orange-500/10 text-orange-500",
+          isUser ? "bg-foreground text-background" : "bg-muted text-foreground",
           isGrouped && !isUser && "ring-background ring-2",
         )}
       >
         {isUser && authUser?.avatar_url ? (
           <Image
-            src={`/api/users/avatar/${authUser.id}`}
+            src={`/api/users/avatar/${authUser.id}?v=${avatarVersion}`}
             alt=""
             width={36}
             height={36}
@@ -104,7 +201,6 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
           isUser && "flex flex-col items-end",
         )}
       >
-        {/* Attachments — images render as previews, others as file chips */}
         {isUser &&
           (() => {
             const attachments: AttachmentDisplay[] =
@@ -164,52 +260,6 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
             parts.length === 0 &&
             (!message.toolCalls || message.toolCalls.length === 0);
 
-          const ThinkingBlock = ({ text, open }: { text: string; open: boolean }) => (
-            <details
-              className="border-foreground/10 bg-muted/40 group rounded-2xl rounded-tl-sm border px-3 py-2 sm:px-4"
-              open={open}
-            >
-              <summary className="text-foreground/55 hover:text-foreground/80 flex cursor-pointer items-center gap-2 font-mono text-[10px] tracking-wider uppercase select-none">
-                <span className="bg-foreground/30 inline-block h-1.5 w-1.5 rounded-full" />
-                Thinking
-                {message.isStreaming && (
-                  <span className="bg-foreground/40 inline-block h-1 w-1 animate-pulse rounded-full" />
-                )}
-              </summary>
-              <pre className="text-foreground/65 mt-2 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
-                {text}
-              </pre>
-            </details>
-          );
-
-          const TextBubble = ({
-            text,
-            showCursor,
-          }: {
-            text: string;
-            showCursor: boolean;
-          }) => (
-            <div
-              className={cn(
-                "relative rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5",
-                isUser
-                  ? "bg-primary text-primary-foreground rounded-tr-sm"
-                  : "bg-muted rounded-tl-sm",
-              )}
-            >
-              {isUser ? (
-                <p className="text-sm break-words whitespace-pre-wrap">{text}</p>
-              ) : (
-                <div className="prose-sm max-w-none text-sm">
-                  <MarkdownContent content={text} />
-                  {showCursor && (
-                    <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-current" />
-                  )}
-                </div>
-              )}
-            </div>
-          );
-
           return (
             <>
               {showPlaceholder && (
@@ -227,67 +277,79 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
                 </div>
               )}
 
-              {useParts
-                ? /* Ordered timeline: render each part in arrival order. */
-                  parts.map((part, i) => {
-                    if (part.type === "thinking" && part.content) {
-                      return (
-                        <ThinkingBlock
-                          key={part.id}
-                          text={part.content}
-                          open={Boolean(message.isStreaming) && i === parts.length - 1}
-                        />
-                      );
-                    }
-                    if (part.type === "tool" && part.toolCall) {
-                      return (
-                        <div key={part.id} className="w-full">
-                          <ToolCallCard toolCall={part.toolCall} />
-                        </div>
-                      );
-                    }
-                    if (part.type === "text" && part.content) {
-                      return (
-                        <TextBubble
-                          key={part.id}
-                          text={part.content}
-                          showCursor={
-                            Boolean(message.isStreaming) && i === parts.length - 1
-                          }
-                        />
-                      );
-                    }
-                    return null;
-                  })
-                : /* Legacy fallback: CrewAI / user / pre-parts messages. */
-                  <>
-                    {!isUser && message.thinking && (
+              {useParts ? (
+                /* Ordered timeline: render each part in arrival order. */
+                parts.map((part, i) => {
+                  if (part.type === "thinking" && part.content) {
+                    return (
                       <ThinkingBlock
-                        text={message.thinking}
-                        open={Boolean(message.isStreaming)}
+                        key={part.id}
+                        text={part.content}
+                        open={Boolean(message.isStreaming) && i === parts.length - 1}
+                        isStreaming={Boolean(message.isStreaming)}
                       />
-                    )}
-                    {message.content && (
-                      <TextBubble
-                        text={message.content}
-                        showCursor={!isUser && Boolean(message.isStreaming)}
-                      />
-                    )}
-                    {message.toolCalls && message.toolCalls.length > 0 && (
-                      <div className="w-full space-y-2">
-                        {message.toolCalls
-{%- if cookiecutter.enable_deep_research %}
-                          .filter((tc) => !RESEARCH_TOOL_NAMES.has(tc.name))
-{%- endif %}
-                          .map((toolCall) => (
-                            <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-                          ))}
+                    );
+                  }
+                  if (part.type === "tool" && part.toolCall) {
+                    return (
+                      <div key={part.id} className="w-full">
+                        <ToolCallCard toolCall={part.toolCall} />
                       </div>
-                    )}
-                  </>}
+                    );
+                  }
+                  if (part.type === "text" && part.content) {
+                    return (
+                      <TextBubble
+                        key={part.id}
+                        text={part.content}
+                        showCursor={Boolean(message.isStreaming) && i === parts.length - 1}
+                        isUser={isUser}
+                        onCiteClick={onCiteClick}
+                      />
+                    );
+                  }
+                  return null;
+                })
+              ) : (
+                /* Legacy fallback: user / pre-parts messages. */
+                <>
+                  {!isUser && message.thinking && (
+                    <ThinkingBlock
+                      text={message.thinking}
+                      open={Boolean(message.isStreaming)}
+                      isStreaming={Boolean(message.isStreaming)}
+                    />
+                  )}
+                  {message.content && (
+                    <TextBubble
+                      text={message.content}
+                      showCursor={!isUser && Boolean(message.isStreaming)}
+                      isUser={isUser}
+                      onCiteClick={onCiteClick}
+                    />
+                  )}
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <div className="w-full space-y-2">
+                      {message.toolCalls
+{%- if cookiecutter.enable_deep_research %}
+                        .filter((tc) => !RESEARCH_TOOL_NAMES.has(tc.name))
+{%- endif %}
+                        .map((toolCall) => (
+                          <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                        ))}
+                    </div>
+                  )}
+                </>
+              )}
             </>
           );
         })()}
+
+        {hasSources && !isUser && (
+          <div className="mt-1">
+            <SourcesButton sources={sources} onClick={() => openSources(sources, null)} />
+          </div>
+        )}
 
         {!message.isStreaming && message.content && (
           <div className={cn("flex items-center gap-2", isUser && "flex-row-reverse")}>
@@ -347,8 +409,6 @@ function visibleParts(parts: MessagePart[]): MessagePart[] {
   );
 }
 {%- endif %}
-
-// --- Attachment helpers ---------------------------------------------------
 
 type AttachmentDisplay =
   | { kind: "image"; file: ChatMessageFile }

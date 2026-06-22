@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button, Badge, Spinner } from "@/components/ui";
-import { Send, Mic, MicOff, Paperclip, X, FileText } from "lucide-react";
+import { Send, Mic, MicOff, Paperclip, X, FileText, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { uploadFile, getFileUrl, type FileUploadResponse } from "@/lib/file-api";
+import { getErrorMessage, MAX_UPLOAD_SIZE_MB } from "@/lib/utils";
 import {
   BUILTIN_COMMANDS,
   searchCommands,
@@ -52,7 +53,6 @@ export function ChatInput({
     [showPalette, message, allCommands],
   );
 
-  // Reset selection when the filter set changes.
   useEffect(() => {
     setPaletteIndex(0);
   }, [filteredCommands.length, message]);
@@ -114,9 +114,7 @@ export function ChatInput({
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setPaletteIndex(
-          (i) => (i - 1 + filteredCommands.length) % filteredCommands.length,
-        );
+        setPaletteIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
         return;
       }
       if (e.key === "Tab") {
@@ -138,7 +136,6 @@ export function ChatInput({
     }
   };
 
-  // Speech recognition
   const toggleMic = useCallback(() => {
     if (isListening) {
       recognitionRef.current?.stop();
@@ -191,16 +188,12 @@ export function ChatInput({
     finalTranscript = message;
   }, [isListening, message]);
 
-  // File upload to backend
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    e.target.value = "";
-
-    const maxMb = parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB || "50", 10);
-    for (const file of Array.from(files)) {
-      if (file.size > maxMb * 1024 * 1024) {
-        toast.error(`${file.name}: File too large. Maximum ${maxMb}MB.`);
+  // File upload to backend — shared by the file picker and drag-and-drop.
+  const uploadFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_SIZE_MB * 1024 * 1024) {
+        toast.error(`${file.name}: File too large. Maximum ${MAX_UPLOAD_SIZE_MB}MB.`);
         continue;
       }
 
@@ -209,20 +202,74 @@ export function ChatInput({
         const result = await uploadFile(file);
         setAttachedFiles((prev) => [...prev, result]);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        toast.error(`${file.name}: ${msg}`);
+        toast.error(`${file.name}: ${getErrorMessage(err, "Upload failed")}`);
       } finally {
         setIsUploading(false);
       }
     }
   }, []);
 
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+      e.target.value = "";
+      await uploadFiles(Array.from(files));
+    },
+    [uploadFiles],
+  );
+
+  // Drag-and-drop files anywhere onto the composer. A counter handles nested
+  // dragenter/dragleave so the overlay doesn't flicker over child elements.
+  const [isDragging, setIsDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const isFileDrag = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files");
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDragging(true);
+  };
+  const handleDragOver = (e: React.DragEvent) => {
+    if (isFileDrag(e)) e.preventDefault();
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setIsDragging(false);
+    }
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) void uploadFiles(files);
+  };
+
   const removeFile = (fileId: string) => {
     setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId));
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
+    <form
+      onSubmit={handleSubmit}
+      className="relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="border-foreground/40 bg-card/95 text-foreground absolute inset-0 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed text-sm font-medium backdrop-blur-sm">
+          <span className="flex items-center gap-2">
+            <Upload className="h-4 w-4" /> Drop files to attach
+          </span>
+        </div>
+      )}
       {showPalette && (
         <SlashCommandPalette
           commands={filteredCommands}
@@ -231,7 +278,6 @@ export function ChatInput({
           onPick={runSlashCommand}
         />
       )}
-      {/* Attached files */}
       {attachedFiles.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 pb-2">
           {attachedFiles.map((file) => (
@@ -276,7 +322,6 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Input row */}
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -290,7 +335,6 @@ export function ChatInput({
         />
 
         <div className="flex shrink-0 items-center gap-0.5 pb-1">
-          {/* Microphone */}
           <Button
             type="button"
             variant="ghost"
@@ -299,6 +343,7 @@ export function ChatInput({
             disabled={disabled}
             className="h-9 w-9"
             title={isListening ? "Stop recording" : "Voice input"}
+            aria-label={isListening ? "Stop recording" : "Voice input"}
           >
             {isListening ? (
               <MicOff className="h-4 w-4 animate-pulse text-red-500" />
@@ -307,7 +352,6 @@ export function ChatInput({
             )}
           </Button>
 
-          {/* File attachment */}
           <Button
             type="button"
             variant="ghost"
@@ -316,6 +360,7 @@ export function ChatInput({
             disabled={disabled || isUploading}
             className="h-9 w-9"
             title="Attach file"
+            aria-label="Attach file"
           >
             {isUploading ? (
               <Spinner className="text-muted-foreground h-4 w-4" />
@@ -332,7 +377,6 @@ export function ChatInput({
             className="hidden"
           />
 
-          {/* Send / Stop */}
           {isProcessing && onStop ? (
             <Button
               type="button"

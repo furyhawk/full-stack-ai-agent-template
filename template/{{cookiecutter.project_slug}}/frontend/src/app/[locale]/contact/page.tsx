@@ -7,7 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { ContactForm } from "@/components/marketing/contact-form";
 import { MarketingPageLayout } from "@/components/marketing/marketing-page-layout";
 import type { Locale } from "@/i18n";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, ROUTES } from "@/lib/constants";
 import { CONTACT_INFO } from "@/lib/contact-info";
 import { pageMetadata } from "@/lib/seo";
 
@@ -35,7 +35,7 @@ const CHANNEL_META: Record<
     valueOverride: CONTACT_INFO.emails.support,
     accent: true,
   },
-  help: { icon: LifeBuoy, href: "/help" },
+  help: { icon: LifeBuoy, href: ROUTES.HELP },
   discord: { icon: MessageCircle, href: CONTACT_INFO.socials.discord },
   github: { icon: Github, href: CONTACT_INFO.socials.github },
 };
@@ -90,7 +90,7 @@ export default async function ContactPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-foreground text-sm font-semibold">{c.label}</p>
                       {value && (
-                        <p className="text-foreground/85 mt-0.5 break-all font-mono text-xs">
+                        <p className="text-foreground/85 mt-0.5 font-mono text-xs break-all">
                           {value}
                         </p>
                       )}
@@ -104,8 +104,8 @@ export default async function ContactPage() {
             })}
           </ul>
 
-          <div className="border-foreground/10 mt-8 rounded-2xl border bg-card p-5">
-            <p className="font-mono text-foreground/55 text-[11px] uppercase tracking-wider">
+          <div className="border-foreground/10 bg-card mt-8 rounded-2xl border p-5">
+            <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
               {t("office")}
             </p>
             <p className="text-foreground mt-2 text-sm leading-relaxed">{t("officeNote")}</p>
@@ -114,8 +114,8 @@ export default async function ContactPage() {
             )}
           </div>
 
-          <div className="text-foreground/55 mt-2 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
-            <span aria-hidden className="bg-brand h-1.5 w-1.5 rounded-full animate-pulse" />
+          <div className="text-foreground/55 mt-2 inline-flex items-center gap-2 font-mono text-[11px] tracking-wider uppercase">
+            <span aria-hidden className="bg-brand h-1.5 w-1.5 animate-pulse rounded-full" />
             {t("responseSla", { sla: CONTACT_INFO.responseSla })}
           </div>
         </div>
@@ -127,7 +127,7 @@ export default async function ContactPage() {
           <ContactForm />
           <p className="text-foreground/45 mt-4 text-xs leading-relaxed">
             {t("formNote")}{" "}
-            <code className="font-mono text-foreground/65">src/lib/contact-info.ts</code>.
+            <code className="text-foreground/65 font-mono">src/lib/contact-info.ts</code>.
           </p>
         </div>
       </div>

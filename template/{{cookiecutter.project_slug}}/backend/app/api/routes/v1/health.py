@@ -9,26 +9,26 @@ Provides Kubernetes-compatible health check endpoints:
 # ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 {%- endif %}
 
+import socket
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 from sqlalchemy import text
-{%- endif %}
 
 {%- if cookiecutter.use_database or cookiecutter.enable_redis %}
 from app.api.deps import {% if cookiecutter.use_database %}DBSession{% endif %}{% if cookiecutter.use_database and cookiecutter.enable_redis %}, {% endif %}{% if cookiecutter.enable_redis %}Redis{% endif %}
 
 {%- endif %}
 from app.core.config import settings
+from app.schemas.base import HealthDetailResponse, HealthResponse
 from app.services.health import build_health_response
 
 router = APIRouter()
 
 
-@router.get("/health")
+@router.get("/health", response_model=HealthResponse)
 async def health_check() -> dict[str, Any]:
     """Simple liveness probe - check if application is running.
 
@@ -44,7 +44,7 @@ async def health_check() -> dict[str, Any]:
     }
 
 
-@router.get("/health/live")
+@router.get("/health/live", response_model=HealthDetailResponse)
 async def liveness_probe() -> dict[str, Any]:
     """Detailed liveness probe for Kubernetes.
 
@@ -93,8 +93,6 @@ async def readiness_probe(
     """
     checks: dict[str, dict[str, Any]] = {}
 
-{%- if cookiecutter.use_postgresql %}
-    # Database check
     try:
         start = datetime.now(UTC)
         await db.execute(text("SELECT 1"))
@@ -110,48 +108,8 @@ async def readiness_probe(
             "error": str(e),
             "type": "postgresql",
         }
-{%- endif %}
-
-{%- if cookiecutter.use_mongodb %}
-    # Database check
-    try:
-        start = datetime.now(UTC)
-        await db.command("ping")
-        latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
-        checks["database"] = {
-            "status": "healthy",
-            "latency_ms": round(latency_ms, 2),
-            "type": "mongodb",
-        }
-    except Exception as e:
-        checks["database"] = {
-            "status": "unhealthy",
-            "error": str(e),
-            "type": "mongodb",
-        }
-{%- endif %}
-
-{%- if cookiecutter.use_sqlite %}
-    # Database check
-    try:
-        start = datetime.now(UTC)
-        db.execute(text("SELECT 1"))
-        latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
-        checks["database"] = {
-            "status": "healthy",
-            "latency_ms": round(latency_ms, 2),
-            "type": "sqlite",
-        }
-    except Exception as e:
-        checks["database"] = {
-            "status": "unhealthy",
-            "error": str(e),
-            "type": "sqlite",
-        }
-{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
-    # Redis check
     try:
         start = datetime.now(UTC)
         is_healthy = await redis.ping()
@@ -174,10 +132,7 @@ async def readiness_probe(
 {%- endif %}
 
 {%- if cookiecutter.enable_rag and cookiecutter.vector_store == "milvus" %}
-    # Vector store — Milvus connectivity probe (TCP).
     try:
-        import socket
-
         start = datetime.now(UTC)
         with socket.create_connection(
             (settings.MILVUS_HOST, settings.MILVUS_PORT), timeout=2
@@ -196,10 +151,7 @@ async def readiness_probe(
             "type": "milvus",
         }
 {%- elif cookiecutter.enable_rag and cookiecutter.vector_store == "qdrant" %}
-    # Vector store — Qdrant connectivity probe (TCP).
     try:
-        import socket
-
         start = datetime.now(UTC)
         with socket.create_connection(
             (settings.QDRANT_HOST, settings.QDRANT_PORT), timeout=2
@@ -218,7 +170,6 @@ async def readiness_probe(
             "type": "qdrant",
         }
 {%- elif cookiecutter.enable_rag %}
-    # Vector store — generic configuration check.
     checks["vector_store"] = {
         "status": "unknown",
         "detail": "configured but no probe implemented",
@@ -245,7 +196,6 @@ async def readiness_probe(
         checks["llm"] = {"status": "unknown", "detail": "not configured"}
 
 {%- if cookiecutter.enable_billing %}
-    # Stripe — config-only.
     stripe_key = getattr(settings, "STRIPE_SECRET_KEY", None)
     checks["stripe"] = (
         {"status": "healthy", "detail": "key configured"}

@@ -133,7 +133,6 @@ export function SlashCommandsManager() {
         </div>
       )}
 
-      {/* Built-in commands */}
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-3">
           <div>
@@ -173,7 +172,6 @@ export function SlashCommandsManager() {
         </ul>
       </section>
 
-      {/* Custom commands */}
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-3">
           <div>
@@ -204,9 +202,7 @@ export function SlashCommandsManager() {
                       /{record.name}
                     </code>
                   </div>
-                  <p className="text-foreground/65 mt-1 line-clamp-2 text-xs">
-                    {record.prompt}
-                  </p>
+                  <p className="text-foreground/65 mt-1 line-clamp-2 text-xs">{record.prompt}</p>
                 </div>
                 <Switch
                   checked={record.is_enabled}
@@ -279,11 +275,7 @@ export function SlashCommandsManager() {
             </div>
             {editingId !== "new" && (
               <div className="flex items-center gap-3">
-                <Switch
-                  id="cmd-enabled"
-                  checked={draftEnabled}
-                  onCheckedChange={setDraftEnabled}
-                />
+                <Switch id="cmd-enabled" checked={draftEnabled} onCheckedChange={setDraftEnabled} />
                 <Label htmlFor="cmd-enabled" className="text-sm font-normal">
                   Enabled
                 </Label>

@@ -1,7 +1,7 @@
 {% raw %}"use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -64,7 +64,6 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
 
   return (
     <div className="border-foreground/10 bg-foreground/[0.02] relative isolate overflow-hidden rounded-3xl border p-8 md:p-14">
-      {/* Brand glow under the price */}
       <div
         aria-hidden
         className="pointer-events-none absolute -top-32 -right-40 -z-10 h-[520px] w-[520px] rounded-full blur-3xl"
@@ -73,13 +72,9 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
             "radial-gradient(circle, oklch(from var(--color-brand) l c h / 0.3), transparent 65%)",
         }}
       />
-      <div
-        aria-hidden
-        className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-50"
-      />
+      <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-50" />
 
       <div className="grid gap-12 md:grid-cols-[1.1fr_1fr] md:items-center">
-        {/* LEFT — slider + price */}
         <div>
           <div className="mb-5 flex items-baseline justify-between gap-4">
             <label htmlFor="pricing-seats" className="eyebrow text-foreground/55">
@@ -103,7 +98,8 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
             className="bg-foreground/10 h-2 w-full cursor-pointer appearance-none rounded-full accent-[var(--color-brand)]"
           />
 
-          <div className="mt-12 flex items-baseline gap-3">
+          {activePlan.badge && <span className="eyebrow-badge mt-10 mb-3">{activePlan.badge}</span>}
+          <div className={cn("flex items-baseline gap-3", !activePlan.badge && "mt-12")}>
             <div className="text-foreground font-mono text-[clamp(4.5rem,14vw,9.5rem)] leading-[0.85] font-medium tracking-tighter tabular-nums">
               {isCustom ? t("custom") : currencyWrap(activePlan.price, total ?? 0)}
             </div>
@@ -111,10 +107,17 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
               <span className="text-foreground/55 font-mono text-lg">{t("perMonth")}</span>
             )}
           </div>
-          <p className="text-foreground/50 mt-3 font-mono text-xs">{t("billedMonthly")}</p>
+          <p className="text-foreground/50 mt-3 font-mono text-xs">
+            {!isCustom && (
+              <span className="text-foreground/70">
+                ≈ {currencyWrap(activePlan.price, perSeat)} {t("perSeatUnit")}
+              </span>
+            )}
+            {!isCustom && " · "}
+            {t("billedMonthly")}
+          </p>
         </div>
 
-        {/* RIGHT — tier pills, description, features, CTA */}
         <div>
           <div className="mb-6 flex flex-wrap gap-2">
             {plans.map((plan, i) => (
@@ -138,13 +141,15 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
             {activePlan.description}
           </p>
 
-          <ul className="mb-8 space-y-2.5">
+          <ul className="mb-8 space-y-3">
             {activePlan.features.slice(0, 4).map((f) => (
               <li key={f} className="text-foreground/85 flex items-start gap-3 text-sm">
                 <span
                   aria-hidden
-                  className="bg-brand mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                />
+                  className="bg-brand/12 text-brand mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+                >
+                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </span>
                 {f}
               </li>
             ))}

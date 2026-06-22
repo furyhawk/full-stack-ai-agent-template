@@ -87,7 +87,7 @@ export default function MagicLinkVerifyPage() {
                 {t("signInWithPassword")}
               </Link>
               <Link
-                href="/forgot-password"
+                href={ROUTES.FORGOT_PASSWORD}
                 className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors"
               >
                 {t("requestNewLink")}

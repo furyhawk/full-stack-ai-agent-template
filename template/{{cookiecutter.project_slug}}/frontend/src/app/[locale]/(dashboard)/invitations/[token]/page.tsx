@@ -47,7 +47,7 @@ export default function AcceptInvitationPage({ params }: PageProps) {
         <CardContent className="flex flex-col items-center gap-4">
           {status === "success" && (
             <>
-              <CheckCircle2 className="h-12 w-12 text-green-500" />
+              <CheckCircle2 className="text-foreground h-12 w-12" />
               <p className="text-sm font-medium">You joined the organization!</p>
               <p className="text-muted-foreground text-xs">Redirecting to your organizations...</p>
             </>

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Cookie, X } from "lucide-react";
 
+import { ROUTES } from "@/lib/constants";
+
 const STORAGE_KEY = "cookie.consent";
 
 interface CookieConsent {
@@ -89,7 +91,7 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-labelledby="cookie-banner-title"
-      className="fixed inset-x-0 bottom-0 z-[55] p-4 md:bottom-4 md:left-auto md:right-4 md:max-w-md"
+      className="fixed inset-x-0 bottom-0 z-[55] p-4 md:right-4 md:bottom-4 md:left-auto md:max-w-md"
     >
       <div className="border-foreground/15 bg-card text-foreground rounded-2xl border shadow-2xl">
         <div className="flex items-start gap-3 p-5">
@@ -104,10 +106,10 @@ export function CookieBanner() {
               We use cookies
             </p>
             <p className="text-foreground/65 mt-1 text-xs leading-relaxed">
-              Essential cookies keep you signed in. Optional ones help us understand how the
-              product is used. See our{" "}
+              Essential cookies keep you signed in. Optional ones help us understand how the product
+              is used. See our{" "}
               <Link
-                href="/legal/cookies"
+                href={ROUTES.LEGAL_COOKIES}
                 className="text-foreground underline-offset-4 hover:underline"
               >
                 cookie policy
@@ -119,7 +121,7 @@ export function CookieBanner() {
             type="button"
             aria-label="Close"
             onClick={close}
-            className="text-foreground/45 hover:text-foreground hover:bg-foreground/5 -mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
+            className="text-foreground/45 hover:text-foreground hover:bg-foreground/5 -mt-1 -mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -212,6 +214,10 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
+    // Label wraps a real (visually-hidden) <input type="checkbox"> plus its
+    // descriptive text — an accessible pattern the static rule can't verify
+    // through the nested span wrapper.
+    // eslint-disable-next-line jsx-a11y/label-has-associated-control
     <label className="flex items-start justify-between gap-3">
       <span className="min-w-0 flex-1">
         <span className="text-foreground block text-xs font-semibold">{label}</span>
@@ -233,7 +239,7 @@ function Toggle({
         />
         <span
           aria-hidden
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-card shadow transition-transform ${
+          className={`bg-card absolute top-0.5 h-4 w-4 rounded-full shadow transition-transform ${
             checked ? "translate-x-[1.125rem]" : "translate-x-0.5"
           }`}
         />

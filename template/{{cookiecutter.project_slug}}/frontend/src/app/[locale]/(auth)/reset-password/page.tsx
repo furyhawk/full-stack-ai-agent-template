@@ -39,7 +39,7 @@ export default async function ResetPasswordPage({ searchParams }: PageProps) {
           </p>
         </div>
         <Link
-          href="/forgot-password"
+          href={ROUTES.FORGOT_PASSWORD}
           className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-colors"
         >
           Request a new link

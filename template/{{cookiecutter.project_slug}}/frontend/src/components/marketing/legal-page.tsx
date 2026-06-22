@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 
 import type { Locale } from "@/i18n";
+import { ROUTES } from "@/lib/constants";
 
 import { MarketingPageLayout } from "./marketing-page-layout";
 
@@ -16,20 +17,14 @@ interface LegalPageProps {
   children: ReactNode;
 }
 
-export async function LegalPage({
-  title,
-  summary,
-  lastUpdated,
-  locale,
-  children,
-}: LegalPageProps) {
+export async function LegalPage({ title, summary, lastUpdated, locale, children }: LegalPageProps) {
   const tLegal = await getTranslations("marketing.legal");
   const tCommon = await getTranslations("marketing.common");
 
   const related = [
-    { label: tLegal("terms.title"), href: "/legal/terms" },
-    { label: tLegal("privacy.title"), href: "/legal/privacy" },
-    { label: tLegal("cookies.title"), href: "/legal/cookies" },
+    { label: tLegal("terms.title"), href: ROUTES.LEGAL_TERMS },
+    { label: tLegal("privacy.title"), href: ROUTES.LEGAL_PRIVACY },
+    { label: tLegal("cookies.title"), href: ROUTES.LEGAL_COOKIES },
   ];
 
   const formattedDate = formatDate(lastUpdated, locale);
@@ -45,7 +40,7 @@ export async function LegalPage({
       <article className="prose-marketing">{children}</article>
 
       <nav className="border-foreground/10 mt-16 flex flex-wrap items-center gap-3 border-t pt-8">
-        <p className="font-mono text-foreground/45 text-[11px] uppercase tracking-wider">
+        <p className="text-foreground/45 font-mono text-[11px] tracking-wider uppercase">
           {tCommon("seeAlso")}
         </p>
         {related.map((r) => (

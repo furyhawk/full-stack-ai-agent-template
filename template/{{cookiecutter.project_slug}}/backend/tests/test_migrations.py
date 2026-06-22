@@ -1,4 +1,3 @@
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 """Migration tests — verify Alembic upgrade/downgrade cycle.
 
 These tests ensure that:
@@ -11,6 +10,24 @@ import subprocess
 import sys
 
 import pytest
+
+
+def _db_available() -> bool:
+    """Return True if the database backend is reachable via alembic current."""
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "current"],
+        capture_output=True,
+        text=True,
+        cwd=".",
+        timeout=10,
+    )
+    return result.returncode == 0
+
+
+pytestmark = pytest.mark.skipif(
+    not _db_available(),
+    reason="No live database available — skipping migration tests",
+)
 
 
 class TestMigrations:
@@ -58,9 +75,6 @@ class TestMigrations:
             )
             assert result.returncode == 0, f"alembic {cmd} failed:\n{result.stderr}"
 
-{%- if cookiecutter.use_sqlite %}
-    @pytest.mark.skip(reason="SQLite in-memory DB does not persist between subprocess calls")
-{%- endif %}
     def test_current_matches_head(self):
         """Test that current migration revision matches head after upgrade."""
         # Upgrade to head first
@@ -96,6 +110,3 @@ class TestMigrations:
             f"Current revision is not at head:\n"
             f"stdout: {result.stdout}\nstderr: {result.stderr}"
         )
-{%- else %}
-"""Migration tests — skipped (no SQL database configured)."""
-{%- endif %}

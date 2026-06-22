@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_admin_panel and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_admin_panel %}
 """Tests for admin panel with automatic model discovery."""
 
 from typing import ClassVar
@@ -7,6 +7,10 @@ from unittest.mock import MagicMock, patch, AsyncMock
 import pytest
 from sqlalchemy import Boolean, Integer, String, DateTime, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+import app.admin as admin_module
+
+from sqladmin import ModelView
 
 from app.admin import (
     SENSITIVE_COLUMN_PATTERNS,
@@ -278,8 +282,6 @@ class TestCreateModelAdmin:
 
     def test_creates_model_view_class(self):
         """Test that a ModelView subclass is created."""
-        from sqladmin import ModelView
-
         admin_class = create_model_admin(MockItem)
 
         assert admin_class is not None
@@ -441,8 +443,6 @@ class TestRegisterModelsAuto:
 
     def test_returns_list_of_model_views(self):
         """Test that a list of ModelView classes is returned."""
-        from sqladmin import ModelView
-
         mock_admin = MagicMock()
 
         registered = register_models_auto(mock_admin, MockBase)
@@ -458,12 +458,10 @@ class TestRegisterModelsAuto:
 class TestGetSyncEngine:
     """Tests for get_sync_engine function."""
 
-    @patch("sqlalchemy.create_engine")
+    @patch("app.admin.create_engine")
     @patch("app.admin.settings")
     def test_creates_engine_with_settings(self, mock_settings, mock_create_engine):
         """Test that engine is created with correct settings."""
-        import app.admin as admin_module
-
         # Reset the cached engine
         admin_module._sync_engine = None
 
@@ -482,12 +480,10 @@ class TestGetSyncEngine:
         # Reset for other tests
         admin_module._sync_engine = None
 
-    @patch("sqlalchemy.create_engine")
+    @patch("app.admin.create_engine")
     @patch("app.admin.settings")
     def test_returns_cached_engine(self, mock_settings, mock_create_engine):
         """Test that engine is cached and reused."""
-        import app.admin as admin_module
-
         # Reset the cached engine
         admin_module._sync_engine = None
 
@@ -638,7 +634,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -669,7 +665,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -700,7 +696,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -733,7 +729,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -780,7 +776,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -807,7 +803,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -834,7 +830,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
@@ -861,7 +857,7 @@ class TestAdminAuth:
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
-        with patch("sqlalchemy.orm.Session") as mock_session_class:
+        with patch("app.admin.DBSession") as mock_session_class:
             mock_session_class.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )

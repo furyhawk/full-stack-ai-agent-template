@@ -6,13 +6,12 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 
-import { OAuthButtons, OAuthDivider } from "@/components/auth/oauth-buttons";
+import { OAuthBlock } from "@/components/auth/oauth-buttons";
 import { Button, Input, Label } from "@/components/ui";
 import { useAuth } from "@/hooks";
 import { ApiError } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_RE } from "@/lib/utils";
 
 export function LoginForm() {
   const t = useTranslations("auth");
@@ -93,7 +92,7 @@ export function LoginForm() {
               {t("password")}
             </Label>
             <Link
-              href="/forgot-password"
+              href={ROUTES.FORGOT_PASSWORD}
               className="text-foreground/55 hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
             >
               {t("forgotShort")}
@@ -135,16 +134,6 @@ export function LoginForm() {
       </form>
 
       <OAuthBlock label={t("orSignInWith")} />
-    </div>
-  );
-}
-
-function OAuthBlock({ label }: { label: string }) {
-  if (!process.env.NEXT_PUBLIC_OAUTH_PROVIDERS) return null;
-  return (
-    <div className="space-y-5">
-      <OAuthDivider label={label} />
-      <OAuthButtons />
     </div>
   );
 }

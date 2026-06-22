@@ -59,7 +59,7 @@ export const TEASER_PLANS: TeaserPlan[] = [
       "Role-based access control",
       "Dedicated success manager",
     ],
-    cta: { label: "Talk to sales", href: "/contact" },
+    cta: { label: "Talk to sales", href: ROUTES.CONTACT },
   },
 ];
 
@@ -99,7 +99,7 @@ export const TEASER_PLANS_PL: TeaserPlan[] = [
       "Role-based access control",
       "Dedykowany success manager",
     ],
-    cta: { label: "Pogadaj ze sprzedażą", href: "/contact" },
+    cta: { label: "Pogadaj ze sprzedażą", href: ROUTES.CONTACT },
   },
 ];
 

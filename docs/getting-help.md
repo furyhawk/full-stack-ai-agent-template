@@ -23,15 +23,10 @@
 | Type-safe agents with Pydantic | **PydanticAI** |
 | Complex workflows and chains | **LangChain** |
 | Stateful agent workflows | **LangGraph** |
-| Multi-agent collaboration | **CrewAI** |
 
 ### Which database should I use?
 
-| Use Case | Recommended |
-|----------|-------------|
-| Relational data, complex queries | **PostgreSQL** |
-| Document storage, flexible schema | **MongoDB** |
-| Simple apps, local development | **SQLite** |
+The template uses **PostgreSQL** (async, SQLAlchemy 2.0 + Alembic) as its single supported database — it covers relational data, complex queries, and doubles as a `pgvector` RAG store. Pass `--database none` only for a stateless service that needs no auth, RAG, or teams.
 
 ### How do I add authentication?
 

@@ -9,8 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useOrganizations } from "@/hooks";
 
 interface CreateOrgDialogProps {
@@ -44,8 +44,7 @@ export function CreateOrgDialog({ open, onOpenChange, onCreated }: CreateOrgDial
           <DialogTitle>Create organization</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="org-name">Organization name</Label>
+          <FormField label="Organization name" htmlFor="org-name">
             <Input
               id="org-name"
               value={name}
@@ -53,7 +52,7 @@ export function CreateOrgDialog({ open, onOpenChange, onCreated }: CreateOrgDial
               placeholder="My Team"
               autoFocus
             />
-          </div>
+          </FormField>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

@@ -5,7 +5,6 @@ interface RouteParams {
   params: Promise<{ name: string }>;
 }
 
-// GET /api/v1/rag/collections/:name/info - Get collection info
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { name } = await params;
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/v1/rag/collections/:name - Delete collection
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { name } = await params;

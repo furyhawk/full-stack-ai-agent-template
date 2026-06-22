@@ -72,9 +72,9 @@ export default async function AboutPage() {
         </div>
 
         <div className="border-foreground/10 bg-card relative overflow-hidden rounded-3xl border p-8">
-          <div className="bg-brand/[0.08] pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full blur-[100px]" />
+          <div className="bg-brand/[0.08] pointer-events-none absolute -top-20 -right-20 h-60 w-60 rounded-full blur-[100px]" />
           <div className="relative">
-            <p className="font-mono text-foreground/55 text-[11px] uppercase tracking-wider">
+            <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
               {t("byTheNumbers")}
             </p>
             <dl className="mt-6 space-y-5">
@@ -99,27 +99,20 @@ export default async function AboutPage() {
         </div>
       </div>
 
-      {/* Big quote pull */}
-      <figure className="border-foreground/10 mt-16 rounded-3xl border bg-card p-8 sm:p-12">
+      <figure className="border-foreground/10 bg-card mt-16 rounded-3xl border p-8 sm:p-12">
         <span aria-hidden className="font-display text-brand block text-6xl leading-none">
           “
         </span>
         <blockquote className="font-display text-foreground -mt-2 text-2xl leading-snug tracking-tight md:text-3xl">
-          {t("quoteLine1")}{" "}
-          <em className="font-accent text-brand">{t("quoteLine2")}</em>{" "}
+          {t("quoteLine1")} <em className="font-accent text-brand">{t("quoteLine2")}</em>{" "}
           {t("quoteLine3")}
         </blockquote>
-        <figcaption className="text-foreground/55 mt-5 font-mono text-[11px] uppercase tracking-wider">
+        <figcaption className="text-foreground/55 mt-5 font-mono text-[11px] tracking-wider uppercase">
           {APP_NAME} · {t("quoteByline")}
         </figcaption>
       </figure>
 
-      {/* Values — dark contrast */}
-      <Section
-        theme="dark"
-        className="-mx-4 mt-20 rounded-3xl md:-mx-10"
-        padding="py-16 md:py-24"
-      >
+      <Section theme="dark" className="-mx-4 mt-20 rounded-3xl md:-mx-10" padding="py-16 md:py-24">
         <div className="mx-auto max-w-4xl px-4 md:px-8">
           <div className="mb-12 max-w-2xl">
             <span className="eyebrow-badge mb-6">{t("valuesEyebrow")}</span>
@@ -147,9 +140,8 @@ export default async function AboutPage() {
         </div>
       </Section>
 
-      {/* Team strip */}
       <div className="mt-20">
-        <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+        <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
           {t("teamLabel")}
         </p>
         <h2 className="font-display text-foreground mt-2 text-3xl font-bold tracking-tight">
@@ -173,10 +165,9 @@ export default async function AboutPage() {
         </div>
       </div>
 
-      {/* Bottom CTA */}
-      <div className="border-foreground/10 mt-16 flex flex-wrap items-center justify-between gap-4 rounded-3xl border bg-card p-8 sm:p-10">
+      <div className="border-foreground/10 bg-card mt-16 flex flex-wrap items-center justify-between gap-4 rounded-3xl border p-8 sm:p-10">
         <div>
-          <p className="font-mono text-foreground/55 text-[11px] uppercase tracking-wider">
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             {t("ctaEyebrow")}
           </p>
           <p className="font-display text-foreground mt-2 text-2xl font-bold tracking-tight">
@@ -192,7 +183,7 @@ export default async function AboutPage() {
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
-            href="/contact"
+            href={ROUTES.CONTACT}
             className="border-foreground/15 hover:border-foreground/40 text-foreground inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors"
           >
             {t("ctaSecondary")}

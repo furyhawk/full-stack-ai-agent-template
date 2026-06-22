@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
       message: "Token refreshed",
     });
 
-    // Update access token cookie
     response.cookies.set("access_token", data.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -43,7 +42,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     if (error instanceof BackendApiError) {
-      // Clear cookies on refresh failure
       const response = NextResponse.json({ detail: "Session expired" }, { status: 401 });
 
       response.cookies.set("access_token", "", {

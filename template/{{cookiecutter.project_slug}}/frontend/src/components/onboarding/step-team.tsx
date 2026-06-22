@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Input } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 
 import { OnboardingShell } from "./onboarding-shell";
 
@@ -19,8 +19,7 @@ export function StepTeam() {
     setEmails((prev) => prev.map((e, idx) => (idx === i ? value : e)));
 
   const addRow = () => setEmails((prev) => [...prev, ""]);
-  const removeRow = (i: number) =>
-    setEmails((prev) => prev.filter((_, idx) => idx !== i));
+  const removeRow = (i: number) => setEmails((prev) => prev.filter((_, idx) => idx !== i));
 
   const validInvites = emails.filter((e) => e && EMAIL_RE.test(e));
   const invalid = emails.some((e) => e && !EMAIL_RE.test(e));
@@ -59,7 +58,7 @@ export function StepTeam() {
               <button
                 type="button"
                 onClick={() => removeRow(i)}
-                className="text-foreground/45 hover:text-foreground hover:bg-foreground/5 h-9 w-9 shrink-0 rounded-full transition-colors"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted h-9 w-9 shrink-0 rounded-md transition-colors"
                 aria-label="Remove invite"
               >
                 <X className="mx-auto h-4 w-4" />
@@ -73,7 +72,7 @@ export function StepTeam() {
         <button
           type="button"
           onClick={addRow}
-          className="text-foreground/55 hover:text-foreground mt-3 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider"
+          className="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase"
         >
           <Plus className="h-3.5 w-3.5" />
           Add another
@@ -81,21 +80,15 @@ export function StepTeam() {
       )}
 
       <div className="mt-8 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleContinue}
-          className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium transition-colors"
-        >
-          {validInvites.length > 0 ? `Send ${validInvites.length} invite${validInvites.length === 1 ? "" : "s"}` : "Continue"}
+        <Button size="lg" onClick={handleContinue}>
+          {validInvites.length > 0
+            ? `Send ${validInvites.length} invite${validInvites.length === 1 ? "" : "s"}`
+            : "Continue"}
           <ArrowRight className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/onboarding/done")}
-          className="text-foreground/55 hover:text-foreground text-sm font-medium"
-        >
+        </Button>
+        <Button size="lg" variant="ghost" onClick={() => router.push("/onboarding/done")}>
           Skip
-        </button>
+        </Button>
       </div>
     </OnboardingShell>
   );

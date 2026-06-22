@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
       body: formData.toString(),
     });
 
-    // Fetch user profile with the new token
     const user = await backendFetch("/api/v1/auth/me", {
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
@@ -32,7 +31,6 @@ export async function POST(request: NextRequest) {
       message: "Login successful",
     });
 
-    // Set access token cookie (short-lived)
     response.cookies.set("access_token", data.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -41,7 +39,6 @@ export async function POST(request: NextRequest) {
       path: "/",
     });
 
-    // Set refresh token cookie (long-lived)
     response.cookies.set("refresh_token", data.refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

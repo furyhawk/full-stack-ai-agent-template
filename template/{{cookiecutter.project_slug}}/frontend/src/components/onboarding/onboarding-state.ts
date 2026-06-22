@@ -2,6 +2,8 @@ import { apiClient } from "@/lib/api-client";
 import type { User } from "@/types";
 
 const STORAGE_KEY = "onboarding.completed_at";
+/** Furthest step the user has reached — drives resume-from-last-step. */
+const PROGRESS_KEY = "onboarding.furthest_step";
 
 export const ONBOARDING_STEPS = ["welcome", "agent", "data", "team", "done"] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
@@ -40,6 +42,41 @@ export async function markOnboardingCompleted(): Promise<void> {
 export function resetOnboarding(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(PROGRESS_KEY);
+}
+
+/**
+ * Record that the user reached `step` (only ever advances — never rewinds, so
+ * navigating Back doesn't lose progress). Best-effort: never throws.
+ */
+export function markStepReached(step: OnboardingStep): void {
+  if (typeof window === "undefined") return;
+  try {
+    const prev = window.localStorage.getItem(PROGRESS_KEY) as OnboardingStep | null;
+    if (prev && stepIndex(prev) >= stepIndex(step)) return;
+    window.localStorage.setItem(PROGRESS_KEY, step);
+  } catch {
+    // Private mode / storage disabled — resume just falls back to welcome.
+  }
+}
+
+/**
+ * Where to send a user who lands on `/onboarding`: the furthest step they
+ * reached (so they resume mid-flow), defaulting to the first step. A persisted
+ * "done" resolves back to "welcome" — a completed flow shouldn't deep-link to
+ * the finish screen; the higher-level completed check handles the real skip.
+ */
+export function getResumeStep(): OnboardingStep {
+  if (typeof window === "undefined") return ONBOARDING_STEPS[0];
+  try {
+    const saved = window.localStorage.getItem(PROGRESS_KEY) as OnboardingStep | null;
+    if (saved && ONBOARDING_STEPS.includes(saved) && saved !== "done") {
+      return saved;
+    }
+  } catch {
+    // Ignore — fall through to the first step.
+  }
+  return ONBOARDING_STEPS[0];
 }
 
 export function nextStep(current: OnboardingStep): OnboardingStep | null {

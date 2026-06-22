@@ -5,8 +5,8 @@ import { CreditCard, MessageSquare, Sparkles, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { SettingsSection } from "@/components/settings/settings-section";
-import { Button } from "@/components/ui";
+import { Button, Switch } from "@/components/ui";
+import { SectionCard } from "@/components/settings/settings-section";
 
 interface NotificationCategory {
   key: string;
@@ -107,98 +107,75 @@ export default function NotificationsSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <SettingsSection
+      <SectionCard
         title="Notification preferences"
         description="Pick which events we send by email versus only show in-app."
         action={
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={handleReset} className="rounded-full">
+            <Button variant="ghost" size="sm" onClick={handleReset}>
               Reset to defaults
             </Button>
-            <Button onClick={handleSave} disabled={!dirty} size="sm" className="rounded-full">
+            <Button onClick={handleSave} disabled={!dirty} size="sm">
               Save changes
             </Button>
           </div>
         }
       >
-        <div className="border-foreground/10 bg-background overflow-hidden rounded-2xl border">
-          <div className="border-foreground/10 bg-foreground/[0.02] grid grid-cols-[1fr_70px_70px] items-center gap-2 border-b px-5 py-3 sm:grid-cols-[1.5fr_90px_90px]">
-            <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
+        <div className="border-border overflow-hidden rounded-xl border">
+          <div className="border-border bg-muted grid grid-cols-[1fr_70px_70px] items-center gap-2 border-b px-5 py-3 sm:grid-cols-[1.5fr_90px_90px]">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
               Category
             </span>
-            <span className="text-foreground/55 text-center font-mono text-[11px] tracking-wider uppercase">
+            <span className="text-muted-foreground text-center text-[11px] font-medium tracking-wide uppercase">
               Email
             </span>
-            <span className="text-foreground/55 text-center font-mono text-[11px] tracking-wider uppercase">
+            <span className="text-muted-foreground text-center text-[11px] font-medium tracking-wide uppercase">
               In-app
             </span>
           </div>
-          <ul className="divide-foreground/10 divide-y">
+          <ul className="divide-border divide-y">
             {CATEGORIES.map((c) => {
               const p = prefs[c.key] ?? c.defaults;
-              const enabled = p.email || p.inApp;
               return (
                 <li
                   key={c.key}
-                  className="hover:bg-foreground/[0.015] grid grid-cols-[1fr_70px_70px] items-center gap-2 px-5 py-4 transition-colors sm:grid-cols-[1.5fr_90px_90px]"
+                  className="hover:bg-accent grid grid-cols-[1fr_70px_70px] items-center gap-2 px-5 py-4 transition-colors sm:grid-cols-[1.5fr_90px_90px]"
                 >
                   <div className="flex min-w-0 items-start gap-3">
-                    <span
-                      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                        enabled ? "bg-brand/15 text-foreground" : "bg-foreground/8 text-foreground/40"
-                      }`}
-                    >
+                    <span className="bg-muted text-muted-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
                       <c.icon className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-foreground text-sm font-semibold">{c.label}</p>
-                      <p className="text-foreground/55 mt-0.5 text-xs leading-relaxed">
+                      <p className="text-foreground text-sm font-medium">{c.label}</p>
+                      <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
                         {c.description}
                       </p>
                     </div>
                   </div>
                   <div className="flex justify-center">
-                    <Toggle checked={p.email} onChange={() => toggle(c.key, "email")} />
+                    <Switch
+                      checked={p.email}
+                      onCheckedChange={() => toggle(c.key, "email")}
+                      aria-label={`Email notifications for ${c.label}`}
+                    />
                   </div>
                   <div className="flex justify-center">
-                    <Toggle checked={p.inApp} onChange={() => toggle(c.key, "inApp")} />
+                    <Switch
+                      checked={p.inApp}
+                      onCheckedChange={() => toggle(c.key, "inApp")}
+                      aria-label={`In-app notifications for ${c.label}`}
+                    />
                   </div>
                 </li>
               );
             })}
           </ul>
         </div>
-        <p className="text-foreground/55 mt-4 text-xs leading-relaxed">
+        <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
           Preferences are stored locally for now. Backend wiring required (
           <code className="font-mono">/users/me/notifications</code>) to sync across devices.
         </p>
-      </SettingsSection>
+      </SectionCard>
     </div>
-  );
-}
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={onChange}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all ${
-        checked ? "bg-brand" : "bg-foreground/15 hover:bg-foreground/20"
-      }`}
-      style={
-        checked
-          ? { boxShadow: "0 0 12px oklch(from var(--color-brand) l c h / 0.35)" }
-          : undefined
-      }
-    >
-      <span
-        aria-hidden
-        className={`bg-card inline-block h-5 w-5 transform rounded-full shadow-md transition-transform ${
-          checked ? "translate-x-[1.375rem]" : "translate-x-0.5"
-        }`}
-      />
-    </button>
   );
 }

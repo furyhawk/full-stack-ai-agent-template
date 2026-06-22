@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useBilling, usePlans } from "@/hooks";
+import { formatCurrency } from "@/lib/utils";
 
 interface SeatSelectorDialogProps {
   open: boolean;
@@ -41,14 +42,8 @@ export function SeatSelectorDialog({
 
   const activePlan = plans.find((p) => p.prices.some((pr) => pr.is_active));
   const price = activePlan?.prices.find((pr) => pr.is_active && pr.interval === "month");
-  const perSeat = price ? price.amount_cents / 100 : null;
-
-  const fmt = (amount: number) =>
-    amount.toLocaleString("en-US", {
-      style: "currency",
-      currency: price?.currency.toUpperCase() ?? "USD",
-      minimumFractionDigits: 0,
-    });
+  const perSeatCentsCents = price?.amount_cents ?? null;
+  const fmt = (cents: number) => formatCurrency(cents, price?.currency ?? "USD");
 
   const handleConfirm = async () => {
     if (mode === "update" && onUpdate) {
@@ -116,15 +111,15 @@ export function SeatSelectorDialog({
             </div>
           </div>
 
-          {!plansLoading && perSeat !== null && (
+          {!plansLoading && perSeatCents !== null && (
             <div className="bg-muted/50 rounded-lg p-4 text-sm">
               <div className="text-muted-foreground flex justify-between">
                 <span>Per seat / month</span>
-                <span>{fmt(perSeat)}</span>
+                <span>{fmt(perSeatCents)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t pt-2">
                 <span className="font-semibold">Total / month</span>
-                <span className="text-lg font-bold">{fmt(perSeat * seats)}</span>
+                <span className="text-lg font-bold">{fmt(perSeatCents * seats)}</span>
               </div>
             </div>
           )}

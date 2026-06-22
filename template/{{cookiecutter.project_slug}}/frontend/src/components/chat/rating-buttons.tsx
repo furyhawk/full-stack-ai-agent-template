@@ -99,7 +99,6 @@ export function RatingButtons({
 
   const handleRate = useCallback(
     async (rating: RatingValue) => {
-      // Defensive check: ensure conversationId exists
       if (!conversationId || conversationId === "") {
         toast.error(t("saveConversationToRate"));
         return;
@@ -138,15 +137,7 @@ export function RatingButtons({
         }
       }
     },
-    [
-      conversationId,
-      messageId,
-      currentRating,
-      calculateNewCounts,
-      onRatingChange,
-      submitRating,
-      t,
-    ],
+    [conversationId, messageId, currentRating, calculateNewCounts, onRatingChange, submitRating, t],
   );
 
   const handleCloseDialog = useCallback(() => {

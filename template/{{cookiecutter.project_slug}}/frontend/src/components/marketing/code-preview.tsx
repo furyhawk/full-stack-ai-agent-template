@@ -86,11 +86,9 @@ function highlight(code: string) {
 }
 
 function tokenize(line: string) {
-  // Comment line
   if (/^\s*#/.test(line)) {
     return <span className="text-foreground/40 italic">{line}</span>;
   }
-  // Shell prompt
   if (/^\$\s/.test(line)) {
     return (
       <>
@@ -100,9 +98,9 @@ function tokenize(line: string) {
     );
   }
   // Keyword highlighting (simple): commands, http verbs
-  const KEYWORDS = /\b(uv|pip|docker|compose|run|build|up|down|exec|curl|GET|POST|PATCH|DELETE|fastapi-fullstack|create|FROM|RUN|WORKDIR|COPY|CMD|EXPOSE)\b/g;
+  const KEYWORDS =
+    /\b(uv|pip|docker|compose|run|build|up|down|exec|curl|GET|POST|PATCH|DELETE|fastapi-fullstack|create|FROM|RUN|WORKDIR|COPY|CMD|EXPOSE)\b/g;
   const STRINGS = /"([^"]*)"/g;
-  // Highlight with split markers
   const out: (string | React.ReactNode)[] = [];
   let cursor = 0;
   const matches: { start: number; end: number; node: React.ReactNode }[] = [];

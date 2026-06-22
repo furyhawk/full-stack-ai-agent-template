@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
+import { qk } from "@/lib/query-keys";
 import type {
   CheckoutSessionResponse,
   PortalSessionResponse,
@@ -12,7 +14,6 @@ import type {
   CreditTransactionList,
   PlanRead,
   InvoiceList,
-  InvoiceRead,
 } from "@/types";
 
 export function useBilling() {
@@ -46,28 +47,24 @@ export function useBilling() {
 }
 
 export function useSubscription() {
-  const [subscription, setSubscription] = useState<SubscriptionRead | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchSubscription = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.get<SubscriptionRead>("/billing/me/subscription");
-      setSubscription(data);
-    } catch {
-      setSubscription(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data, isLoading } = useQuery({
+    queryKey: qk.billing.subscription(),
+    queryFn: () => apiClient.get<SubscriptionRead>("/billing/me/subscription"),
+  });
+  const subscription = data ?? null;
+
+  // Kept for API compatibility: the query auto-fetches; this forces a refresh.
+  const fetchSubscription = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: qk.billing.subscription() });
+  }, [queryClient]);
 
   const cancelSubscription = useCallback(async () => {
     try {
       await apiClient.delete("/billing/me/subscription");
       toast.success("Subscription will cancel at the end of the billing period.");
-      await fetchSubscription();
+      fetchSubscription();
     } catch {
       toast.error("Failed to cancel subscription");
     }
@@ -77,7 +74,7 @@ export function useSubscription() {
     try {
       await apiClient.post("/billing/me/subscription/reactivate");
       toast.success("Subscription reactivated.");
-      await fetchSubscription();
+      fetchSubscription();
     } catch {
       toast.error("Failed to reactivate subscription");
     }
@@ -88,7 +85,7 @@ export function useSubscription() {
       try {
         await apiClient.patch("/billing/me/subscription", { seats_quantity: seats });
         toast.success("Seats updated.");
-        await fetchSubscription();
+        fetchSubscription();
       } catch {
         toast.error("Failed to update seats");
       }
@@ -96,14 +93,9 @@ export function useSubscription() {
     [fetchSubscription],
   );
 
-  useEffect(() => {
-    fetchSubscription();
-  }, [fetchSubscription]);
-
   return {
     subscription,
     isLoading,
-    error,
     fetchSubscription,
     cancelSubscription,
     reactivateSubscription,
@@ -112,91 +104,66 @@ export function useSubscription() {
 }
 
 export function useInvoices() {
-  const [invoices, setInvoices] = useState<InvoiceRead[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchInvoices = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await apiClient.get<InvoiceList>("/billing/me/invoices");
-      setInvoices(data.items);
-    } catch {
-      setInvoices([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: qk.billing.invoices(),
+    queryFn: async () => (await apiClient.get<InvoiceList>("/billing/me/invoices")).items,
+  });
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+  const fetchInvoices = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: qk.billing.invoices() });
+  }, [queryClient]);
 
   return { invoices, isLoading, fetchInvoices };
 }
 
 export function useCredits() {
-  const [balance, setBalance] = useState<CreditBalanceRead | null>(null);
-  const [transactions, setTransactions] = useState<CreditTransactionList | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [txLoading, setTxLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchBalance = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await apiClient.get<CreditBalanceRead>("/billing/me/credits");
-      setBalance(data);
-    } catch {
-      setBalance(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: balanceData, isLoading } = useQuery({
+    queryKey: qk.billing.credits(),
+    queryFn: () => apiClient.get<CreditBalanceRead>("/billing/me/credits"),
+    // Credits change after chat turns, so keep them fresher than the global default.
+    staleTime: 30_000,
+  });
+  const balance = balanceData ?? null;
 
-  const fetchTransactions = useCallback(async (skip = 0, limit = 20) => {
-    setTxLoading(true);
-    try {
-      const data = await apiClient.get<CreditTransactionList>(
-        `/billing/me/credits/transactions?skip=${skip}&limit=${limit}`,
-      );
-      setTransactions(data);
-    } catch {
-      setTransactions(null);
-    } finally {
-      setTxLoading(false);
-    }
-  }, []);
+  const { data: transactionsData, isLoading: txLoading } = useQuery({
+    queryKey: qk.billing.creditsTransactions(),
+    queryFn: () =>
+      apiClient.get<CreditTransactionList>("/billing/me/credits/transactions?skip=0&limit=20"),
+  });
+  const transactions = transactionsData ?? null;
 
-  useEffect(() => {
-    fetchBalance();
-    fetchTransactions();
-  }, [fetchBalance, fetchTransactions]);
+  const fetchBalance = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: qk.billing.credits() });
+  }, [queryClient]);
+
+  const fetchTransactions = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: qk.billing.creditsTransactions() });
+  }, [queryClient]);
 
   // Listen for billing-affecting events (e.g. a finished chat turn) and
-  // refetch the balance so the UI doesn't show stale numbers.
+  // invalidate so the UI doesn't show stale numbers.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handler = () => {
-      fetchBalance();
-      fetchTransactions();
+      queryClient.invalidateQueries({ queryKey: qk.billing.all() });
     };
     window.addEventListener("billing:refresh", handler);
     return () => window.removeEventListener("billing:refresh", handler);
-  }, [fetchBalance, fetchTransactions]);
+  }, [queryClient]);
 
   return { balance, transactions, isLoading, txLoading, fetchBalance, fetchTransactions };
 }
 
 export function usePlans() {
-  const [plans, setPlans] = useState<PlanRead[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    apiClient
-      .get<{ items: PlanRead[]; total: number }>("/billing/plans")
-      .then((data) => setPlans(data.items))
-      .catch(() => setPlans([]))
-      .finally(() => setIsLoading(false));
-  }, []);
+  const { data: plans = [], isLoading } = useQuery({
+    queryKey: [...qk.billing.all(), "plans"] as const,
+    queryFn: async () =>
+      (await apiClient.get<{ items: PlanRead[]; total: number }>("/billing/plans")).items,
+  });
 
   return { plans, isLoading };
 }

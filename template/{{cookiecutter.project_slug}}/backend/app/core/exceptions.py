@@ -14,7 +14,7 @@ class AppException(Exception):
         message: Human-readable error message.
         code: Machine-readable error code for clients.
         status_code: HTTP status code to return.
-        details: Additional error details (e.g., field names, IDs).
+        details: Additional error details (e.g., field names, IDs). ``None`` when not provided.
     """
 
     message: str = "An error occurred"
@@ -29,14 +29,11 @@ class AppException(Exception):
     ):
         self.message = message or self.__class__.message
         self.code = code or self.__class__.code
-        self.details = details or {}
+        self.details = details
         super().__init__(self.message)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(message={self.message!r}, code={self.code!r})"
-
-
-# === 4xx Client Errors ===
 
 
 class NotFoundError(AppException):
@@ -101,9 +98,6 @@ class PaymentRequiredError(AppException):
     message = "Payment required"
     code = "PAYMENT_REQUIRED"
     status_code = 402
-
-
-# === 5xx Server Errors ===
 
 
 class ExternalServiceError(AppException):

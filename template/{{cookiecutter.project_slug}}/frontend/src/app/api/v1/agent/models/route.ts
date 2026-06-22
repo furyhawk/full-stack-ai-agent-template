@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// GET /api/v1/agent/models - List available LLM models
 export async function GET(request: NextRequest) {
   try {
     const headers: Record<string, string> = {};

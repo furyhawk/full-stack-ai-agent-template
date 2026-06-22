@@ -1,7 +1,4 @@
-/**
- * Conversation types for AI chat persistence.
- */
-import { RatingValue, type UserRating } from "./chat";
+import { RatingValue, type ChatMessageFile, type UserRating } from "./chat";
 
 export interface Conversation {
   id: string;
@@ -22,6 +19,7 @@ export interface ConversationMessage {
   model_name?: string;
   tokens_used?: number;
   tool_calls?: ConversationToolCall[];
+  files?: ChatMessageFile[];
   user_rating?: UserRating;
   rating_count?: { likes: number; dislikes: number } | null;
 }
@@ -83,8 +81,6 @@ export interface RatingSummary {
   ratings_by_day: Array<{ date: string; likes: number; dislikes: number }>;
 }
 
-// Sharing types
-
 export interface ConversationShare {
   id: string;
   conversation_id: string;
@@ -101,8 +97,6 @@ export interface ConversationShareListResponse {
   items: ConversationShare[];
   total: number;
 }
-
-// Admin types
 
 export interface AdminConversation {
   id: string;

@@ -13,10 +13,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
   const { id } = await params;
   try {
-    const data = await backendFetch(
-      `/api/v1/kb/${id}/sync-sources/connectors`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const data = await backendFetch(`/api/v1/kb/${id}/sync-sources/connectors`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof BackendApiError) {

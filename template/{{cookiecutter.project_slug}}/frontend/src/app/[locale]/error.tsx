@@ -2,6 +2,10 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/constants";
 
 export default function Error({
   error,
@@ -10,13 +14,15 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
     console.error("Page error:", error);
   }, [error]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-      <p className="text-sm font-semibold tracking-wider text-red-500 uppercase">Error</p>
+      <p className="text-destructive text-sm font-semibold tracking-wider uppercase">Error</p>
       <h1 className="text-foreground mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
         Something went wrong
       </h1>
@@ -26,19 +32,14 @@ export default function Error({
       {error.digest && (
         <p className="text-muted-foreground/60 mt-1 text-xs">Error ID: {error.digest}</p>
       )}
-      <div className="mt-6 flex gap-3">
-        <button
-          onClick={reset}
-          className="bg-brand text-brand-foreground hover:bg-brand/90 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-        >
-          Try again
-        </button>
-        <Link
-          href="/"
-          className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-        >
-          Go home
-        </Link>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Button onClick={reset}>Try again</Button>
+        <Button variant="secondary" onClick={() => router.back()}>
+          Go back
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={ROUTES.HOME}>Go home</Link>
+        </Button>
       </div>
     </div>
   );

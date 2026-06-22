@@ -1,4 +1,4 @@
-<h1 align="center">FastAPI Fullstack</h1>
+<h1 align="center">Full-Stack AI Agent Template</h1>
 <p align="center">
   <em>Production-Ready AI/LLM Applications — In Minutes, Not Weeks</em>
 </p>
@@ -12,32 +12,37 @@
 
 ---
 
-**FastAPI Fullstack** is a production-ready project generator for AI/LLM applications with 25+ enterprise integrations. Built with FastAPI, Next.js 15, and your choice of AI framework.
+**Full-Stack AI Agent Template** is a production-ready project generator for AI/LLM applications with 25+ enterprise integrations. Built with FastAPI, Next.js 15, and your choice of AI framework. Install it as the `fastapi-fullstack` CLI.
 
 Generate complete, type-safe applications with authentication, WebSocket streaming, observability, and deployment configs — all in minutes.
 
-## Why FastAPI Fullstack?
+## Why this template?
 
-1. **AI-First Design**: Native support for PydanticAI, LangChain, LangGraph, CrewAI with WebSocket streaming and conversation persistence.
+1. **AI-First Design**: Native support for PydanticAI, LangChain, LangGraph, DeepAgents with WebSocket streaming and conversation persistence.
 
 2. **Production Ready**: 100% test coverage, strict typing, Docker/Kubernetes configs, and battle-tested in real applications.
 
-3. **25+ Integrations**: PostgreSQL, MongoDB, Redis, Celery, Logfire, Sentry, Prometheus, S3, and more — all optional and configurable.
+3. **25+ Integrations**: PostgreSQL, Redis, Celery/Prefect, Logfire, Sentry, Prometheus, Stripe, S3, and more — all optional and configurable.
 
 4. **AI-Agent Friendly**: Generated projects include `CLAUDE.md` and `AGENTS.md` files optimized for AI coding assistants.
 
 ## Quick Start
 
 ```bash
-# Install
-pip install fastapi-fullstack
+# 1. Install the generator
+uv tool install fastapi-fullstack    # or: pipx install / pip install
 
-# Create project with interactive wizard
-fastapi-fullstack new
+# 2. Generate your project (interactive wizard)
+fastapi-fullstack
 
-# Or use presets
-fastapi-fullstack create my_app --preset ai-agent
+# 3. Backend + PostgreSQL up, migrations applied, admin seeded
+cd my_app && make bootstrap
+
+# 4. Frontend (second terminal)
+cd frontend && bun install && bun dev
 ```
+
+See the [Quick Start guide](guides/quick-start.md) for details and the [Installation page](installation.md) for presets and non-interactive flags.
 
 ## Supported AI Frameworks
 
@@ -46,17 +51,16 @@ fastapi-fullstack create my_app --preset ai-agent
 | **PydanticAI** | WebSocket | Logfire | OpenAI, Anthropic, OpenRouter |
 | **LangChain** | WebSocket | LangSmith | OpenAI, Anthropic |
 | **LangGraph** | WebSocket | LangSmith | OpenAI, Anthropic |
-| **CrewAI** | WebSocket | Logfire | OpenAI, Anthropic |
 
 ## Core Features
 
 | Feature | Description |
 |---------|-------------|
-| **AI Agents** | PydanticAI, LangChain, LangGraph, CrewAI with tool calling |
+| **AI Agents** | PydanticAI, LangChain, LangGraph, DeepAgents with tool calling |
 | **WebSocket Streaming** | Real-time responses with full event access |
 | **Authentication** | JWT + Refresh tokens, API Keys, OAuth2 (Google) |
-| **Databases** | PostgreSQL (async), MongoDB (async), SQLite |
-| **Background Tasks** | Celery, Taskiq, or ARQ |
+| **Database** | PostgreSQL (async, SQLAlchemy 2.0 + Alembic) |
+| **Background Tasks** | Celery, Taskiq, ARQ, or Prefect |
 | **Observability** | Logfire, LangSmith, Sentry, Prometheus |
 | **Admin Panel** | SQLAdmin with authentication |
 | **Deployment** | Docker, Kubernetes, GitHub Actions, GitLab CI |

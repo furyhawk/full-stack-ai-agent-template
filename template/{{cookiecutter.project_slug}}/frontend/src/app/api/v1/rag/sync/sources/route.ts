@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-// GET /api/v1/rag/sync/sources - List sync sources
 export async function GET(request: NextRequest) {
   try {
     const accessToken = request.cookies.get("access_token")?.value;
@@ -18,7 +17,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/v1/rag/sync/sources - Create sync source
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

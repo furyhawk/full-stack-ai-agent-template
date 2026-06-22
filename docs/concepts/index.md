@@ -20,9 +20,9 @@ graph TB
     end
 
     subgraph Infrastructure
-        DB[(PostgreSQL/MongoDB)]
+        DB[(PostgreSQL)]
         Redis[(Redis)]
-        Queue[Celery/Taskiq]
+        Queue[Celery/Taskiq/ARQ/Prefect]
     end
 
     UI --> API
@@ -49,7 +49,7 @@ graph TB
 
     ---
 
-    PydanticAI, LangChain, LangGraph, CrewAI with WebSocket streaming.
+    PydanticAI, LangChain, LangGraph, DeepAgents with WebSocket streaming.
 
 -   :material-react: **[Frontend](../frontend.md)**
 

@@ -117,6 +117,29 @@ export function getDocumentDownloadUrl(docId: string): string {
   return `/api/v1/rag/documents/${docId}/download`;
 }
 
+export async function downloadKBDocument(
+  kbId: string,
+  doc: { id: string; filename: string },
+  mode: "download" | "view" = "download",
+): Promise<void> {
+  const res = await fetch(`/api/kb/${kbId}/documents/${doc.id}/download`);
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  if (mode === "view") {
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = doc.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
+
 export interface RAGTrackedDocumentList {
   items: RAGTrackedDocument[];
   total: number;
@@ -160,21 +183,28 @@ export async function ingestFile(
   return response.json();
 }
 
-// Sync source types
 export interface SyncSourceCreate {
   name: string;
   connector_type: string;
-  collection_name: string;
+  /** Omit to create an org-level integration not yet assigned to a KB. */
+  collection_name?: string | null;
   config: Record<string, unknown>;
   sync_mode?: string;
   schedule_minutes?: number | null;
 }
 
+export interface SyncSourceClone {
+  collection_name: string;
+  name?: string;
+}
+
 export interface SyncSourceRead {
   id: string;
+  organization_id: string | null;
   name: string;
   connector_type: string;
-  collection_name: string;
+  /** null = org-level integration, not yet assigned to a KB */
+  collection_name: string | null;
   config: Record<string, unknown>;
   sync_mode: string;
   schedule_minutes: number | null;
@@ -210,7 +240,6 @@ export interface ConnectorList {
   items: ConnectorInfo[];
 }
 
-// Sync types and functions
 export interface RAGSyncLog {
   id: string;
   source: string;
@@ -239,6 +268,26 @@ export async function listSyncLogs(collectionName?: string, limit = 20): Promise
   return apiClient.get<RAGSyncLogList>(`/v1/rag/sync/logs?${params}`);
 }
 
+/** Fetch logs for a specific sync source under a KB. */
+export async function listKBSyncSourceLogs(
+  kbId: string,
+  sourceId: string,
+  limit = 20,
+): Promise<RAGSyncLogList> {
+  return apiClient.get<RAGSyncLogList>(`/kb/${kbId}/sync-sources/${sourceId}/logs?limit=${limit}`);
+}
+
+/** Fetch logs for a specific org integration. */
+export async function listOrgIntegrationLogs(
+  orgId: string,
+  sourceId: string,
+  limit = 20,
+): Promise<RAGSyncLogList> {
+  return apiClient.get<RAGSyncLogList>(
+    `/orgs/${orgId}/integrations/${sourceId}/logs?limit=${limit}`,
+  );
+}
+
 export async function triggerSync(
   collectionName: string,
   mode: string,
@@ -251,13 +300,20 @@ export async function cancelSync(syncId: string): Promise<{ message: string }> {
   return apiClient.delete(`/v1/rag/sync/${syncId}`);
 }
 
-// Sync Sources
-export async function listSyncSources(): Promise<SyncSourceList> {
-  return apiClient.get<SyncSourceList>("/v1/rag/sync/sources");
+export async function listSyncSources(collectionName?: string): Promise<SyncSourceList> {
+  const params = collectionName ? `?collection_name=${encodeURIComponent(collectionName)}` : "";
+  return apiClient.get<SyncSourceList>(`/v1/rag/sync/sources${params}`);
 }
 
 export async function createSyncSource(data: SyncSourceCreate): Promise<SyncSourceRead> {
   return apiClient.post<SyncSourceRead>("/v1/rag/sync/sources", data);
+}
+
+export async function cloneSyncSource(
+  sourceId: string,
+  data: SyncSourceClone,
+): Promise<SyncSourceRead> {
+  return apiClient.post<SyncSourceRead>(`/v1/rag/sync/sources/${sourceId}/clone`, data);
 }
 
 export async function updateSyncSource(

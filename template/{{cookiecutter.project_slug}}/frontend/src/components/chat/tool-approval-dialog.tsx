@@ -18,7 +18,6 @@ export function ToolApprovalDialog({
   onDecisions,
   disabled = false,
 }: ToolApprovalDialogProps) {
-  // Store edited args for each action
   const [editedArgs, setEditedArgs] = useState<Record<string, string>>(() =>
     Object.fromEntries(actionRequests.map((a) => [a.id, JSON.stringify(a.args, null, 2)])),
   );
@@ -30,7 +29,6 @@ export function ToolApprovalDialog({
   };
 
   const handleCancel = () => {
-    // Reset to original args
     setEditedArgs(
       Object.fromEntries(actionRequests.map((a) => [a.id, JSON.stringify(a.args, null, 2)])),
     );
@@ -38,7 +36,6 @@ export function ToolApprovalDialog({
   };
 
   const handleSave = () => {
-    // Validate all JSON
     for (const id of Object.keys(editedArgs)) {
       try {
         JSON.parse(editedArgs[id] ?? "");

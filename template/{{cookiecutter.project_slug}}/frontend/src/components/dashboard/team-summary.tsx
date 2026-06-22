@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, MailPlus, Plus, UserPlus, Users } from "lucide-react";
 
 import { apiClient } from "@/lib/api-client";
+import { ROUTES } from "@/lib/constants";
 import { useOrganizations } from "@/hooks";
 import type { InvitationList, OrganizationMemberList } from "@/types";
 
@@ -41,14 +42,11 @@ export function TeamSummary() {
     return null;
   }
 
-  // Personal org → CTA to create a real workspace
   if (activeOrg.is_personal) {
     return (
-      <section className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+      <section className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
         <header>
-          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Team
-          </p>
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">Team</p>
           <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight">
             Personal workspace
           </h2>
@@ -59,7 +57,7 @@ export function TeamSummary() {
         </p>
         <div className="mt-auto pt-5">
           <Link
-            href="/orgs?create=1"
+            href={ROUTES.ORGS_CREATE}
             className="bg-foreground text-background hover:bg-foreground/90 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
           >
             <Plus className="h-4 w-4" />
@@ -74,7 +72,7 @@ export function TeamSummary() {
   const pendingCount = (invitations?.items ?? []).filter((i) => i.status === "pending").length;
 
   return (
-    <section className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+    <section className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
       <header className="flex items-end justify-between gap-3">
         <div>
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
@@ -85,7 +83,7 @@ export function TeamSummary() {
           </h2>
         </div>
         <Link
-          href={`/orgs/${activeOrg.id}/members`}
+          href={ROUTES.ORG_MEMBERS(activeOrg.id)}
           className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
         >
           Manage
@@ -109,7 +107,7 @@ export function TeamSummary() {
 
       <div className="mt-auto pt-5">
         <Link
-          href={`/orgs/${activeOrg.id}/members`}
+          href={ROUTES.ORG_MEMBERS(activeOrg.id)}
           className="border-foreground/15 hover:border-foreground/40 text-foreground inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors"
         >
           <UserPlus className="h-4 w-4" />

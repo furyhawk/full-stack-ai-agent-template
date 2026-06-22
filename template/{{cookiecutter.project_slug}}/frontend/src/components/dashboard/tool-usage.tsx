@@ -59,7 +59,7 @@ export function ToolUsage() {
   const maxCalls = items[0]?.total_calls ?? 0;
 
   return (
-    <section className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+    <section className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
       <header>
         <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
           Tools used · 7d
@@ -94,7 +94,7 @@ export function ToolUsage() {
                 >
                   <div
                     aria-hidden
-                    className="bg-chart/15 pointer-events-none absolute inset-y-0 left-0"
+                    className="bg-foreground/6 pointer-events-none absolute inset-y-0 left-0"
                     style={{ width: `${Math.max(widthPct, 2)}%` }}
                   />
                   <div className="relative flex items-center gap-3">
@@ -139,5 +139,4 @@ export function ToolUsage() {
     </section>
   );
 }
-
 {% endraw %}

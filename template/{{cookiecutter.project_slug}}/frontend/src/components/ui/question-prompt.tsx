@@ -194,7 +194,6 @@ function SingleQuestion({
         </ul>
       )}
 
-      {/* Custom answer / skip row */}
       <div className={cn("border-foreground/8", hasOptions && "border-t")}>
         {customOpen ? (
           <div className="flex items-center gap-2 px-4 py-2.5">

@@ -16,7 +16,6 @@ const ROUTE_LABELS: Record<string, string> = {
 export function Breadcrumb() {
   const pathname = usePathname();
 
-  // Extract the route part after locale
   const segments = pathname?.split("/").filter(Boolean) || [];
   const routeSegments = segments.length > 1 ? segments.slice(1) : segments;
 
