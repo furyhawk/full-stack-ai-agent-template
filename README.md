@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing_hero.png" alt="AI that knows your work — generated marketing site and chat assistant" width="100%">
-</p>
-
 <h1 align="center">Full-Stack AI Agent Template</h1>
 
 <p align="center">
@@ -29,6 +25,10 @@
   <a href="https://www.bestpractices.dev/projects/12539"><img src="https://www.bestpractices.dev/projects/12539/badge" alt="OpenSSF Best Practices"></a>
   <a href="https://github.com/pydantic/pydantic-ai"><img src="https://img.shields.io/badge/Powered%20by-Pydantic%20AI-E92063?logo=pydantic&logoColor=white" alt="Pydantic AI"></a>
   <a href="https://x.com/Kacper95682155"><img src="https://img.shields.io/badge/X-000000?logo=x&logoColor=white" alt="X"></a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_demo_with_tasks.gif" alt="AI chat with live plan & task checklist" width="100%">
 </p>
 
 <p align="center">
@@ -240,25 +240,32 @@ Use `make help` to see all available Makefile shortcuts.
 
 ## 🎬 Demo
 
-**AI chat** — streaming responses with tool calls, reasoning view, and ask-user pauses:
+**CLI generator** — configure and scaffold a full-stack AI project in under 60 seconds:
+
+![CLI generator demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/cli_generator_demo_2.gif)
+
+<table>
+<tr>
+<td width="50%">
+
+**AI chat** — streaming responses, tool calls, reasoning, and ask-user pauses:
 
 ![AI chat demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_demo.gif)
 
-**Plan & tasks** — sticky plan/task checklist updating live as the agent works through steps:
+</td>
+<td width="50%">
 
-![Chat with tasks demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_demo_with_tasks.gif)
-
-**File upload & RAG ingestion** — drop a document, watch it get parsed, chunked, embedded, and answered against:
+**RAG ingestion** — drop a document, watch it get chunked, embedded, and answered against:
 
 ![RAG demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/rag_demo.gif)
 
-**Generated marketing site** — the public landing page that ships with `enable_marketing_site`:
+</td>
+</tr>
+</table>
+
+**Generated marketing site** — public landing page with hero, pricing, blog, and legal pages (`enable_marketing_site`):
 
 ![Landing demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing.gif)
-
-**CLI generator** — configure and scaffold a project in seconds:
-
-![CLI generator demo](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/cli_generator_demo_2.gif)
 
 ---
 
@@ -266,182 +273,333 @@ Use `make help` to see all available Makefile shortcuts.
 
 ### AI Chat
 
-The chat UI streams responses over WebSocket and renders each tool call as a purpose-built card instead of a raw JSON dump.
+The chat UI streams responses over WebSocket and renders each tool call as a purpose-built card.
 
-**Plan & tasks** — a sticky plan/task checklist sits above the composer, updating live as the agent (or Deep Research planner) works through steps, with an inline "thinking" indicator.
+<table>
+<tr>
+<td width="50%">
+
+**Plan & tasks** — sticky checklist updating live as the agent works through steps.
 
 ![Chat plan and tasks](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_tasks.png)
 
-**Subagents** — when work is delegated, a live subagent feed and side panel show each subagent's status, streamed messages, and final result.
+</td>
+<td width="50%">
+
+**Subagents** — live feed and side panel showing each subagent's status and messages.
 
 ![Chat subagents](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_subagents.png)
 
-**Charts** — the agent's `create_chart` tool renders interactive, theme-aware bar / area / line / pie / scatter charts directly in the conversation.
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Charts** — interactive bar/area/line/pie/scatter charts rendered inline.
 
 ![Chat charts](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_graphs.png)
 
-**Code execution** — the optional `run_python` tool shows the executed code alongside its stdout / result (or error) in a collapsible card.
+</td>
+<td width="50%">
+
+**Code execution** — `run_python` shows code + stdout/result in a collapsible card.
 
 ![Chat Python code execution](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_python_code.png)
 
-**Ask user** — the agent can pause to ask clarifying questions and resume once you answer; the card keeps the full question/answer transcript.
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Ask user** — agent pauses to ask clarifying questions; card keeps the full transcript.
 
 ![Chat ask-user tool](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_ask_user.png)
 
-**Reasoning & answered questions** — a clean reasoning/"thinking" view plus answered-question history keeps long agent turns readable.
+</td>
+<td width="50%">
+
+**Reasoning** — clean thinking view + answered-question history for long agent turns.
 
 ![Chat reasoning and answered questions](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_answered_questions_and_thinking.png)
 
-### Marketing Site
+</td>
+</tr>
+</table>
 
-**Pricing** — Three-tier pricing page with monthly/annual toggle. Pulls live plan data from Stripe when connected; shows template plans otherwise.
+### Auth & Dashboard
 
-![Pricing](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing_pricing.png)
+<table>
+<tr>
+<td width="50%">
 
-**Blog** — Engineering blog included out of the box. Posts are MDX files in the repo — no CMS needed. Supports tags, featured posts, and author bylines.
-
-![Blog](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/blogs.png)
-
-### Auth
-
-**Login** — Split-screen login with Google OAuth and email/password. Left panel shows a product pitch with a social proof quote. HTTP-only cookie session on submit.
+**Login** — split-screen with Google OAuth + email/password, HTTP-only cookie session.
 
 ![Login](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/login.png)
 
-**Register** — Same split-screen layout as login. Google sign-up and email/password form with confirm-password field and terms acceptance.
+</td>
+<td width="50%">
+
+**Register** — same split-screen layout with confirm-password and terms acceptance.
 
 ![Register](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/register.png)
 
-### Dashboard
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-**Dashboard (light mode)** — Workspace overview with conversation count, knowledge base vectors, sparkline stat cards, a usage timeline, recent activity, and team info. Onboarding banner guides new users through setup.
+**Dashboard (light)** — stat cards, usage timeline, recent activity, onboarding banner.
 
 ![Dashboard Light](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/dashboard_light.png)
 
-**Dashboard (dark mode)** — Same dashboard in dark theme. Theme is saved per-device and can be overridden per-workspace in appearance settings.
+</td>
+<td width="50%">
+
+**Dashboard (dark)** — same view in dark theme; saved per-device.
 
 ![Dashboard Dark](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/dashboard_dark.png)
 
-### Teams & Organizations
+</td>
+</tr>
+</table>
 
-**Workspaces** — List of all organizations the user belongs to. Shows plan tier and role for each. Users can switch active workspace or create a new organization.
+### Teams & Knowledge Bases
+
+<table>
+<tr>
+<td width="50%">
+
+**Workspaces** — list of all orgs with plan tier and role; switch or create new workspace.
 
 ![Organizations](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/organizations_light.png)
 
-**Team Management** — Organization detail page with workspace profile (name + avatar), member list with roles, and an "Invite teammate" button. Owners and admins can adjust roles inline.
+</td>
+<td width="50%">
+
+**Team management** — workspace profile, member list with roles, invite button.
 
 ![Organization Details](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/organization_light.png)
 
-### Knowledge Bases
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-**Knowledge Bases** — List of RAG knowledge bases scoped to the current workspace. Each base shows its collection slug. Users can create new bases, toggle which ones are active in chat, and upload documents through the UI.
+**Knowledge bases** — list of RAG collections; toggle active bases, upload documents.
 
 ![Knowledge Bases](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/knowledge_bases_light.png)
 
-**Documents & Sync Sources** — Inspect a knowledge base's documents, preview or download any file in-app, and manage connected sync sources (Google Drive, S3/MinIO) with manual triggers and per-run logs.
+</td>
+<td width="50%">
+
+**Documents & sync sources** — preview files, manage Google Drive/S3 connectors, view run logs.
 
 ![Knowledge Base Source](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/knowledge_base_source_light.png)
 
+</td>
+</tr>
+</table>
+
 ### Billing & Usage
 
-**Billing Overview** — Workspace billing dashboard showing the current plan, seats, storage usage (chat attachments + indexed RAG documents), and quick links to usage, invoices, payment methods, and subscription. "Manage in Stripe" opens the Customer Portal.
+<table>
+<tr>
+<td width="50%">
+
+**Billing overview** — current plan, seats, storage usage, Customer Portal link.
 
 ![Billing and usage](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_and_usage_light.png)
 
-**Usage** — Daily credits-spent and call-count charts plus a by-model token breakdown, built from per-message usage events.
+</td>
+<td width="50%">
+
+**Usage charts** — daily credits-spent + call-count charts, by-model token breakdown.
 
 ![Billing usage charts](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_usage_light.png)
 
-**Credits** — Credit balance and an immutable transaction ledger (grants, purchases, debits) with a usage sparkline.
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Credits** — balance, immutable transaction ledger, usage sparkline.
 
 ![Billing credits](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_credits_light.png)
 
-**Subscription, Invoices & Payment Methods** — Manage the plan, view invoices, and update payment methods — all backed by Stripe.
+</td>
+<td width="50%">
+
+**Subscription & invoices** — plan management, invoice list, payment methods — all via Stripe.
 
 ![Billing subscription](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_subscription_light.png)
-![Billing invoices](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_invoices_light.png)
+
+</td>
+</tr>
+</table>
 
 ### Profile & Settings
 
-**Profile** — Personal info tab: avatar upload, display name, email, and active session list with per-device revoke buttons. Visibility note explains which fields are shown to teammates.
+<table>
+<tr>
+<td width="50%">
+
+**Profile** — avatar upload, display name, email, active sessions with per-device revoke.
 
 ![Profile](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/profile_light.png)
 
-**Account & Security** — Change password form with strength guidance, "Sign out everywhere" button, and danger zone for permanent account deletion.
+</td>
+<td width="50%">
+
+**Account & security** — password change, "sign out everywhere", account deletion zone.
 
 ![Account](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/account_light.png)
 
-**Slash Commands** — Customize the `/command` palette in chat. Toggle built-in commands (`/clear`, `/regen`, `/settings`, `/summarize`, `/explain`) and create custom shortcuts that send a stored prompt with a few keystrokes.
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Slash commands** — toggle built-ins, create custom prompt shortcuts for the chat palette.
 
 ![Slash Commands](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/commands_light.png)
 
-**Appearance** — Theme switcher (light / dark / system) and brand color picker with five presets: Blue, Green, Red, Orange, and Violet. Brand color updates CSS variables across the entire workspace and is saved per-device.
+</td>
+<td width="50%">
+
+**Appearance** — light/dark/system theme + brand color picker (5 presets, saved per-device).
 
 ![Appearance](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/appearance_light.png)
 
-**Notification Preferences** — Per-category notification controls with separate toggles for email and in-app delivery. Categories: Billing, Team activity, Security alerts, and Product updates.
-
-![Notifications](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/notifications_light.png)
+</td>
+</tr>
+</table>
 
 ### Admin Panel
 
-**Admin Overview** — Workspace-wide metrics (total users, active sessions last 24h, conversation count, MRR) plus a recent activity feed showing all conversations across all users. Requires the `admin` role.
+<table>
+<tr>
+<td width="50%">
+
+**Overview** — workspace-wide metrics (users, sessions, conversations, MRR) + activity feed.
 
 ![Admin Overview](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_overview_light.png)
 
-**User Management** — Full user list with search by email or name. Shows role, status, join date, and an "Inspect" action to impersonate or suspend any user. Pagination built in.
+</td>
+<td width="50%">
+
+**User management** — search by email/name, roles, status, join date, inspect/suspend actions.
 
 ![Admin Users](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_users_light.png)
 
-**Conversation Browser** — Browse all conversations across the workspace. Filter by status and owner, sort by any column, open any conversation in a read-only view. Useful for support and quality review.
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Conversation browser** — filter by status/owner, open any conversation read-only.
 
 ![Admin Conversations](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_conversations_light.png)
 
-**Message Quality & Ratings** — Aggregated like/dislike feedback on AI responses. Shows approval rate, a daily chart, and a filterable table of individual ratings with optional user comments.
+</td>
+<td width="50%">
+
+**Message ratings** — approval rate, daily chart, filterable rating table with comments.
 
 ![Admin Ratings](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_ratings_light.png)
 
-**Stripe Events Log** — Webhook event browser for debugging Stripe billing flows. Lists all received events (type, customer, amount, status, timestamp) and lets admins manually replay any event.
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Stripe events log** — webhook event browser with manual replay for debugging.
 
 ![Stripe Events](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_stripe_events_light.png)
 
-**System Health** — Live readiness dashboard. Checks API, PostgreSQL, Redis, Vector store, LLM provider, Background worker, and Stripe API, with uptime percentage per service.
+</td>
+<td width="50%">
+
+**System health** — live readiness checks: API, DB, Redis, vector store, LLM, worker, Stripe.
 
 ![System Health](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_system_light.png)
 
-### Background Tasks & Orchestration
+</td>
+</tr>
+</table>
 
-**Prefect** — Choose Prefect as your task queue (in the interactive wizard) and the project ships a self-hosted Prefect server and runner. Flows cover RAG ingestion/sync, billing & email reminders, and credits maintenance, each on a cron/interval schedule visible in the Prefect UI.
+### Marketing Site
+
+<table>
+<tr>
+<td width="50%">
+
+**Pricing** — three-tier page with monthly/annual toggle; pulls live Stripe plan data.
+
+![Pricing](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing_pricing.png)
+
+</td>
+<td width="50%">
+
+**Blog** — engineering blog from MDX files; tags, featured posts, author bylines. No CMS needed.
+
+![Blog](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/blogs.png)
+
+</td>
+</tr>
+</table>
+
+### Background Tasks, Observability & Channels
+
+<table>
+<tr>
+<td width="50%">
+
+**Prefect** — self-hosted server with RAG, billing, and email flows on cron schedules.
 
 ![Prefect dashboard](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_dashboard.png)
+
+</td>
+<td width="50%">
+
+**Prefect flow runs** — per-run history, task timeline, and retry visibility.
+
 ![Prefect flow runs](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_runs.png)
-![Prefect task timeline](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_task_timeline.png)
 
-### Observability
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-**Logfire (PydanticAI)** — Full distributed tracing for PydanticAI agent runs, FastAPI requests, database queries, Redis, Celery tasks, and HTTPX calls — all in one timeline.
+**Logfire** — distributed tracing: FastAPI, PydanticAI, DB, Redis, Celery, HTTPX in one timeline.
 
 ![Logfire](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/logfire.png)
 
-**LangSmith (LangChain / LangGraph)** — Trace viewer for LangChain agent runs with step-by-step chain inspection, token usage, and feedback collection.
+</td>
+<td width="50%">
+
+**LangSmith** — trace viewer for LangChain/LangGraph: chains, token usage, feedback.
 
 ![LangSmith](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/langsmith.png)
 
-### Messaging Channels
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-**Telegram Bot** — Multi-bot integration with both polling and webhook modes. Each bot gets its own session, supports group concurrency control, and routes messages through the same agent pipeline as the web UI.
+**Telegram bot** — multi-bot, polling + webhook, per-thread sessions, group concurrency control.
 
 ![Telegram](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/telegram.png)
 
-### Monitoring & API
+</td>
+<td width="50%">
 
-**Celery Flower** — Real-time task queue monitor. Track worker status, task throughput, and failure rates for background jobs (document ingestion, email, webhooks).
-
-![Flower](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/flower.png)
-
-**API Documentation** — Auto-generated OpenAPI / Swagger UI at `/docs`. All endpoints documented with request/response schemas, auth requirements, and example payloads.
+**API docs** — auto-generated OpenAPI / Swagger UI with schemas, auth, and example payloads.
 
 ![API Docs](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/docs_2.png)
+
+</td>
+</tr>
+</table>
 
 ---
 
