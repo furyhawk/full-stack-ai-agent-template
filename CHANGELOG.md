@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the final result. It is now sent before `final_result`. Current Pydantic AI
   continues a run after such a step, so this guards a path rather than fixing
   one seen in practice (#176)
+- **A conversation resumed on a new connection lost its context** — the chat
+  session held the conversation in memory only while the WebSocket lasted, so
+  after a reconnect the model started from nothing, and switching to another
+  conversation in the same session carried the previous one's context over.
+  The Pydantic AI and PydanticDeep sessions now load the conversation's most
+  recent stored messages (up to 100) whenever they switch to a conversation
+  they do not hold
 
 ## [0.2.20] - 2026-10-06
 
