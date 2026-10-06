@@ -50,6 +50,16 @@ failed in 13 jobs, and several breakages were runtime-only.
 
 ### Security
 
+- **Any signed-in user could write into another user's conversation** — the
+  REST `POST /conversations/{id}/messages` never passed the caller to
+  `ConversationService.add_message`, so neither ownership nor a share was
+  checked, and a read-only (`view`) share recipient could append too. Over the
+  chat WebSocket, `persist_user_turn` logged a refused conversation as a failed
+  write and carried on: the turn ran, and the agent's reply was saved into a
+  conversation the user could only read, or could not see at all. `add_message`
+  now requires the owner or an `edit` share, and the WebSocket refuses such a
+  turn with an `error` event before the agent runs. Reported by
+  @failsafesecurity (#143)
 - Upgraded the generator's locked `aiohttp`, `anyio`, `multidict`, `pyjwt`,
   `urllib3` and `virtualenv` past the advisories `pip-audit` reports
 
