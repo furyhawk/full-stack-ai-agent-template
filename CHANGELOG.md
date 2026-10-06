@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bulk-deleted the rows but not the notebooks, which have no foreign key to
   `users`; single deletion already cleared them. It now forgets each deleted
   user's memory, and a store failure rolls the deletion back
+- **Deep research could drop an answer given alongside a planning step** — text
+  sent with a planning or delegation tool call is held back as narration; if a
+  run nevertheless ended on that step, the text never streamed although it was
+  the final result. It is now sent before `final_result`. Current Pydantic AI
+  continues a run after such a step, so this guards a path rather than fixing
+  one seen in practice (#176)
 
 ## [0.2.20] - 2026-10-06
 
