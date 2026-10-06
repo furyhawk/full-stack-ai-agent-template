@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The test suite of a project without an AI framework failed at collection**
   — `tests/test_services_conversation.py` stayed behind after its module was
   removed
+- **Resetting all non-admin users left their agent memory behind** — with
+  `--memory`, `UserService.delete_non_admins` (used by the seed command's reset)
+  bulk-deleted the rows but not the notebooks, which have no foreign key to
+  `users`; single deletion already cleared them. It now forgets each deleted
+  user's memory, and a store failure rolls the deletion back
 
 ## [0.2.20] - 2026-10-06
 
