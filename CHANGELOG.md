@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--llm-provider openai_compatible`: any OpenAI-compatible gateway or
+  server** — model routers and LLM gateways (LiteLLM, Requesty, OrcaRouter,
+  Portkey) and self-hosted servers (vLLM, llama.cpp, LM Studio, Ollama), reached
+  by `OPENAI_COMPATIBLE_BASE_URL`, with `AI_MODEL` named as the endpoint names
+  it and an optional `OPENAI_COMPATIBLE_API_KEY` (`OPENAI_API_KEY` is never sent
+  there). Pydantic AI and Pydantic Deep Agents projects; OpenAI embeddings for
+  RAG go to the same endpoint; Pydantic Deep Agents projects need
+  pydantic-deep 0.3.50, which also compacts long conversations on that endpoint.
+  One provider instead of a named one per gateway (#141, #156)
+
 ### Changed
 
 - **Generated projects run [Valkey](https://valkey.io/) instead of Redis** —
@@ -23,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renovate no longer proposes Postgres or Milvus major updates: a new major
   changes the on-disk format of existing projects' volumes (Postgres needs
   `pg_upgrade`), so each will be done deliberately, with a migration note
+
 
 ### Fixed
 
