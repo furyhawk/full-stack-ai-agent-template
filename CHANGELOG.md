@@ -102,6 +102,12 @@ failed in 13 jobs, and several breakages were runtime-only.
   stored before the conversation history was loaded, so it arrived as the
   prompt and again at the end of the history; it is now loaded first, for every
   framework
+- **Skill cards rendered as generic tool calls** — since `pydantic-ai-skills`
+  2.0 a skill loads through `load_capability(id)` and returns its instructions,
+  but the chat, the demo replay and the step captions still looked for 1.x's
+  `load_skill` / `list_skills` and an XML result. They now recognise
+  `load_capability` and show the skill's name and the start of its
+  instructions (#177)
 
 ### Security
 
