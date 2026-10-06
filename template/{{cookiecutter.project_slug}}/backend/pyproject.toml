@@ -133,6 +133,11 @@ dependencies = [
     "mcp>=2.0.0",
     "httpx2>=2.13.0",
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+    # Persistent per-user agent memory (Settings → Memory). Each harness
+    # release pins the Pydantic AI it ships with.
+    "pydantic-ai-harness>=0.54.0",
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_langchain %}
     "langchain>=1.2.0",

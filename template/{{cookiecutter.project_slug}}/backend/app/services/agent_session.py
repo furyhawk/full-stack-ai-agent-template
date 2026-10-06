@@ -52,6 +52,9 @@ from app.services.file_storage import get_file_storage
 {%- if cookiecutter.enable_mcp_client %}
 from app.services.mcp_connection import build_toolsets_for_user
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+from app.agents.memory import build_memory_capability
+{%- endif %}
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
 {%- endif %}
@@ -82,7 +85,11 @@ class AgentSession:
         self.user = user
 {%- endif %}
         self.conversation_history: list[dict[str, str]] = []
+{%- if cookiecutter.enable_memory %}
+        self.deps = Deps(user_id=str(user.id))
+{%- else %}
         self.deps = Deps()
+{%- endif %}
         self.deps.ask_user = self._ask_user
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
@@ -253,6 +260,16 @@ class AgentSession:
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
                 context_manager_capability=ctx_manager_cap,
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+{%- if cookiecutter.enable_teams %}
+                # The conversation's organisation: memory never crosses organisations.
+                memory_capability=await build_memory_capability(
+                    str(self.user.id), str(organization_id) if organization_id else None
+                ),
+{%- else %}
+                memory_capability=await build_memory_capability(str(self.user.id)),
+{%- endif %}
 {%- endif %}
             )
             model_history = build_message_history(self.conversation_history)
